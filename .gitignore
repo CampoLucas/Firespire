@@ -34,3 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Globo de quemas: fuente IGN de provincias (111 MB, supera el límite de GitHub; sólo la usa prep.py)
+fuentes/provincias_ign.json

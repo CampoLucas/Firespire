@@ -1,0 +1,1477 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Globo de quemas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05070d; --surface:rgba(20,22,28,.82); --surface-solid:#16181d; --surface-2:rgba(255,255,255,.06); --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#a2a198;
+  --border:rgba(255,255,255,.12); --axis:#383835; --focus:#3987e5; --pill:#f0efec; --pill-ink:#0d0d0d;
+  --series-2:#d95926;
+  --fs-xs:13px; --fs-sm:14px; --fs-md:15px; --fs-lg:18px; --fs-xl:20px; --fs-2xl:26px;
+  --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:var(--fs-md)/1.45 var(--font);overflow:hidden}
+#globe{position:fixed;inset:0}
+.panel{position:fixed;background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.eyebrow{font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:0}
+h1{font-size:var(--fs-xl);line-height:1.1;margin:2px 0 4px;letter-spacing:-.01em}
+.sub{color:var(--ink-2);font-size:var(--fs-sm);margin:0}
+/* header flotante */
+#hdr{position:fixed;top:16px;left:16px;right:16px;height:56px;z-index:4;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 10px 0 14px;
+  background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:var(--fs-lg);letter-spacing:-.01em;color:var(--ink);text-decoration:none;min-width:0}
+.logo small{display:block;font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.logo svg{flex:none}
+/* switch Análisis / Planificación */
+#viewSw{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:99px;background:rgba(255,255,255,.05);border:1px solid var(--border);min-width:300px}
+#viewSw .thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:99px;background:var(--pill);transition:transform .25s cubic-bezier(.3,.7,.2,1)}
+#viewSw[data-v=plan] .thumb{transform:translateX(100%)}
+#viewSw button{position:relative;z-index:1;border-radius:99px;padding:6px 18px;color:var(--ink-2);font-weight:600;display:inline-flex;gap:7px;align-items:center;justify-content:center;transition:color .2s}
+#viewSw button:hover{background:transparent;color:var(--ink)}
+#viewSw button[aria-checked=true]{color:var(--pill-ink)}
+@media (prefers-reduced-motion:reduce){#viewSw .thumb{transition:none}}
+/* seguimiento con bomberos (línea de tiempo de ejemplo) */
+.trk{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:12px}
+.trk:empty{display:none}
+.trk-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.trk-h h4{margin:0;font-size:var(--fs-md)}
+.trk-ex{font-size:var(--fs-xs);font-weight:800;padding:2px 7px;border-radius:5px;background:#fab219;color:#0d0d0d}
+.trk-res{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;font-size:var(--fs-xs);line-height:1.35}
+.trk-res b{display:block;font-size:var(--fs-md)}
+.trk-res.ok{background:rgba(76,175,122,.16);border:1px solid rgba(76,175,122,.45)}
+.trk-res.warn{background:rgba(242,153,74,.14);border:1px solid rgba(242,153,74,.45)}
+.trk-res.run{background:rgba(111,167,238,.14);border:1px solid rgba(111,167,238,.45)}
+.trk-res .ic{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:var(--fs-xs);font-weight:900;color:#0d0d0d}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--axis)}
+.tl li{position:relative;padding:0 0 12px 30px}
+.tl li:last-child{padding-bottom:0}
+.tl .dot{position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;border:2px solid var(--surface-solid);box-shadow:0 0 0 1.5px var(--c)}
+.tl .dot.app{--c:#6fa7ee;background:#6fa7ee}
+.tl .dot.bomb{--c:#eb5757;background:#eb5757}
+.tl .dot.ok{--c:#4caf7a;background:#4caf7a}
+.tl .dot.pend{background:var(--surface-solid);--c:var(--ink-3);border-style:dashed}
+.tl .who{font-size:var(--fs-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.tl .tt{font-weight:700;font-size:var(--fs-sm)}
+.tl .dd{font-size:var(--fs-xs);color:var(--ink-2);line-height:1.35}
+.tl .when{font-size:var(--fs-xs);color:var(--ink-3);font-variant-numeric:tabular-nums}
+.trk-hint{font-size:var(--fs-xs);color:var(--ink-3);border:1px dashed var(--axis);border-radius:8px;padding:10px}
+/* reporte desde la lista de prioritarias */
+.pri-rep{flex-basis:100%;padding:0 6px 6px 28px;font-size:var(--fs-xs)}
+.pri-item{flex-wrap:wrap}
+.rep-btn{min-height:28px;padding:4px 10px;border-radius:6px;border:1px solid var(--axis);font-size:var(--fs-sm);font-weight:650;flex:none}
+.rep-btn.go{background:#eb5757;border-color:#eb5757;color:#fff}
+.rep-btn.go:hover{background:#d84848}
+.rep-confirm{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:6px;background:rgba(0,0,0,.25)}
+.rep-confirm .row{gap:6px}
+.rep-state{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;color:var(--ink-2)}
+.st-pill{font-size:var(--fs-xs);font-weight:800;padding:1px 7px;border-radius:99px;color:#0d0d0d}
+.st-nueva{background:#f2c94c}.st-recibida{background:#6fa7ee}.st-encurso{background:#f2994a}.st-resuelta{background:#4caf7a}
+/* transición Análisis ⇄ Planificación: fundido cruzado + paneles que se deslizan */
+#left,#right,#bottom,#tbar,#banner,#planPh{transition:opacity .35s ease,transform .45s cubic-bezier(.2,.7,.2,1),visibility 0s linear 0s}
+body.plan #left,body.plan #right,body.plan #bottom,body.plan #tbar,body.plan #banner,
+body:not(.plan) #planPh{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,transform .35s ease,visibility 0s linear .35s}
+body.plan #left{transform:translateX(-24px)}
+body.plan #right{transform:translateX(24px)}
+body.plan #bottom{transform:translateY(24px)}
+body.plan #tbar,body.plan #banner{transform:translate(-50%,-16px)}
+body:not(.plan) #planPh{transform:translateX(-24px)}
+body.plan #tip{display:none!important}
+#globe{transition:opacity .5s ease}
+body.plan #globe{opacity:0}
+@media (prefers-reduced-motion:reduce){
+  #left,#right,#bottom,#tbar,#banner,#planPh,#globe,#planMap{transition:none!important}
+}
+#planPh{top:88px;left:16px;width:272px;display:flex;flex-direction:column;gap:4px;z-index:3}
+#planPh h2{margin:0;font-size:var(--fs-lg)}
+#planPh p{margin:0;color:var(--ink-2);font-size:var(--fs-sm)}
+.sim-badge{align-self:flex-start;background:#fab219;color:#0d0d0d;font-size:var(--fs-xs);font-weight:700;padding:3px 8px;border-radius:6px;margin:2px 0 4px}
+/* Planificación: planisferio plano (Leaflet) en lugar del globo */
+#planMap{position:fixed;inset:0;z-index:1;background:#b4d0e8;opacity:0;visibility:hidden;pointer-events:none;transform:scale(1.04);
+  transition:opacity .5s ease,transform .7s cubic-bezier(.2,.7,.2,1),visibility 0s linear .5s}
+body.plan #planMap{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .5s ease .1s,transform .7s cubic-bezier(.2,.7,.2,1),visibility 0s}
+/* alertas en el planisferio: puntos sutiles y cliqueables */
+.pa-icon{background:none;border:0}
+.pa{position:relative;display:block;width:100%;height:100%;border-radius:50%;background:var(--c);opacity:.9;
+  box-shadow:0 0 0 2px rgba(255,255,255,.9),0 1px 4px rgba(0,0,0,.3);transition:transform .15s ease,opacity .15s ease;cursor:pointer}
+.pa-icon:hover .pa,.pa-icon:focus-visible .pa{transform:scale(1.25);opacity:1}
+.pa-icon:focus-visible{outline:none}
+.pa-icon:focus-visible .pa{box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px var(--focus)}
+.pa.sel{transform:scale(1.35);opacity:1;box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(13,13,13,.7)}
+@media (prefers-reduced-motion:no-preference){
+  .pa.sel::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--c);animation:paPulse 2.2s ease-out infinite}
+}
+@keyframes paPulse{0%{transform:scale(.8);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+#planMap .leaflet-tooltip.pa-tip{background:var(--surface-solid);color:var(--ink);border:1px solid var(--border);border-radius:6px;font:var(--fs-sm)/1.35 var(--font);padding:5px 8px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+#planMap .leaflet-tooltip.pa-tip::before{display:none}
+/* card de la alerta seleccionada */
+#planCard{top:88px;right:16px;width:340px;max-height:calc(100vh - 120px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;z-index:3;
+  transition:opacity .25s ease,transform .3s cubic-bezier(.2,.7,.2,1),visibility 0s linear 0s}
+#planCard.off{opacity:0;transform:translateX(24px);visibility:hidden;pointer-events:none;transition:opacity .2s ease,transform .25s ease,visibility 0s linear .25s}
+body:not(.plan) #planCard{display:none}
+.pc-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pc-chip{font-size:var(--fs-xs);font-weight:700;padding:2px 8px;border-radius:99px;color:#0d0d0d}
+#pcClose{flex:none;width:30px;height:30px;min-height:30px;padding:0;border-radius:6px;border:1px solid var(--axis);font-size:var(--fs-lg)}
+#planCard h3{margin:0;font-size:var(--fs-lg);line-height:1.2}
+.pc-sub{font-size:var(--fs-sm);color:var(--ink-3)}
+.pc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pc-kpis div{background:var(--surface-2);border-radius:8px;padding:8px 10px}
+.pc-kpis b{display:block;font-size:var(--fs-xl);font-variant-numeric:tabular-nums}
+.pc-kpis span{font-size:var(--fs-xs);color:var(--ink-3)}
+.pc-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.pc-days div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:var(--fs-xs);color:var(--ink-3)}
+.pc-days i{display:block;width:100%;height:10px;border-radius:3px}
+/* botón de la card: marcar / quitar prioridad */
+.pc-pri{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border-radius:8px;font-weight:700;
+  background:#f0efec;color:#0d0d0d;border:1px solid transparent;transition:background .15s ease}
+.pc-pri:hover{background:#fff}
+.pc-pri[aria-pressed=true]{background:transparent;color:var(--ink);border-color:var(--axis)}
+.pc-pri[aria-pressed=true]:hover{background:var(--surface-2)}
+/* panel izquierdo: lista de zonas prioritarias */
+#planPh{width:310px;max-height:calc(100vh - 120px);gap:8px}
+.pp-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pp-n{min-width:26px;height:22px;padding:0 7px;border-radius:99px;background:var(--pill);color:var(--pill-ink);font-size:var(--fs-sm);font-weight:800;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.pp-info{font-size:var(--fs-sm)!important;color:var(--ink-3)!important}
+.pri-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0;scrollbar-width:thin}
+.pri-item{display:flex;align-items:center;gap:4px;padding:2px 4px 2px 2px;border-radius:8px;background:var(--surface-2);border:1px solid transparent;animation:priIn .3s ease}
+.pri-item.cur{border-color:var(--ink-3)}
+.pri-go{flex:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;align-items:center;padding:6px 8px;border-radius:6px;text-align:left;white-space:normal}
+.pri-go:hover{background:rgba(255,255,255,.05)}
+.pri-dot{width:10px;height:10px;border-radius:50%;grid-row:span 2}
+.pri-name{font-weight:700;font-size:var(--fs-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pri-meta{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
+.pri-del{flex:none;width:26px;height:26px;min-height:26px;padding:0;border-radius:6px;color:var(--ink-3)}
+.pri-del:hover{color:var(--ink);background:rgba(255,255,255,.08)}
+.pp-empty{font-size:var(--fs-sm)!important;color:var(--ink-3)!important;border:1px dashed var(--axis);border-radius:8px;padding:10px}
+.pp-clear{align-self:flex-start;flex:none;font-size:var(--fs-sm);color:var(--ink-3);padding:4px 8px;min-height:26px;border-radius:6px}
+.pp-clear:hover{color:var(--ink)}
+@keyframes priIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pri-item{animation:none}}
+/* marcador de zona prioritaria: anillo oscuro */
+.pa.pri{opacity:1;box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px #0d0d0d}
+#planMap .leaflet-control-attribution{font:var(--fs-xs) var(--font);background:rgba(255,255,255,.7)}
+#planMap .leaflet-control-zoom{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:0 16px 16px 0}
+#planMap .leaflet-control-zoom a{background:var(--surface-solid);color:var(--ink);border-color:var(--axis)}
+#planMap .leaflet-control-zoom a:hover{background:#23252b}
+.user{justify-self:end;display:flex;align-items:center;gap:10px;flex:none;width:auto;padding:4px 6px 4px 12px;border-radius:99px;border:1px solid var(--border)}
+.user .nm{font-size:var(--fs-md);font-weight:600;text-align:right;line-height:1.15}
+.user .nm small{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-3)}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#f07a1f,#7a1f0c);color:#fff}
+@media (max-width:900px){#hdr{grid-template-columns:auto 1fr auto}.logo .txt,.user .nm{display:none}#viewSw{min-width:0;justify-self:center}#viewSw button{padding:6px 10px}}
+#left{top:88px;left:16px;width:304px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+#left.compact{gap:8px}
+#left.compact .note,#left.compact .sub,#left.compact .sim{display:none}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.l{font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.seg{display:flex;border:1px solid var(--axis);border-radius:6px;overflow:hidden}
+button{font:inherit;color:var(--ink);background:transparent;border:0;padding:6px 10px;min-height:32px;cursor:pointer;flex:1;white-space:nowrap}
+.seg button{border-right:1px solid var(--axis)}.seg button:last-child{border-right:0}
+button:hover{background:var(--surface-2)}
+.seg button[aria-pressed=true]{background:var(--pill);color:var(--pill-ink);font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+select{font:inherit;color:var(--ink);background:var(--surface-solid);border:1px solid var(--axis);border-radius:6px;padding:6px 10px;min-height:34px;min-width:0;width:100%;cursor:pointer}
+.chk{display:flex;gap:8px;align-items:center;color:var(--ink-2);font-size:var(--fs-md);cursor:pointer}
+.note{font-size:var(--fs-sm);color:var(--ink-3);margin:4px 0 0}
+.sim{display:inline-flex;gap:6px;align-items:center;background:#1c6b4a;color:#fff;font-weight:650;font-size:var(--fs-xs);padding:4px 8px;border-radius:6px;align-self:flex-start}
+/* leyenda por capas */
+#legend{display:flex;flex-direction:column;gap:2px}
+.lyr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 6px;min-height:28px;border-radius:6px;text-align:left;font-size:var(--fs-sm)}
+.lyr .sw{width:18px;height:16px;clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}
+.lyr .mw{color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lyr .ct{color:var(--ink-3);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lyr[aria-pressed=false]{opacity:.38}
+.lyr[aria-pressed=false] .mw{text-decoration:line-through}
+#right{top:88px;right:16px;width:290px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.25) transparent}
+#right #tabs{position:sticky;top:-14px;z-index:1;background:var(--surface-solid);flex:none}
+.view{display:flex;flex-direction:column;gap:12px}
+.alist{display:flex;flex-direction:column;gap:6px}
+.al{display:grid;grid-template-columns:auto minmax(0,1fr);gap:1px 8px;padding:8px 10px;border-radius:8px;background:var(--surface-2);border:1px solid transparent;text-align:left;white-space:normal}
+.al:hover{border-color:var(--axis);background:var(--surface-2)}
+.lv{width:10px;height:10px;border-radius:50%;margin-top:5px;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+.al .t{font-weight:650;font-size:var(--fs-md);display:flex;justify-content:space-between;gap:8px}
+.al .t em{font-style:normal;font-size:var(--fs-xs);font-weight:650;padding:0 6px;border-radius:99px;color:#0d0d0d;align-self:center}
+.al .s{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
+.strip{grid-column:2;display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:5px}
+.strip i{height:8px;border-radius:2px;display:block}
+.strip-l{grid-column:2;display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--ink-3)}
+.lvkey{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:var(--fs-xs);color:var(--ink-2)}
+.lvkey span{display:inline-flex;align-items:center;gap:5px}
+.lvkey i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.demo{font-size:var(--fs-xs);color:#0d0d0d;background:#fab219;border-radius:6px;padding:4px 8px;font-weight:600}
+#banner{position:fixed;top:148px;left:50%;transform:translateX(-50%);z-index:5;background:#8e1b2c;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:7px 16px;font-weight:650;font-size:var(--fs-md);flex:none;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+#banner:hover{background:#a52236}
+@media (prefers-reduced-motion:no-preference){#banner{animation:pulse 2s ease-in-out infinite}}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(235,87,87,.25),0 6px 24px rgba(0,0,0,.35)}}
+.kpi .v{font-size:var(--fs-2xl);font-weight:650;letter-spacing:-.01em;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .n{font-size:var(--fs-sm);color:var(--ink-2)}
+#terrName{font-size:var(--fs-md);font-weight:650;color:var(--ink)}
+#bottom{left:16px;right:16px;bottom:16px;display:grid;grid-template-columns:minmax(300px,400px) minmax(0,1fr);gap:10px 24px;align-items:start;padding:12px 16px}
+.ctrls{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ystep{display:flex;gap:6px;align-items:stretch;min-width:0}
+.ystep select{flex:1;font-weight:650;font-variant-numeric:tabular-nums}
+option:disabled{color:#6f6d68}
+.filters{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(160px,1fr);gap:6px 16px;align-items:end}
+.filters>.f:nth-child(n+3){grid-column:1/-1}   /* Provincia y Momento a todo el ancho */
+@media (max-width:1240px){#bottom{grid-template-columns:minmax(0,1fr)}}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.row .grow{flex:1;min-width:140px}
+#play{flex:none;width:40px;height:34px;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg);padding:0}
+#fecha{font-weight:650;font-variant-numeric:tabular-nums;min-width:200px}
+input[type=range]{width:100%;accent-color:var(--series-2)}
+/* historial: escala Semana / Mes / Año, alternativas A y B */
+.hist{display:flex;flex-direction:column;gap:8px;min-width:0}
+.hist-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.hist-h .seg button{min-height:30px;padding:4px 12px;font-size:var(--fs-md)}
+.per{display:flex;align-items:center;gap:4px;font-weight:650;font-variant-numeric:tabular-nums}
+.per button{flex:none;width:28px;min-height:28px;padding:0;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg);line-height:1}
+.per button:disabled{opacity:.3;cursor:default}
+#perLbl{min-width:190px;text-align:center;font-size:var(--fs-md)}
+#dayChip{flex:none;font-size:var(--fs-sm);font-weight:650;padding:3px 10px;min-height:26px;border-radius:99px;background:var(--pill);color:var(--pill-ink)}
+#cal{overflow-x:auto;overflow-y:hidden;height:124px}
+#cal [data-d]{cursor:pointer}
+.mt-b{font-size:var(--fs-xs);font-weight:700}
+/* semana A: tarjetas */
+.wk-cards{display:grid;grid-template-columns:repeat(7,minmax(84px,1fr));gap:6px;height:100%}
+.wk-card{display:flex;flex-direction:column;justify-content:space-between;text-align:left;border-radius:8px;padding:6px 8px;border:1px solid var(--border);border-left-width:4px;white-space:normal;min-height:0}
+.wk-card .dn{font-size:var(--fs-xs);color:var(--ink-3);font-weight:600}
+.wk-card .v{font-size:var(--fs-xl);font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.wk-card .s{font-size:var(--fs-xs);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.split{display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.08)}
+.split i:first-child{background:#f8b13a}.split i:last-child{background:#6f7fe0}
+.wk-card[aria-pressed=true]{outline:2px solid var(--ink);outline-offset:1px}
+.dnkey{display:inline-flex;gap:10px;font-size:var(--fs-xs);color:var(--ink-3)}
+.dnkey i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+#cal svg{display:block}
+#cal rect.d{cursor:pointer}
+#cal rect.d:hover{stroke:var(--ink);stroke-width:1}
+.mt{font-size:var(--fs-xs);fill:var(--ink-3);font-family:var(--font)}
+button,select,input{font-family:var(--font)}
+#tip{position:fixed;z-index:6;pointer-events:none;background:var(--surface-solid);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:var(--fs-sm)/1.4 var(--font);color:var(--ink);max-width:260px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+#tip b{font-variant-numeric:tabular-nums}
+#tip .mut{color:var(--ink-3)}
+#dbg{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:7;background:#000;color:#7CFC9A;font:13px/1.3 ui-monospace,monospace;padding:4px 8px;border-radius:4px;pointer-events:none}
+#load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);color:var(--ink-2);z-index:10;transition:opacity .4s}
+/* barra flotante de visualización */
+#tbar{top:88px;left:50%;transform:translateX(-50%);z-index:4;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;padding:8px 10px;max-width:calc(100vw - 664px);min-width:min(560px,calc(100vw - 32px))}
+#tbar .seg button{min-height:30px;padding:4px 10px;font-size:var(--fs-md)}
+#tbar .gs{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-2)}
+#tbar .gs input{width:80px}
+#resLbl{font-variant-numeric:tabular-nums;white-space:nowrap}
+.gear{position:relative}
+#gearBtn{flex:none;width:34px;height:32px;padding:0;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg)}
+#gearPop{position:absolute;right:0;top:calc(100% + 10px);width:260px;display:flex;flex-direction:column;gap:12px;z-index:8}
+@media (max-width:1240px){#tbar{top:auto;bottom:calc(var(--bottom-h,260px) + 28px);max-width:calc(100vw - 32px)}}
+#busy{position:fixed;top:148px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:6px 14px;font-size:var(--fs-sm);color:var(--ink-2)}
+@media (max-width:900px){
+  .filters{grid-template-columns:1fr 1fr}
+  #right{top:auto;bottom:330px;right:16px;left:16px;width:auto;flex-direction:row}
+  #right>*{flex:1}
+  #left{width:auto;right:16px;max-height:30vh}
+}
+</style>
+</head>
+<body>
+<div id="load">Cargando focos de calor…</div>
+<div id="busy" hidden>Cargando año…</div>
+<div id="globe"></div>
+<div id="tip" hidden></div>
+<div id="dbg" hidden></div>
+
+<header id="hdr">
+  <a class="logo" href="#" aria-label="Globo de quemas, inicio">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <circle cx="17" cy="17" r="15" fill="none" stroke="#6fa7ee" stroke-width="1.6" opacity=".9"/>
+      <ellipse cx="17" cy="17" rx="15" ry="6" fill="none" stroke="#6fa7ee" stroke-width="1.2" opacity=".55" transform="rotate(-20 17 17)"/>
+      <path d="M17 7c1.4 3.2 5.6 5.6 5.6 10.4a5.6 5.6 0 0 1-11.2 0c0-2.6 1.4-4 2.6-5.4.2 1.8 1 2.8 2.1 3.2C15.6 12.6 16 9.6 17 7Z" fill="#f07a1f"/>
+      <path d="M17 15.4c.8 1.5 2.4 2.5 2.4 4.4a2.4 2.4 0 0 1-4.8 0c0-1.2.6-2 1.3-2.7.1.7.4 1.1.8 1.3-.1-1.1 0-2.1.3-3Z" fill="#fde68a"/>
+    </svg>
+    <span class="txt">Globo de quemas<small>NASA Space Apps 2026</small></span>
+  </a>
+  <div id="viewSw" role="radiogroup" aria-label="Vista" data-v="analisis">
+    <span class="thumb" aria-hidden="true"></span>
+    <button role="radio" data-v="analisis" aria-checked="true">
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14h12M4 11V8M8 11V4M12 11V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Análisis</button>
+    <button role="radio" data-v="plan" aria-checked="false">
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4l4-2 4 2 4-2v10l-4 2-4-2-4 2Z M6 2v10M10 4v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Planificación</button>
+  </div>
+  <button class="user" aria-label="Cuenta de usuario">
+    <span class="nm">Usuario<small>Analista</small></span>
+    <span class="avatar"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.5" r="3" fill="currentColor"/><path d="M2.5 14.5c.6-3 2.9-4.5 5.5-4.5s4.9 1.5 5.5 4.5Z" fill="currentColor"/></svg></span>
+  </button>
+</header>
+
+<section class="panel" id="left">
+  <p class="sub">Focos de calor en Argentina</p>
+  <span class="sim">● Datos reales NASA FIRMS · MODIS + VIIRS cruzados</span>
+  <div class="f"><span class="l">Confianza mínima</span>
+    <div class="seg" id="fConf"><button data-v="0" aria-pressed="true">Baja</button><button data-v="1" aria-pressed="false">Nominal</button><button data-v="2" aria-pressed="false">Alta</button></div></div>
+  <div class="f"><span class="l">Intensidad · capas (FRP)</span>
+    <div id="legend"></div>
+    <p class="note" id="legNote"></p></div>
+</section>
+
+<div class="panel" id="tbar" role="toolbar" aria-label="Visualización de áreas afectadas">
+  <div class="seg" id="fMode" title="Modo de visualización">
+    <button data-v="hex" aria-pressed="true">⬡ Hexágonos</button><button data-v="heat" aria-pressed="false">Mapa de calor</button><button data-v="area" aria-pressed="false">Áreas</button></div>
+  <div class="seg" id="fShape" title="Forma de las áreas" hidden>
+    <button data-v="hexb" aria-pressed="true">Borde hex.</button><button data-v="cent" aria-pressed="false">Centros</button><button data-v="smooth" aria-pressed="false">Suave</button><button data-v="hull" aria-pressed="false">Convexa</button></div>
+  <label class="gs"><span class="l">Grilla</span><input type="range" id="fRes" min="2" max="5" step="1" value="4" aria-label="Tamaño de la grilla hexagonal"><span id="resLbl"></span></label>
+  <div class="gear">
+    <button id="gearBtn" aria-expanded="false" aria-controls="gearPop" aria-label="Ajustes del mapa">⚙</button>
+    <div class="panel" id="gearPop" hidden>
+      <div class="f"><span class="l">Mapa base</span>
+        <div class="seg" id="fBase"><button data-v="earth-blue-marble.jpg" aria-pressed="true">Satélite</button><button data-v="earth-dark.jpg" aria-pressed="false">Oscuro</button><button data-v="earth-night.jpg" aria-pressed="false">Nocturno</button></div></div>
+      <label class="chk"><input type="checkbox" id="rot" checked> Rotación automática</label>
+      <p class="note" style="margin:0">Se detiene mientras haya un filtro activo.</p>
+    </div>
+  </div>
+</div>
+
+<button id="banner" hidden></button>
+
+<div id="planMap" aria-label="Planisferio físico"></div>
+<section class="panel" id="planPh" aria-label="Zonas prioritarias">
+  <div class="pp-h"><h2>Zonas prioritarias</h2><span class="pp-n" id="priN">0</span></div>
+  <p id="planInfo" class="pp-info"></p>
+  <span class="sim-badge" id="planSim" hidden>⚠ Datos simulados para prueba</span>
+  <ul class="pri-list" id="priList"></ul>
+  <p class="pp-empty" id="priEmpty">Todavía no marcaste zonas. Elegí una alerta en el mapa y tocá <b>“Marcar como prioritaria”</b> en la card.</p>
+  <button class="pp-clear" id="priClear" hidden>Vaciar lista</button>
+</section>
+<section class="panel off" id="planCard" aria-live="polite" aria-label="Alerta seleccionada">
+  <div class="pc-h"><span class="pc-chip" id="pcChip"></span><button id="pcClose" aria-label="Cerrar">✕</button></div>
+  <div><h3 id="pcTitle"></h3><div class="pc-sub" id="pcSub"></div></div>
+  <div class="pc-kpis">
+    <div><b id="pcMax"></b><span>nivel máximo previsto</span></div>
+    <div><b id="pcPeak"></b><span>día de mayor riesgo</span></div>
+  </div>
+  <div><div class="l" style="margin-bottom:6px">Pronóstico · próximos 7 días</div><div class="pc-days" id="pcDays"></div>
+    <div class="pc-sub" id="pcHigh" style="margin-top:6px"></div></div>
+  <div class="pc-sub" id="pcWhy"></div>
+  <button class="pc-pri" id="pcPri" aria-pressed="false"></button>
+  <div class="trk" id="pcTrack"></div></section>
+
+<section class="panel" id="right">
+  <div class="seg" id="tabs"><button data-v="sum" aria-pressed="true">Resumen</button><button data-v="al" aria-pressed="false">⚠ Alertas <span id="alN"></span></button></div>
+  <div class="view" id="vSum">
+    <div id="terrName">Argentina</div>
+    <div class="kpi"><div class="l">Focos en la ventana</div><div class="v" id="kN">–</div><div class="n" id="kNn"></div></div>
+    <div class="kpi"><div class="l">FRP total</div><div class="v" id="kF">–</div><div class="n">megavatios</div></div>
+    <div class="kpi"><div class="l">Área con actividad</div><div class="v" id="kA">–</div><div class="n" id="kAn"></div></div>
+  </div>
+  <div class="view" id="vAl" hidden>
+    <div>
+      <div class="l">Peligro de incendio · próximos 7 días</div>
+      <div class="n" id="alFrom" style="font-size:var(--fs-sm);color:var(--ink-2)"></div>
+    </div>
+    <div class="lvkey" id="lvKey"></div>
+    <div class="alist" id="alList"></div>
+    <div class="demo">Demostración visual: riesgo estimado por persistencia de focos recientes. Falta sumar el pronóstico meteorológico (FWI).</div>
+  </div>
+</section>
+
+<section class="panel" id="bottom">
+  <div class="ctrls">
+    <div class="filters">
+      <div class="f"><label class="l" for="fYear">Año</label>
+        <div class="ystep"><select id="fYear" title="Años 2000–2026; los que no tienen archivo en data/ aparecen deshabilitados"></select></div></div>
+      <div class="f"><label class="l" for="fCountry">País</label><select id="fCountry" title="Por ahora la carpeta data/ solo tiene datos de Argentina"><option value="AR" selected>Argentina</option></select></div>
+      <div class="f"><label class="l" for="fTerr">Provincia</label><select id="fTerr"><option value="-1">Todas las provincias</option></select></div>
+      <div class="f"><span class="l">Momento</span>
+        <div class="seg" id="fDn"><button data-v="all" aria-pressed="true">Día y noche</button><button data-v="1" aria-pressed="false">☀ Día</button><button data-v="0" aria-pressed="false">☾ Noche</button></div></div>
+    </div>
+  </div>
+  <div class="hist">
+    <div class="hist-h">
+      <div class="seg" id="fScale" title="Escala del historial (define el período que muestra el globo)">
+        <button data-v="week" aria-pressed="true">Semana</button><button data-v="month" aria-pressed="false">Mes</button><button data-v="year" aria-pressed="false">Año</button></div>
+      <div class="per"><button id="pPrev" aria-label="Período anterior">‹</button><span id="perLbl"></span><button id="pNext" aria-label="Período siguiente">›</button></div>
+      <button id="dayChip" hidden title="Volver al período completo"></button>
+      <span id="dnKeyBox"></span>
+    </div>
+    <div id="cal" aria-label="Historial de focos"></div>
+  </div>
+</section>
+
+<!-- Librerías visuales (CDN). Los datos de focos se leen solo de la carpeta local data/ -->
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+<script src="data/years.js"></script>
+<script src="data/provincias.js"></script>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.151.3/build/three.module.js";
+
+const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const DEBUG=/[?&]debug=1/.test(location.search);
+// Rampa continua (solo para el calendario): más intenso = más oscuro
+const RAMP=["#fff7dc","#fde68a","#f8b13a","#f07a1f","#d8431a","#9c2a10","#5a1a0e"];
+const RGB=RAMP.map(h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16)));
+function ramp(t){
+  t=Math.max(0,Math.min(1,t))*(RGB.length-1);
+  const i=Math.min(RGB.length-2,Math.floor(t)),u=t-i,a=RGB[i],b=RGB[i+1];
+  return `rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*u)).join(",")})`;
+}
+// 5 capas discretas de intensidad (0 = baja … 4 = máxima); la 4 se dibuja arriba
+const LAYER_COL=["#fde68a","#f8b13a","#f07a1f","#d8431a","#7a1f0c"];
+const LAYER_LINE=["#b58a1c","#a8670f","#a8460c","#7d1c08","#ffffff"];
+const AREA_FILL=LAYER_COL.map(h=>{const [r,g,b]=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return `rgba(${r},${g},${b},.55)`});
+const fmt=n=>Math.round(n).toLocaleString("es-AR");
+const $=id=>document.getElementById(id);
+
+// end = día ancla del período; scale define el período (semana/mes/año); day = un día puntual elegido
+const st={year:YEARS[YEARS.length-1],conf:0,dn:"all",prov:-1,end:0,scale:"week",day:null,
+          res:4,layers:[true,true,true,true,true],mode:"hex",shape:"hexb"};
+let C,N,ND,start,Y;
+
+const dateOf=d=>new Date(Date.UTC(st.year,0,1+d));
+const lbl=d=>{const x=dateOf(d);return x.getUTCDate()+" "+MES[x.getUTCMonth()]+" "+x.getUTCFullYear()};
+
+// ---- Diccionario de hexágonos H3 por resolución (compartido entre años) ----
+const RES=[2,3,4,5];   // grilla fija elegida con el slider (res 6 sería menor que las celdas de datos)
+const HX={};RES.forEach(r=>HX[r]={ids:new Map(),str:[],geo:[]});
+function hexId(r,s){const D=HX[r];let id=D.ids.get(s);if(id===undefined){id=D.str.length;D.ids.set(s,id);D.str.push(s)}return id}
+const AREA_AVG={};RES.forEach(r=>AREA_AVG[r]=h3.getHexagonAreaAvg(r,"km2"));
+const ALT=.001;
+function hexGeo(r,id){
+  const D=HX[r];let g=D.geo[id];if(g)return g;
+  const s=D.str[id],b=h3.cellToBoundary(s),[clat,clng]=h3.cellToLatLng(s);
+  const c=globe.getCoords(clat,clng,ALT),pts=b.map(([la,ln])=>globe.getCoords(la,ln,ALT));
+  const pos=new Float32Array(pts.length*9);
+  for(let k=0;k<pts.length;k++){
+    const p=pts[k],q=pts[(k+1)%pts.length],o=k*9;
+    pos[o]=c.x;pos[o+1]=c.y;pos[o+2]=c.z;pos[o+3]=p.x;pos[o+4]=p.y;pos[o+5]=p.z;pos[o+6]=q.x;pos[o+7]=q.y;pos[o+8]=q.z;
+  }
+  g=D.geo[id]={pos,lat:clat,lng:clng,area:h3.cellArea(s,"km2")};
+  return g;
+}
+
+// ---- Carga de años: script local data/data-YYYY.js ----
+const yearCache={};
+function loadYear(y){
+  return new Promise((ok,fail)=>{
+    if(window.FOCOS&&FOCOS[y])return ok(FOCOS[y]);
+    const s=document.createElement("script");s.src=`data/data-${y}.js`;
+    s.onload=()=>ok(FOCOS[y]);s.onerror=()=>fail(new Error("No se pudo cargar "+y));
+    document.head.appendChild(s);
+  });
+}
+// Prepara un año (índices por día + asignación H3) sin tocar el estado de Análisis
+function prepYear(y,D){
+  if(yearCache[y])return yearCache[y];
+  const C=D.cols,N=C.day.length,ND=((y%4===0&&y%100!==0)||y%400===0)?366:365;
+  const start=new Int32Array(ND+1);
+  let j=0;for(let d=0;d<=ND;d++){while(j<N&&C.day[j]<d)j++;start[d]=j}
+  // asignación H3 por celda de 0,1° (una vez por año y celda única)
+  const rows={2:new Int32Array(N),3:new Int32Array(N),4:new Int32Array(N),5:new Int32Array(N)},cells=new Map();
+  for(let i=0;i<N;i++){
+    const key=C.iy[i]*4096+C.ix[i];let c=cells.get(key);
+    if(!c){
+      const h5=h3.latLngToCell((C.iy[i]+.5)*.1-90,(C.ix[i]+.5)*.1-180,5);
+      c=[hexId(2,h3.cellToParent(h5,2)),hexId(3,h3.cellToParent(h5,3)),hexId(4,h3.cellToParent(h5,4)),hexId(5,h5)];
+      cells.set(key,c);
+    }
+    rows[2][i]=c[0];rows[3][i]=c[1];rows[4][i]=c[2];rows[5][i]=c[3];
+  }
+  return yearCache[y]={y,C,N,ND,start,rows,breaks:new Map()};
+}
+function useYear(y,D){
+  const P=prepYear(y,D);
+  st.year=y;C=P.C;N=P.N;ND=P.ND;start=P.start;Y=P;
+}
+
+function pass(i){
+  if(C.conf[i]<st.conf)return false;
+  if(st.dn!=="all"&&C.dn[i]!==+st.dn)return false;
+  if(st.prov>=0&&C.prov[i]!==st.prov)return false;
+  return true;
+}
+// Período según la escala del historial (o un día puntual si se eligió uno)
+const doyOf=(m,dd)=>Math.round((Date.UTC(st.year,m,dd)-Date.UTC(st.year,0,1))/864e5);
+const dow=d=>(dateOf(d).getUTCDay()+6)%7;           // 0 = lunes
+function period(){
+  if(st.scale==="year")return [0,ND-1];
+  if(st.scale==="month"){const m=dateOf(st.end).getUTCMonth();return [doyOf(m,1),Math.min(ND-1,doyOf(m+1,1)-1)]}
+  const a=st.end-dow(st.end);return [Math.max(0,a),Math.min(ND-1,a+6)];
+}
+function range(){return st.day!=null?[st.day,st.day]:period()}
+const winLen=()=>{const [a,b]=range();return b-a+1};
+
+let daily;
+let dailyD,dailyN,dailyF;
+function calcDaily(){
+  daily=new Float64Array(ND);dailyD=new Float64Array(ND);dailyN=new Float64Array(ND);dailyF=new Float64Array(ND);
+  for(let i=0;i<N;i++)if(pass(i)){const d=C.day[i];daily[d]+=C.n[i];dailyF[d]+=C.f[i];(C.dn[i]?dailyD:dailyN)[d]+=C.n[i]}
+}
+function peakDay(){let pk=0;for(let d=0;d<ND;d++)if(daily[d]>daily[pk])pk=d;return pk}
+
+function aggregate(from,to,res){
+  const rows=Y.rows[res],m=new Map();let tn=0,tf=0,nM=0,nV=0;
+  for(let i=start[from];i<start[to+1];i++){
+    if(!pass(i))continue;
+    const id=rows[i];let o=m.get(id);
+    if(!o){o={id,n:0,f:0,nM:0,nV:0,lvl:0};m.set(id,o)}
+    o.n+=C.n[i];o.f+=C.f[i];
+    if(C.inst[i]===0){o.nM+=C.n[i];nM+=C.n[i]}else{o.nV+=C.n[i];nV+=C.n[i]}
+    tn+=C.n[i];tf+=C.f[i];
+  }
+  return {m,tn,tf,nM,nV};
+}
+// Cortes de nivel estables: cuantiles 50/75/90/97 del FRP por hexágono en ventanas
+// no superpuestas del año (mismo largo de ventana, filtros y resolución). Cacheado.
+function getBreaks(){
+  const W=winLen(),key=[st.res,W,st.conf,st.dn,st.prov].join("|");
+  let b=Y.breaks.get(key);if(b)return b;
+  const rows=Y.rows[st.res],m=new Map();
+  for(let i=0;i<N;i++){if(!pass(i))continue;const k=Math.floor(C.day[i]/W)*2097152+rows[i];m.set(k,(m.get(k)||0)+C.f[i])}
+  const v=[...m.values()].sort((a,b)=>a-b),q=p=>v.length?v[Math.min(v.length-1,Math.floor(v.length*p))]:0;
+  b=[q(.5),q(.75),q(.9),q(.97)];
+  Y.breaks.set(key,b);return b;
+}
+const levelOf=(f,b)=>f>=b[3]?4:f>=b[2]?3:f>=b[1]?2:f>=b[0]?1:0;
+
+// ---- Globo ----
+const el=$("globe");
+const TEX="https://unpkg.com/three-globe@2.27.2/example/img/";
+const provPaths=[];
+PROVINCIAS.forEach((p,i)=>p.geo.coordinates.forEach(poly=>poly.forEach(ring=>provPaths.push({kind:"p",i,pts:ring}))));
+const globe=Globe()(el)
+  .globeImageUrl(TEX+"earth-blue-marble.jpg")
+  .bumpImageUrl(TEX+"earth-topology.png")
+  .backgroundImageUrl(TEX+"night-sky.png")
+  .atmosphereColor("#6fa7ee").atmosphereAltitude(.18)
+  // líneas finas: contornos de provincias
+  .pathPoints("pts").pathPointLat(p=>p[1]).pathPointLng(p=>p[0]).pathPointAlt(.0015)
+  .pathColor(d=>d.i===st.prov?"rgba(240,239,236,.95)":"rgba(240,239,236,.22)")
+  .pathTransitionDuration(0)
+  // modo Áreas: formas por grupo conectado (sin hover/labels → sin raycasting)
+  .polygonGeoJsonGeometry("geo")
+  .polygonCapColor(d=>AREA_FILL[d.L])
+  .polygonSideColor(()=>"rgba(0,0,0,0)")
+  .polygonStrokeColor(d=>LAYER_LINE[d.L])
+  .polygonAltitude(d=>.002+d.L*.0008)
+  .polygonsTransitionDuration(0)
+  // anillos pulsantes de alerta
+  .ringLat("lat").ringLng("lng").ringAltitude(.004)
+  .ringColor(d=>{const [r,g,b]=hexRgb(LV[d.lvl].c);return t=>`rgba(${r},${g},${b},${Math.sqrt(Math.max(0,1-t))})`})
+  .ringMaxRadius(d=>.8+d.lvl*.5)
+  .ringPropagationSpeed(1.4)
+  .ringRepeatPeriod(d=>1400-d.lvl*200);
+globe.pointOfView({lat:-38,lng:-64,altitude:1.9},0);
+globe.renderer().setPixelRatio(Math.min(devicePixelRatio,2));
+const ctl=globe.controls();ctl.autoRotate=true;ctl.autoRotateSpeed=.35;ctl.enableDamping=true;
+function setPaths(){globe.pathsData(provPaths)}
+setPaths();
+
+// ---- 5 mallas (una por capa) con buffers preasignados ----
+const meshes=LAYER_COL.map((col,L)=>{
+  const geo=new THREE.BufferGeometry();
+  const arr=new Float32Array(9*6*256);
+  geo.setAttribute("position",new THREE.BufferAttribute(arr,3).setUsage(THREE.DynamicDrawUsage));
+  geo.setDrawRange(0,0);
+  const mat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.85,depthWrite:false,side:THREE.DoubleSide,
+    polygonOffset:true,polygonOffsetFactor:-1-L,polygonOffsetUnits:-1-L});
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.renderOrder=10+L;mesh.frustumCulled=false;
+  globe.scene().add(mesh);
+  return mesh;
+});
+function fillLayer(L,list){
+  const mesh=meshes[L],geo=mesh.geometry;
+  let need=0;for(const o of list)need+=hexGeo(st.res,o.id).pos.length;
+  let attr=geo.getAttribute("position");
+  if(need>attr.array.length){
+    attr=new THREE.BufferAttribute(new Float32Array(Math.ceil(need*1.5)),3).setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute("position",attr);
+  }
+  const a=attr.array;let off=0;
+  for(const o of list){const p=hexGeo(st.res,o.id).pos;a.set(p,off);off+=p.length}
+  attr.needsUpdate=true;
+  geo.setDrawRange(0,off/3);
+}
+
+function fit(){
+  document.documentElement.style.setProperty("--bottom-h",$("bottom").offsetHeight+"px");
+  // el aviso de alertas va justo debajo de la barra de visualización
+  const tb=$("tbar").getBoundingClientRect();
+  if(tb.top<innerHeight/2){$("banner").style.top=(tb.bottom+10)+"px";$("busy").style.top=(tb.bottom+10)+"px"}
+  // el panel derecho nunca pisa el de abajo: alto máximo + scroll interno
+  const R=$("right"),bTop=$("bottom").getBoundingClientRect().top;
+  if(getComputedStyle(R).top!=="auto")R.style.maxHeight=Math.max(160,bTop-R.getBoundingClientRect().top-16)+"px";
+  const L=$("left"),avail=bTop-L.getBoundingClientRect().top-16;
+  L.style.maxHeight=avail+"px";
+  L.classList.remove("compact");
+  if(L.scrollHeight>avail+1)L.classList.add("compact");
+}
+function resize(){globe.width(innerWidth).height(innerHeight);fit()}resize();addEventListener("resize",resize);
+
+// ---- Render ----
+let cur=null,curBreaks=[0,0,0,0],layerStats=[],curLists=null,lastMs=0,isolated=0;
+function render(){
+  const t0=performance.now();
+  const [a,b]=range();
+  const r=aggregate(a,b,st.res),br=getBreaks();
+  cur=r;curBreaks=br;
+  const lists=[[],[],[],[],[]];let area=0;
+  for(const o of r.m.values()){o.lvl=levelOf(o.f,br);lists[o.lvl].push(o);area+=hexGeo(st.res,o.id).area}
+  curLists=lists;
+  layerStats=lists.map(l=>({n:l.length,area:l.reduce((s,o)=>s+hexGeo(st.res,o.id).area,0)}));
+  drawMode();
+  drawLegend();
+  renderAlerts();
+  syncRotation();
+  lastMs=performance.now()-t0;
+  $("kN").textContent=fmt(r.tn);
+  $("kNn").textContent="MODIS "+fmt(r.nM)+" · VIIRS "+fmt(r.nV);
+  $("kF").textContent=fmt(r.tf);
+  $("kA").textContent=fmt(area)+" km²";
+  $("kAn").textContent=fmt(r.m.size)+" hexágonos de ~"+fmt(AREA_AVG[st.res])+" km²";
+  const dnTxt=st.dn==="all"?"":st.dn==="1"?" · de día":" · de noche";
+  $("terrName").textContent=(st.prov<0?"Argentina":PROVINCIAS[st.prov].name)+" · "+st.year+dnTxt;
+  drawHistory();
+}
+
+// Leyenda: 5 capas, la más intensa primero; clic = mostrar/ocultar
+const mwTxt=v=>v<10?v.toFixed(1):fmt(v);
+function drawLegend(){
+  const b=curBreaks,rng=[`< ${mwTxt(b[0])}`,`${mwTxt(b[0])}–${mwTxt(b[1])}`,`${mwTxt(b[1])}–${mwTxt(b[2])}`,`${mwTxt(b[2])}–${mwTxt(b[3])}`,`≥ ${mwTxt(b[3])}`];
+  let h="";
+  for(let L=4;L>=0;L--){
+    const s=layerStats[L]||{n:0,area:0};
+    h+=`<button class="lyr" data-l="${L}" aria-pressed="${st.layers[L]}" title="Mostrar u ocultar esta capa">
+      <span class="sw" style="background:${LAYER_COL[L]}"></span><span class="mw">${rng[L]} MW</span><span class="ct">${fmt(s.n)} · ${fmt(s.area)} km²</span></button>`;
+  }
+  $("legend").innerHTML=h;
+  const MODE_TXT={hex:"Hexágonos",heat:"Mapa de calor",area:"Áreas"};
+  $("legNote").textContent=`${MODE_TXT[st.mode]} · grilla de ~${fmt(AREA_AVG[st.res])} km². FRP sumado en la ventana.`+
+    (st.mode==="area"&&isolated?` ${fmt(isolated)} celdas aisladas ocultas.`:"");
+}
+$("legend").addEventListener("click",e=>{
+  const b=e.target.closest(".lyr");if(!b)return;
+  const L=+b.dataset.l;st.layers[L]=!st.layers[L];
+  b.setAttribute("aria-pressed",st.layers[L]);
+  syncRotation();
+  if(!curLists)return;
+  if(st.mode==="hex")meshes[L].visible=st.layers[L];  // solo visibilidad, sin recálculo
+  else{drawMode();drawLegend()}
+});
+
+// ---- Modos de visualización: solo el modo activo trabaja ----
+let polysShown=false;
+function drawMode(){
+  const lists=curLists;
+  // Hexágonos: buffers preasignados
+  if(st.mode==="hex")lists.forEach((l,L)=>{fillLayer(L,l);meshes[L].visible=st.layers[L]});
+  else meshes.forEach(m=>m.visible=false);
+  // Mapa de calor: canvas + textura
+  if(st.mode==="heat")drawHeat(lists);
+  heatMesh.visible=st.mode==="heat";
+  // Áreas: polígonos por grupo (throttle en reproducción; forma final al pausar)
+  if(st.mode==="area")drawAreas(lists);
+  else if(polysShown){globe.polygonsData([]);polysShown=false}
+}
+
+// ---- Mapa de calor (globe.gl 2.27 no trae capa de heatmap) ----
+const HB={x0:-76,x1:-52,y0:-56,y1:-21},HPX=.04;
+const HW=Math.round((HB.x1-HB.x0)/HPX),HH=Math.round((HB.y1-HB.y0)/HPX);
+const hcv=document.createElement("canvas");hcv.width=HW;hcv.height=HH;
+const hctx=hcv.getContext("2d"),himg=hctx.createImageData(HW,HH),hden=new Float32Array(HW*HH);
+const LUT=new Uint8ClampedArray(256*3);
+for(let i=0;i<256;i++){const m=ramp(i/255).match(/\d+/g).map(Number);LUT.set(m,i*3)}
+const heatTex=new THREE.CanvasTexture(hcv);
+const heatMesh=(()=>{
+  // parche de esfera construido con globe.getCoords → misma orientación que el globo
+  const SX=72,SY=105,pos=[],uv=[],idx=[];
+  for(let j=0;j<=SY;j++)for(let i=0;i<=SX;i++){
+    const lng=HB.x0+(HB.x1-HB.x0)*i/SX,lat=HB.y0+(HB.y1-HB.y0)*j/SY,p=globe.getCoords(lat,lng,.0012);
+    pos.push(p.x,p.y,p.z);uv.push(i/SX,j/SY);
+  }
+  for(let j=0;j<SY;j++)for(let i=0;i<SX;i++){const a=j*(SX+1)+i,b=a+1,c=a+SX+1,d=c+1;idx.push(a,b,d,a,d,c)}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));
+  g.setIndex(idx);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:heatTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  m.renderOrder=9;m.frustumCulled=false;m.visible=false;
+  globe.scene().add(m);return m;
+})();
+function drawHeat(lists){
+  hden.fill(0);
+  const D=HX[st.res],edgeKm=h3.getHexagonEdgeLengthAvg(st.res,"km"),rKm=edgeKm*1.6;
+  const ry=Math.max(2,rKm/111/HPX),ref=Math.sqrt(Math.max(1,curBreaks[3]));
+  for(let L=0;L<5;L++){
+    if(!st.layers[L])continue;
+    for(const o of lists[L]){
+      const g=hexGeo(st.res,o.id),cx=(g.lng-HB.x0)/HPX,cy=(HB.y1-g.lat)/HPX;
+      if(cx<-50||cx>HW+50||cy<-50||cy>HH+50)continue;
+      const rx=ry/Math.cos(g.lat*Math.PI/180),w=Math.sqrt(o.f)/ref;
+      const x0=Math.max(0,Math.floor(cx-rx)),x1=Math.min(HW-1,Math.ceil(cx+rx)),y0=Math.max(0,Math.floor(cy-ry)),y1=Math.min(HH-1,Math.ceil(cy+ry));
+      for(let y=y0;y<=y1;y++){
+        const dy=(y-cy)/ry,dy2=dy*dy,row=y*HW;
+        for(let x=x0;x<=x1;x++){const dx=(x-cx)/rx,d2=dx*dx+dy2;if(d2<1)hden[row+x]+=w*(1-d2)*(1-d2)}
+      }
+    }
+  }
+  const px=himg.data;
+  for(let i=0,n=HW*HH;i<n;i++){
+    const t=Math.min(1,Math.sqrt(hden[i]));
+    if(t<.03){px[i*4+3]=0;continue}
+    const k=(t*255|0)*3;px[i*4]=LUT[k];px[i*4+1]=LUT[k+1];px[i*4+2]=LUT[k+2];px[i*4+3]=Math.min(235,40+t*260);
+  }
+  hctx.putImageData(himg,0,0);heatTex.needsUpdate=true;
+}
+
+// ---- Áreas: un polígono por grupo conectado de la misma capa ----
+const areaCache=new Map();
+function components(list){
+  const D=HX[st.res],set=new Set(list.map(o=>D.str[o.id])),seen=new Set(),out=[];
+  for(const s0 of set){
+    if(seen.has(s0))continue;
+    const comp=[],q=[s0];seen.add(s0);
+    while(q.length){const s=q.pop();comp.push(s);for(const nb of h3.gridDisk(s,1))if(set.has(nb)&&!seen.has(nb)){seen.add(nb);q.push(nb)}}
+    out.push(comp);
+  }
+  return out;
+}
+const vkey=(lat,lng)=>lat.toFixed(5)+","+lng.toFixed(5);
+const center=s=>{const [la,ln]=h3.cellToLatLng(s);return [ln,la]};
+function closeRing(r){if(r.length&&(r[0][0]!==r[r.length-1][0]||r[0][1]!==r[r.length-1][1]))r.push(r[0]);return r}
+// Recorre el borde hexagonal y emite el centro de la celda dueña de cada arista
+function centersRings(comp){
+  const vmap=new Map();
+  for(const s of comp)for(const [la,ln] of h3.cellToBoundary(s)){const k=vkey(la,ln);let a=vmap.get(k);if(!a)vmap.set(k,a=[]);a.push(s)}
+  const polys=[];
+  for(const poly of h3.cellsToMultiPolygon(comp,true)){
+    const rings=[];
+    for(const ring of poly){
+      const seq=[];
+      for(let i=0;i<ring.length-1;i++){
+        const A=vmap.get(vkey(ring[i][1],ring[i][0]))||[],B=vmap.get(vkey(ring[i+1][1],ring[i+1][0]))||[];
+        const own=A.find(s=>B.includes(s));
+        if(own&&seq[seq.length-1]!==own)seq.push(own);
+      }
+      if(seq.length>1&&seq[0]===seq[seq.length-1])seq.pop();
+      if(new Set(seq).size>=3)rings.push(closeRing(seq.map(center)));
+    }
+    if(rings.length)polys.push(rings);
+  }
+  return polys;
+}
+function chaikin(r,it=3){
+  let p=r.slice(0,-1);
+  for(let k=0;k<it;k++){const q=[];for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];q.push([.75*a[0]+.25*b[0],.75*a[1]+.25*b[1]],[.25*a[0]+.75*b[0],.25*a[1]+.75*b[1]])}p=q}
+  return closeRing(p);
+}
+function hull(pts){
+  const p=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]),cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[],up=[];
+  for(const q of p){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q)}
+  for(let i=p.length-1;i>=0;i--){const q=p[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q)}
+  return closeRing(lo.slice(0,-1).concat(up.slice(0,-1)));
+}
+function shapesFor(comp,style){
+  const hexb=()=>h3.cellsToMultiPolygon(comp,true);
+  if(style==="hexb")return hexb();
+  if(style==="hull"){const c=comp.map(center);return c.length>=3?[[hull(c)]]:hexb()}
+  const cr=centersRings(comp);
+  if(!cr.length)return hexb();                       // grupos chicos: borde hexagonal
+  return style==="smooth"?cr.map(rings=>rings.map(r=>chaikin(r))):cr;
+}
+// Convención d3-geo (globe.gl): anillo exterior en sentido horario, huecos antihorario.
+// Si no, el polígono se interpreta como "todo el planeta menos esta forma".
+function signedArea(r){let s=0;for(let i=0;i<r.length-1;i++)s+=r[i][0]*r[i+1][1]-r[i+1][0]*r[i][1];return s/2}
+function rewind(rings){return rings.map((r,i)=>{const a=signedArea(r);return (i===0?a>0:a<0)?r.slice().reverse():r})}
+function drawAreas(lists){
+  const key=[st.year,st.res,range().join("-"),st.conf,st.dn,st.prov,st.layers.join(""),st.shape].join("|");
+  let res=areaCache.get(key);
+  if(!res){
+    const out=[];let iso=0;
+    lists.forEach((list,L)=>{
+      if(!st.layers[L])return;
+      for(const comp of components(list)){
+        if(comp.length<2){iso++;continue}
+        for(const rings of shapesFor(comp,st.shape))out.push({L,geo:{type:"Polygon",coordinates:rewind(rings)}});
+      }
+    });
+    res={out,iso};
+    if(areaCache.size>60)areaCache.delete(areaCache.keys().next().value);
+    areaCache.set(key,res);
+  }
+  isolated=res.iso;
+  globe.polygonsData(res.out);polysShown=true;
+}
+
+// ---- Alertas: próximos 7 días (demo por persistencia), hexágonos res 4 ----
+const LV=[{n:"Bajo",c:"#4caf7a"},{n:"Moderado",c:"#f2c94c"},{n:"Alto",c:"#f2994a"},{n:"Muy alto",c:"#eb5757"},{n:"Extremo",c:"#c13cff"}];
+const level=n=>n>=100?4:n>=40?3:n>=15?2:n>=5?1:0;
+const hexRgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
+let tab="sum",alerts=[];
+$("lvKey").innerHTML=LV.map(l=>`<span><i style="background:${l.c}"></i>${l.n}</span>`).join("");
+
+// ctx: datos del año + día "hoy" + filtros. Por defecto: lo elegido en Análisis
+function computeAlerts(ctx){
+  const X=ctx||{C,start,rows:Y.rows,to:range()[1],conf:st.conf,prov:st.prov};
+  const C_=X.C,to=X.to,from=Math.max(0,to-6),rows=X.rows[4],D=HX[4],m=new Map();
+  for(let i=X.start[from];i<X.start[to+1];i++){
+    if(C_.conf[i]<X.conf)continue;
+    if(X.prov>=0&&C_.prov[i]!==X.prov)continue;
+    const C=C_;   // el resto del cuerpo usa C
+    const id=rows[i];let o=m.get(id);if(!o){o={id,n:0,f:0,pc:{}};m.set(id,o)}
+    o.n+=C.n[i];o.f+=C.f[i];o.pc[C.prov[i]]=(o.pc[C.prov[i]]||0)+C.n[i];
+  }
+  const out=[];
+  for(const o of m.values()){
+    let s=0,sf=0,peak=true;
+    for(const nb of h3.gridDisk(D.str[o.id],1)){
+      const q=m.get(D.ids.get(nb));if(!q)continue;
+      s+=q.n;sf+=q.f;
+      if(q.id!==o.id&&(q.n>o.n||(q.n===o.n&&q.id>o.id)))peak=false; // una alerta por foco de actividad
+    }
+    if(!peak)continue;
+    const days=[];for(let k=0;k<7;k++)days.push(level(s*Math.pow(.85,k)));
+    if(days[0]<2)continue;
+    const p=+Object.entries(o.pc).sort((a,b)=>b[1]-a[1])[0][0];
+    const [lat,lng]=h3.cellToLatLng(D.str[o.id]);
+    out.push({lat,lng,s,f:sf,lvl:days[0],days,p,h:D.str[o.id]});
+  }
+  return out.sort((a,b)=>b.s-a.s);
+}
+function renderAlerts(){
+  alerts=computeAlerts();
+  $("alN").textContent=alerts.length?`(${alerts.length})`:"";
+  const T=range()[1];
+  $("alFrom").textContent=`desde ${lbl(T+1)} hasta ${lbl(T+7)}`;
+  const hi=alerts.filter(a=>a.lvl>=3).length;
+  const B=$("banner");
+  B.hidden=!(hi>0&&tab!=="al");
+  B.textContent=`⚠ ${hi} ${hi===1?"zona":"zonas"} con peligro muy alto o extremo · próximos 7 días`;
+  globe.ringsData(tab==="al"?alerts:[]);
+  const L=$("alList");
+  if(!alerts.length){L.innerHTML=`<div class="note">Sin zonas en peligro alto para esta fecha y territorio.</div>`;fit();return}
+  L.innerHTML=alerts.slice(0,6).map((a,i)=>{
+    const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe";
+    const strip=a.days.map((l,k)=>`<i style="background:${LV[l].c}" title="${lbl(T+1+k)}: ${LV[l].n}"></i>`).join("");
+    return `<button class="al" data-i="${i}"><span class="lv" style="background:${lv.c}"></span>
+      <span class="t"><span>${name}</span><em style="background:${lv.c}">${lv.n}</em></span>
+      <span class="s">${fmt(a.s)} focos en 7 días · ${a.lat.toFixed(1)}°, ${a.lng.toFixed(1)}°</span>
+      <span class="strip">${strip}</span><span class="strip-l"><span>+1</span><span>+7 días</span></span></button>`;
+  }).join("")+(alerts.length>6?`<div class="note">y ${alerts.length-6} zonas más en el globo</div>`:"");
+}
+$("alList").addEventListener("click",e=>{
+  const b=e.target.closest(".al");if(!b)return;
+  const a=alerts[+b.dataset.i];pauseRot();scheduleResume();
+  globe.pointOfView({lat:a.lat,lng:a.lng,altitude:.45},1200);
+});
+function setTab(v){
+  tab=v;$("tabs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===v));
+  $("vSum").hidden=v!=="sum";$("vAl").hidden=v!=="al";renderAlerts();syncRotation();
+}
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setTab(b.dataset.v)});
+$("banner").addEventListener("click",()=>setTab("al"));
+
+// ---- Header: switch de vista Análisis / Planificación ----
+// Vistas: "analisis" (globo) · "plan" (planisferio)
+let curView="analisis";
+function setView(v){
+  if(v===curView)return;
+  const sw=$("viewSw");sw.dataset.v=v;
+  sw.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",b.dataset.v===v));
+  const plan=v==="plan";curView=v;
+  document.body.classList.toggle("plan",plan);
+  const tok=++viewTok,RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  $("viewSw").setAttribute("aria-busy","true");
+  if(plan){
+    // el globo se aleja y se desvanece mientras aparece el planisferio; al terminar se pausa (no consume GPU)
+    savedPov=globe.pointOfView();pauseRot();
+    globe.pointOfView({lat:12,lng:savedPov.lng,altitude:3.4},RM?0:650);
+    ensurePlanMap().then(m=>{m.invalidateSize();return drawPlanAlerts()}).catch(err=>{$("planInfo").textContent="No se pudo cargar el mapa: "+err.message});
+    setTimeout(()=>{
+      if(tok!==viewTok)return;
+      meshes.forEach(m=>m.visible=false);heatMesh.visible=false;globe.polygonsData([]);polysShown=false;globe.ringsData([]);
+      globe.pauseAnimation();$("viewSw").removeAttribute("aria-busy");
+    },RM?0:700);
+  }else{
+    // el globo vuelve desde lejos a la vista donde estaba
+    closePlanCard();
+    globe.resumeAnimation();
+    if(curLists){drawMode();renderAlerts();fit()}
+    if(savedPov)globe.pointOfView(savedPov,RM?0:900);
+    setTimeout(()=>{if(tok===viewTok){$("viewSw").removeAttribute("aria-busy");scheduleResume()}},RM?0:900);
+  }
+}
+let viewTok=0,savedPov=null;
+
+// ---- Planificación: alertas sutiles y cliqueables sobre el planisferio ----
+// Solo alertas FUTURAS: los 7 días siguientes a la fecha real de hoy (o ?hoy=AAAA-MM-DD para simular).
+// Independientes de los filtros de Análisis.
+let alertLayer=null,zoneLayer=null,planSel=null,planAlerts=[],flyTok=0,planBase=null;
+const fdate=d=>`${d.getUTCDate()} ${MES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+function planToday(){
+  const q=new URLSearchParams(location.search).get("hoy");
+  const m=q&&/^(\d{4})-(\d{2})-(\d{2})$/.exec(q);
+  const n=new Date();
+  return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
+}
+// PRNG con semilla (mismo día → misma simulación)
+function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+// Datos SIMULADOS (solo en memoria, solo para Planificación): toma la misma semana del último año
+// con datos y le aplica variaciones aleatorias. Devuelve un ctx compatible con computeAlerts.
+async function simulateRecent(today){
+  const ay=Math.max(...YEARS),A=prepYear(ay,await loadYear(ay));
+  const doy=Math.round((today-Date.UTC(today.getUTCFullYear(),0,1))/864e5);
+  const to=Math.min(Math.max(doy,6),A.ND-1),from=to-6;
+  const rnd=mulberry32(today.getUTCFullYear()*1000+doy),g=()=>{let u=0;for(let k=0;k<6;k++)u+=rnd();return u-3}; // ~normal
+  const level=.8+rnd()*.5;                             // actividad general de la semana
+  const idx=[];for(let i=A.start[from];i<A.start[to+1];i++)if(rnd()>.15)idx.push(i);   // ~15% de focos que "no ocurren"
+  const n=idx.length,cols={conf:new Int8Array(n),prov:new Int16Array(n),n:new Float64Array(n),f:new Float64Array(n),day:new Int16Array(n)};
+  const r4=new Int32Array(n),start=new Int32Array(8);
+  idx.forEach((i,k)=>{
+    const fac=level*Math.exp(g()*.35);
+    cols.conf[k]=A.C.conf[i];cols.prov[k]=A.C.prov[i];cols.day[k]=A.C.day[i]-from;
+    cols.n[k]=Math.max(1,Math.round(A.C.n[i]*fac));cols.f[k]=A.C.f[i]*fac;r4[k]=A.rows[4][i];
+  });
+  for(let d=0,k=0;d<=7;d++){while(k<n&&cols.day[k]<d)k++;start[d]=k}
+  return {C:cols,start,rows:{4:r4},to:6,conf:0,prov:-1,analog:ay};
+}
+async function drawPlanAlerts(){
+  if(!planMap)return;
+  const today=planToday(),y=today.getUTCFullYear(),doy=Math.round((today-Date.UTC(y,0,1))/864e5);
+  const fut=k=>new Date(Date.UTC(y,0,1+doy+k));        // k = 1..7 → días futuros
+  planAlerts=[];planBase=null;
+  let ctx=null,sim=null;
+  if(YEARS.includes(y)){
+    const P=prepYear(y,await loadYear(y)),to=Math.min(doy,P.ND-1);
+    if(P.start[to+1]-P.start[Math.max(0,to-6)]>0)ctx={C:P.C,start:P.start,rows:P.rows,to,conf:0,prov:-1};
+  }
+  if(!ctx){ctx=await simulateRecent(today);sim=ctx.analog}   // sin datos recientes reales → simulación
+  planAlerts=computeAlerts(ctx);
+  planBase={fut,sim};
+  const rango=`entre el ${fdate(fut(1))} y el ${fdate(fut(7))}`;
+  $("planInfo").textContent=planAlerts.length
+    ?`${planAlerts.length} alertas futuras ${rango}.`
+    :`Sin alertas futuras ${rango}.`;
+  $("planSim").hidden=!sim;
+  $("planSim").title=sim?`Focos recientes inventados a partir de la misma semana de ${sim}, con variaciones al azar (no hay datos reales de ${y}).`:"";
+  renderPlanMarkers();
+}
+function renderPlanMarkers(){
+  if(!alertLayer)return;
+  alertLayer.clearLayers();
+  // de menor a mayor nivel: los más graves quedan arriba
+  planAlerts.map((a,i)=>({a,i})).sort((x,y)=>x.a.lvl-y.a.lvl||x.a.s-y.a.s).forEach(({a,i})=>{
+    const sz=10+a.lvl*2,L=window.L;        // 14–18 px según el nivel
+    const icon=L.divIcon({className:"pa-icon",iconSize:[sz,sz],
+      html:`<span class="pa${planSel===i?" sel":""}${isPri(a.h)?" pri":""}" style="--c:${LV[a.lvl].c}"></span>`});
+    const name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe";
+    L.marker([a.lat,a.lng],{icon,keyboard:true,title:`${name}: peligro ${LV[a.lvl].n}`,riseOnHover:true,zIndexOffset:a.lvl*100})
+      .bindTooltip(`<b>${name}</b><br>Peligro previsto: ${LV[a.lvl].n.toLowerCase()}`,{className:"pa-tip",direction:"top",offset:[0,-sz/2-2]})
+      .on("click",()=>selectPlanAlert(i))
+      .addTo(alertLayer);
+  });
+}
+function selectPlanAlert(i){
+  const a=planAlerts[i],L=window.L;if(!a)return;
+  planSel=i;renderPlanMarkers();
+  // zona de la alerta: la celda y sus vecinas (~55 km)
+  zoneLayer.clearLayers();
+  const zone=h3.cellsToMultiPolygon(h3.gridDisk(a.h,1),true);
+  const z=L.geoJSON({type:"MultiPolygon",coordinates:zone},{interactive:false,
+    style:{color:LV[a.lvl].c,weight:2,opacity:.9,fillColor:LV[a.lvl].c,fillOpacity:.14,dashArray:"5 4"}}).addTo(zoneLayer);
+  // zoom a la región dejando lugar para la card
+  const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const B=z.getBounds(),pad={paddingTopLeft:[300,110],paddingBottomRight:[360,40],maxZoom:7};
+  const target=Math.min(7,planMap.getBoundsZoom(B,false,L.point(660,150))),dur=RM?0:1.1,tok=++flyTok;
+  if(RM)planMap.fitBounds(B,{...pad,animate:false});
+  else{
+    planMap.flyToBounds(B,{...pad,duration:dur});
+    // respaldo: si la animación no llegó (p. ej. pestaña en segundo plano), se ubica directo
+    setTimeout(()=>{if(tok===flyTok&&Math.abs(planMap.getZoom()-target)>.5)planMap.fitBounds(B,{...pad,animate:false})},dur*1000+500);
+  }
+  // card centrada en el pronóstico
+  const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",fut=planBase.fut;
+  const mx=Math.max(...a.days),kMax=a.days.indexOf(mx),altos=a.days.filter(l=>l>=2).length;
+  $("pcChip").textContent=`Peligro ${lv.n.toLowerCase()}`;$("pcChip").style.background=lv.c;
+  $("pcTitle").textContent=name;
+  $("pcSub").textContent=`${a.lat.toFixed(2)}°, ${a.lng.toFixed(2)}° · zona de ~${fmt(AREA_AVG[4]*7)} km²`;
+  $("pcMax").textContent=LV[mx].n;$("pcMax").style.color=LV[mx].c;
+  $("pcPeak").textContent=fdate(fut(kMax+1)).replace(/ \d{4}$/,"");
+  $("pcHigh").textContent=`${altos} de 7 días con peligro alto o mayor`;
+  $("pcDays").innerHTML=a.days.map((l,k)=>{const d=fut(k+1);
+    return `<div title="${fdate(d)}: ${LV[l].n}"><i style="background:${LV[l].c}"></i>${d.getUTCDate()}/${d.getUTCMonth()+1}</div>`}).join("");
+  $("pcWhy").textContent=`Motivo: ${fmt(a.s)} focos (${fmt(a.f)} MW) en la zona durante los últimos 7 días`+
+    (planBase.sim?" (focos simulados para prueba).":".");
+  updPriBtn();renderTrack(a.h);
+  $("planCard").classList.remove("off");
+  $("planCard").scrollTop=0;
+  renderPriList();
+}
+function closePlanCard(){
+  $("planCard").classList.add("off");
+  if(planSel!=null){planSel=null;if(zoneLayer)zoneLayer.clearLayers();renderPlanMarkers();renderPriList()}
+}
+$("pcClose").addEventListener("click",closePlanCard);
+
+// ---- Zonas prioritarias: se marcan desde la card y se listan en el panel izquierdo ----
+// Se guardan en este navegador (localStorage); si no está disponible, viven solo en esta sesión.
+const PRI_KEY="globo-quemas:prioritarias";
+let pri=[];
+try{pri=JSON.parse(localStorage.getItem(PRI_KEY)||"[]");if(!Array.isArray(pri))pri=[]}catch{pri=[]}
+const savePri=()=>{try{localStorage.setItem(PRI_KEY,JSON.stringify(pri))}catch{}};
+const isPri=h=>pri.some(z=>z.h===h);
+function togglePri(a){
+  if(isPri(a.h))pri=pri.filter(z=>z.h!==a.h);
+  else{
+    const mx=Math.max(...a.days),k=a.days.indexOf(mx);
+    pri.unshift({h:a.h,name:a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",lvl:mx,lat:a.lat,lng:a.lng,
+      peak:fdate(planBase.fut(k+1)),peakTs:planBase.fut(k+1).getTime(),endTs:planBase.fut(7).getTime(),
+      sim:!!planBase.sim,added:Date.now()});
+  }
+  savePri();renderPriList();renderPlanMarkers();updPriBtn();renderTrack(a.h);
+}
+function updPriBtn(){
+  const a=planAlerts[planSel],b=$("pcPri");if(!a)return;
+  const on=isPri(a.h);
+  b.setAttribute("aria-pressed",on);
+  b.textContent=on?"✓ Marcada como prioritaria · quitar":"★ Marcar como prioritaria";
+}
+$("pcPri").addEventListener("click",()=>{const a=planAlerts[planSel];if(a)togglePri(a)});
+function renderPriList(){
+  const L=$("priList"),cur=planAlerts[planSel]?.h;
+  // primero las de mayor nivel; dentro del nivel, las últimas marcadas arriba
+  const list=pri.slice().sort((x,y)=>y.lvl-x.lvl||y.added-x.added);
+  L.innerHTML=list.map(z=>`<li class="pri-item${z.h===cur?" cur":""}">
+      <button class="pri-go" data-h="${z.h}" title="Ver en el mapa"><span class="pri-dot" style="background:${LV[z.lvl].c}"></span>
+      <span class="pri-name">${z.name}</span>
+      <span class="pri-meta">${LV[z.lvl].n} · pico ${z.peak.replace(/ \d{4}$/,"")}${z.sim?" · simulado":""}</span></button>
+      <button class="pri-del" data-del="${z.h}" aria-label="Quitar ${z.name} de prioritarias">✕</button>
+      <div class="pri-rep">${repBlock(z)}</div></li>`).join("");
+  $("priN").textContent=pri.length;
+  $("priEmpty").hidden=pri.length>0;$("priClear").hidden=pri.length<2;
+}
+// Bloque de reporte de cada zona prioritaria: botón → confirmación → estado del envío
+let repAsk=null;   // zona con la confirmación abierta
+function repBlock(z){
+  const r=repOf(z.h);
+  if(r){const res=exampleTrack(r).res,stn=stationById(r.st);
+    return `<div class="rep-state"><span class="st-pill st-${res.pill}" title="Resultado del seguimiento (ejemplo)">${res.n}</span>Reportada a ${stn?stn.name:"cuartel"} · ${fmtTime(r.sentAt)}</div>`}
+  if(repAsk===z.h){const {s,d}=nearestStation(z.lat,z.lng);
+    return `<div class="rep-confirm"><span>Enviar alerta a <b>${s.name}</b>, el cuartel más cercano (a ${fmt(d)} km).</span>
+      <div class="row"><button class="rep-btn go" data-send="${z.h}">Enviar alerta</button><button class="rep-btn" data-cancel="1">Cancelar</button></div></div>`}
+  return `<button class="rep-btn" data-ask="${z.h}"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-1px;margin-right:5px"><path d="M2 13h12M3 13V8h7v5M10 10h3l1 3M5 5h3M6.5 3.5v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Reportar a bomberos</button>`;
+}
+$("priList").addEventListener("click",e=>{
+  const ask=e.target.closest("[data-ask]");if(ask){repAsk=ask.dataset.ask;renderPriList();return}
+  if(e.target.closest("[data-cancel]")){repAsk=null;renderPriList();return}
+  const send=e.target.closest("[data-send]");if(send){sendReport(send.dataset.send);return}
+  const del=e.target.closest("[data-del]");
+  if(del){pri=pri.filter(z=>z.h!==del.dataset.del);savePri();renderPriList();renderPlanMarkers();updPriBtn();return}
+  const go=e.target.closest("[data-h]");if(!go)return;
+  const i=planAlerts.findIndex(a=>a.h===go.dataset.h);
+  if(i>=0){selectPlanAlert(i);return}
+  // la alerta ya no está vigente: igual se muestra la zona en el mapa
+  const z=pri.find(z=>z.h===go.dataset.h);if(!z||!planMap)return;
+  closePlanCard();
+  zoneLayer.clearLayers();
+  const g=window.L.geoJSON({type:"MultiPolygon",coordinates:h3.cellsToMultiPolygon(h3.gridDisk(z.h,1),true)},{interactive:false,
+    style:{color:"#0d0d0d",weight:2,opacity:.7,fillOpacity:.08,dashArray:"5 4"}}).addTo(zoneLayer);
+  planMap.fitBounds(g.getBounds(),{paddingTopLeft:[320,110],paddingBottomRight:[40,40],maxZoom:7});
+});
+$("priClear").addEventListener("click",()=>{if(confirm("¿Vaciar la lista de zonas prioritarias?")){pri=[];savePri();renderPriList();renderPlanMarkers();updPriBtn()}});
+
+// ---- Cuarteles de bomberos SIMULADOS (inventados para la prueba, siempre los mismos) ----
+let STATIONS=null;
+function stations(){
+  if(STATIONS)return STATIONS;
+  const rnd=mulberry32(20261114);STATIONS=[];
+  PROVINCIAS.forEach((p,i)=>{
+    const [x0,y0,x1,y1]=p.bbox,area=(x1-x0)*(y1-y0),cnt=Math.max(3,Math.min(8,Math.round(Math.sqrt(area)*1.2)));
+    for(let k=1,tries=0;k<=cnt&&tries<600;tries++){
+      const lat=y0+(y1-y0)*rnd(),lng=x0+(x1-x0)*rnd();
+      if(provAt(lat,lng)!==i)continue;
+      if(lng>-62&&lat<-50)continue;                  // sin cuarteles inventados en las islas del Atlántico Sur
+      STATIONS.push({id:`${i}-${k}`,name:`Cuartel de Bomberos N° ${k} · ${p.name}`,prov:i,lat,lng});k++;
+    }
+  });
+  return STATIONS;
+}
+const stationById=id=>stations().find(s=>s.id===id);
+function kmBetween(a1,o1,a2,o2){const R=6371,r=Math.PI/180,da=(a2-a1)*r,dn=(o2-o1)*r,x=Math.sin(da/2)**2+Math.cos(a1*r)*Math.cos(a2*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function nearestStation(lat,lng){let best=null,d=1e9;for(const s of stations()){const k=kmBetween(lat,lng,s.lat,s.lng);if(k<d){d=k;best=s}}return {s:best,d}}
+
+// ---- Reportes enviados (simulados, guardados en este navegador) ----
+const REP_KEY="globo-quemas:reportes";
+// estados posibles de un reporte (por ahora todos quedan en "nueva" = Enviada)
+const STAT={nueva:{n:"Enviada"},recibida:{n:"Recibida"},encurso:{n:"En curso"},resuelta:{n:"Resuelta"}};
+let reps=[];
+try{reps=JSON.parse(localStorage.getItem(REP_KEY)||"[]");if(!Array.isArray(reps))reps=[]}catch{reps=[]}
+const saveReps=()=>{try{localStorage.setItem(REP_KEY,JSON.stringify(reps))}catch{}};
+const repOf=h=>reps.find(r=>r.h===h);
+const fmtTime=t=>{const d=new Date(t);return `${d.getDate()} ${MES[d.getMonth()]} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`};
+function sendReport(h){
+  const z=pri.find(z=>z.h===h);if(!z||repOf(h))return;
+  const {s,d}=nearestStation(z.lat,z.lng);
+  reps.push({id:"r"+Date.now(),h,name:z.name,lvl:z.lvl,peak:z.peak,peakTs:z.peakTs,endTs:z.endTs,sim:z.sim,lat:z.lat,lng:z.lng,st:s.id,dist:Math.round(d),sentAt:Date.now(),status:"nueva",log:[{s:"nueva",t:Date.now()}]});
+  saveReps();repAsk=null;renderPriList();
+  if(planAlerts[planSel]?.h===h)renderTrack(h);
+}
+
+// ---- Seguimiento con bomberos: historial de EJEMPLO (inventado, siempre igual para cada zona) ----
+const strHash=s=>{let x=2166136261;for(const c of s)x=Math.imul(x^c.charCodeAt(0),16777619);return x>>>0};
+const OUTCOME={
+  evitado:{n:"Incendio evitado",cls:"ok",ic:"✓",pill:"resuelta"},
+  contenido:{n:"Foco contenido a tiempo",cls:"warn",ic:"!",pill:"encurso"},
+  curso:{n:"Seguimiento en curso",cls:"run",ic:"…",pill:"recibida"}};
+function exampleTrack(r){
+  const rnd=mulberry32(strHash(r.h)),H=36e5,D=24*H,t0=r.sentAt;
+  const peak=r.peakTs||t0+D,end=r.endTs||peak+6*D,stn=stationById(r.st);
+  const pick=a=>a[Math.floor(rnd()*a.length)];
+  const kind=["evitado","contenido","curso"][strHash(r.h+"#")%3];
+  const dot=pick([3,4,5,6]),km=(1.5+rnd()*4).toFixed(1).replace(".",","),prod=6+Math.floor(rnd()*14);
+  const ev=[
+    {t:t0,who:"app",tt:"Alerta enviada",dd:`Peligro ${LV[r.lvl].n.toLowerCase()} previsto · pico ${r.peak.replace(/ \d{4}$/,"")} · zona a ${fmt(r.dist)} km del cuartel.`},
+    {t:t0+(8+rnd()*20)*6e4,who:"bomb",tt:"Alerta recibida",dd:`${stn?stn.name:"El cuartel"} confirmó la recepción.`},
+    {t:t0+(2+rnd()*3)*H,who:"bomb",tt:"Recorrida de evaluación",dd:`Dotación de ${dot} bomberos recorrió la zona: ${pick(["pastizales secos y viento del norte","banquinas con vegetación seca","rastrojos acumulados cerca de caminos rurales"])}.`},
+    {t:t0+(18+rnd()*10)*H,who:"bomb",tt:"Medidas preventivas",dd:`Línea cortafuego de ${km} km · aviso a ${prod} productores rurales · prohibición de quemas en la zona.`},
+    {t:t0+(40+rnd()*10)*H,who:"app",tt:"Actualización del pronóstico",dd:`El peligro sigue ${r.lvl>=4?"en nivel extremo":"alto"} para el día de pico; se recomienda guardia preventiva.`},
+    {t:peak+8*H,who:"bomb",tt:"Guardia preventiva",dd:`Guardia rotativa en la zona durante el día de mayor riesgo (${r.peak.replace(/ \d{4}$/,"")}).`}];
+  let res;
+  if(kind==="evitado"){
+    ev.push({t:end+20*H,who:"app",tt:"Cierre de la alerta",dd:"No se registraron focos en la zona durante el período previsto.",ok:true});
+    res={...OUTCOME.evitado,txt:`No hubo focos en la zona entre el ${fdate(new Date(peak)).replace(/ \d{4}$/,"")} y el ${fdate(new Date(end)).replace(/ \d{4}$/,"")}. Las medidas preventivas se mantuvieron hasta el cierre.`};
+  }else if(kind==="contenido"){
+    const ha=2+Math.floor(rnd()*6),min=25+Math.floor(rnd()*35);
+    ev.push({t:peak+(13+rnd()*4)*H,who:"bomb",tt:"Foco detectado y extinguido",dd:`Foco de ${ha} ha detectado por la guardia; extinguido en ${min} minutos, sin propagación.`});
+    ev.push({t:end+20*H,who:"app",tt:"Cierre de la alerta",dd:"Sin nuevos focos hasta el fin del período.",ok:true});
+    res={...OUTCOME.contenido,txt:`Hubo un foco de ${ha} ha el día de mayor riesgo, pero la dotación en guardia lo extinguió en ${min} minutos.`};
+  }else{
+    ev.push({t:null,who:"pend",tt:"Cierre de la alerta",dd:`Pendiente: la ventana de riesgo termina el ${fdate(new Date(end)).replace(/ \d{4}$/,"")}.`});
+    res={...OUTCOME.curso,txt:"Las medidas preventivas están activas y la guardia sigue en la zona."};
+  }
+  return {ev,res};
+}
+const fmtWhen=t=>t==null?"pendiente":fmtTime(t);
+function renderTrack(h){
+  const box=$("pcTrack"),r=repOf(h);
+  if(!r){
+    box.innerHTML=isPri(h)
+      ?`<div class="trk-hint">Reportá esta zona a bomberos desde la lista de zonas prioritarias para ver el seguimiento.</div>`
+      :"";
+    return;
+  }
+  const {ev,res}=exampleTrack(r);
+  box.innerHTML=`<div class="trk-h"><h4>Seguimiento con bomberos</h4><span class="trk-ex" title="Historial inventado para mostrar cómo se vería el seguimiento">EJEMPLO</span></div>
+    <div class="trk-res ${res.cls}"><span class="ic" style="background:${res.cls==="ok"?"#4caf7a":res.cls==="warn"?"#f2994a":"#6fa7ee"}">${res.ic}</span><span><b>${res.n}</b>${res.txt}</span></div>
+    <ol class="tl">${ev.map(e=>`<li><span class="dot ${e.ok?"ok":e.who}"></span>
+      <div class="who">${e.who==="app"?"App":e.who==="bomb"?"Bomberos":"Próximo paso"} · <span class="when">${fmtWhen(e.t)}</span></div>
+      <div class="tt">${e.tt}</div><div class="dd">${e.dd}</div></li>`).join("")}</ol>`;
+}
+renderPriList();
+addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("plan"))closePlanCard()});
+
+// ---- Planificación: planisferio físico plano con Leaflet (se carga la primera vez) ----
+let planMap=null,planMapP=null;
+function loadAsset(tag,attrs){return new Promise((ok,fail)=>{const e=document.createElement(tag);Object.assign(e,attrs);e.onload=ok;e.onerror=()=>fail(new Error(attrs.src||attrs.href));document.head.appendChild(e)})}
+function ensurePlanMap(){
+  if(planMapP)return planMapP;
+  planMapP=Promise.all([
+    loadAsset("link",{rel:"stylesheet",href:"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"}),
+    loadAsset("script",{src:"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"})
+  ]).then(()=>{
+    const L=window.L;
+    const WORLD=[[-85.05,-180],[85.05,180]];
+    planMap=L.map("planMap",{zoomControl:false,maxZoom:8,zoomSnap:0,zoomDelta:.5,
+      maxBounds:WORLD,maxBoundsViscosity:1,attributionControl:true});
+    // Mapa físico (vegetación, desiertos, hielo, batimetría), plano; solo mosaicos dentro del mundo
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}",
+      {maxZoom:8,noWrap:true,bounds:WORLD,attribution:"Mapa: Esri — US National Park Service"}).addTo(planMap);
+    // contorno de provincias argentinas (datos locales) como referencia
+    L.geoJSON({type:"FeatureCollection",features:PROVINCIAS.map(p=>({type:"Feature",properties:{name:p.name},geometry:p.geo}))},
+      {style:{color:"#5b4a3a",weight:.8,opacity:.6,fill:false},interactive:false}).addTo(planMap);
+    L.control.zoom({position:"bottomright"}).addTo(planMap);
+    alertLayer=L.layerGroup().addTo(planMap);zoneLayer=L.layerGroup().addTo(planMap);
+    // el planisferio ocupa todo el ancho; no se puede alejar más que eso
+    const fitW=()=>Math.log2(Math.max(256,$("planMap").clientWidth)/256);
+    planMap.setMinZoom(fitW());planMap.setView([20,0],fitW(),{animate:false});
+    addEventListener("resize",()=>{if(!planMap)return;const z=fitW();planMap.setMinZoom(z);if(planMap.getZoom()<z)planMap.setZoom(z)});
+    return planMap;
+  });
+  return planMapP;
+}
+$("viewSw").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setView(b.dataset.v)});
+$("viewSw").addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft")setView("analisis");else if(e.key==="ArrowRight")setView("plan");else return;
+  $("viewSw").querySelector('[aria-checked="true"]').focus();
+});
+document.querySelector(".logo").addEventListener("click",e=>{e.preventDefault();setView("analisis")});
+
+// ---- Historial: escala Semana / Mes / Año ----
+const DIAS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const MESL=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const EMPTY="rgba(255,255,255,.06)";
+const dayCol=(v,mx)=>v>0?ramp(Math.sqrt(v/mx)):EMPTY;
+const inkOn=(v,mx)=>v>0&&Math.sqrt(v/mx)>.55?"#fff7dc":"#0d0d0d";  // texto legible sobre la celda
+const tip1=d=>`${lbl(d)}: ${fmt(daily[d])} focos · ${fmt(dailyF[d])} MW · ☀ ${fmt(dailyD[d])} / ☾ ${fmt(dailyN[d])}`;
+function weekOf(d){const first=dow(0);return {w:Math.floor((d+first)/7),dw:dow(d)}}
+const calW=()=>Math.max(300,$("cal").clientWidth);
+
+// Año: grilla de semanas × días (estilo contribuciones)
+function yearGrid(){
+  const mx=Math.max(1,...daily),[a,b]=range(),LEFT=30,TOP=14;
+  const CS=Math.max(8,Math.min(13,Math.floor((calW()-LEFT)/54)-2,Math.floor((122-TOP)/7)-2)),G=2;
+  let s=`<svg width="${LEFT+54*(CS+G)}" height="${TOP+7*(CS+G)}" role="img">`;
+  DIAS.forEach((n,i)=>{s+=`<text class="mt" x="0" y="${TOP+i*(CS+G)+CS-2}">${n}</text>`});
+  let lastM=-1;
+  for(let d=0;d<ND;d++){
+    const {w,dw}=weekOf(d),x=LEFT+w*(CS+G),y=TOP+dw*(CS+G),m=dateOf(d).getUTCMonth();
+    if(m!==lastM&&dw<4){s+=`<text class="mt" x="${x}" y="10">${MES[m]}</text>`;lastM=m}
+    const sel=st.day===d;
+    s+=`<rect data-d="${d}" x="${x}" y="${y}" width="${CS}" height="${CS}" rx="2" fill="${dayCol(daily[d],mx)}"${sel?` stroke="#f0efec" stroke-width="1.6"`:""}><title>${tip1(d)}</title></rect>`;
+  }
+  return s+"</svg>";
+}
+// Mes: calendario clásico (Lun–Dom), número de día + focos
+function monthCal(){
+  const [a,b]=period(),mx=Math.max(1,...daily),W=calW(),cw=Math.min(96,Math.floor((W-6)/7)),TOP=15,rh=18;
+  const off=dow(a),rows=Math.ceil((off+b-a+1)/7);
+  let s=`<svg width="${cw*7}" height="${TOP+rows*rh+2}" role="img">`;
+  DIAS.forEach((n,i)=>{s+=`<text class="mt" x="${i*cw+4}" y="10">${n}</text>`});
+  for(let d=a;d<=b;d++){
+    const k=off+d-a,x=(k%7)*cw,y=TOP+Math.floor(k/7)*rh,ink=inkOn(daily[d],mx),sel=st.day===d;
+    s+=`<g data-d="${d}"><rect x="${x+1}" y="${y+1}" width="${cw-2}" height="${rh-2}" rx="3" fill="${dayCol(daily[d],mx)}"${sel?` stroke="#f0efec" stroke-width="1.6"`:""}/>
+      <text class="mt-b" x="${x+6}" y="${y+rh-5}" style="font-size:12px" fill="${daily[d]>0?ink:"#a2a198"}">${dateOf(d).getUTCDate()}</text>
+      ${daily[d]>0?`<text class="mt" x="${x+cw-6}" y="${y+rh-5}" text-anchor="end" style="fill:${ink};font-size:12px">${fmt(daily[d])}</text>`:""}
+      <title>${tip1(d)}</title></g>`;
+  }
+  return s+"</svg>";
+}
+// Semana: 7 tarjetas
+function weekCards(){
+  const [a,b]=period(),mx=Math.max(1,...daily);let h=`<div class="wk-cards">`;
+  for(let d=a;d<=b;d++){
+    const v=daily[d],c=dayCol(v,mx),t=v||1;
+    h+=`<button class="wk-card" data-d="${d}" aria-pressed="${st.day===d}" title="${tip1(d)}" style="border-left-color:${c};background:linear-gradient(180deg,${v>0?c.replace("rgb","rgba").replace(")",",.16)"):"transparent"},transparent)">
+      <span class="dn">${DIAS[dow(d)]} ${dateOf(d).getUTCDate()} ${MES[dateOf(d).getUTCMonth()]}</span>
+      <span class="v">${fmt(v)}</span><span class="s">${fmt(dailyF[d])} MW</span>
+      <span class="split"><i style="width:${100*dailyD[d]/t}%"></i><i style="width:${100*dailyN[d]/t}%"></i></span></button>`;
+  }
+  return h+"</div>";
+}
+const VIEWS={year:yearGrid,month:monthCal,week:weekCards};
+
+function perLabel(){
+  const [a,b]=period();
+  if(st.scale==="year")return `Año ${st.year}`;
+  if(st.scale==="month")return `${MESL[dateOf(a).getUTCMonth()]} ${st.year}`;
+  return `${dateOf(a).getUTCDate()} ${MES[dateOf(a).getUTCMonth()]} – ${dateOf(b).getUTCDate()} ${MES[dateOf(b).getUTCMonth()]} ${st.year}`;
+}
+function drawHistory(){
+  const [a,b]=period();
+  $("perLbl").textContent=perLabel();
+  $("pPrev").disabled=st.scale==="year"||a<=0;$("pNext").disabled=st.scale==="year"||b>=ND-1;
+  const chip=$("dayChip");chip.hidden=st.day==null;
+  if(st.day!=null)chip.textContent=`Día: ${lbl(st.day)} ✕`;
+  pressed($("fScale"),$("fScale").querySelector(`[data-v="${st.scale}"]`));
+  $("cal").innerHTML=VIEWS[st.scale]();
+  // la vista semanal muestra la división día/noche
+  $("dnKeyBox").innerHTML=st.scale==="week"
+    ?`<span class="dnkey"><span><i style="background:#f8b13a"></i>Día</span><span><i style="background:#6f7fe0"></i>Noche</span></span>`:"";
+}
+$("cal").addEventListener("click",e=>{
+  const el=e.target.closest("[data-d]");if(!el)return;
+  const d=+el.dataset.d;st.day=st.day===d?null:d;render();      // clic de nuevo = volver al período
+});
+$("fScale").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b||b.dataset.v===st.scale)return;
+  if(st.day!=null)st.end=st.day;
+  st.scale=b.dataset.v;st.day=null;render();
+});
+function shiftPeriod(dir){
+  const [a,b]=period();
+  if(st.scale==="week")st.end=Math.max(0,Math.min(ND-1,st.end+7*dir));
+  else if(st.scale==="month")st.end=dir>0?Math.min(ND-1,b+1):Math.max(0,a-1);
+  st.day=null;render();
+}
+$("pPrev").addEventListener("click",()=>shiftPeriod(-1));
+$("pNext").addEventListener("click",()=>shiftPeriod(1));
+$("dayChip").addEventListener("click",()=>{st.day=null;render()});
+
+// ---- Controles ----
+function pressed(box,b){box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b))}
+function seg(id,key,conv){
+  const box=$(id);
+  box.addEventListener("click",e=>{
+    const b=e.target.closest("button");if(!b)return;
+    pressed(box,b);
+    st[key]=conv?conv(b.dataset.v):b.dataset.v;
+    calcDaily();render();
+  });
+}
+seg("fConf","conf",Number);seg("fDn","dn");
+// ---- Barra de visualización: modo, forma, tamaño de grilla, ajustes ----
+$("fMode").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b||b.dataset.v===st.mode)return;
+  pressed($("fMode"),b);st.mode=b.dataset.v;
+  $("fShape").hidden=st.mode!=="area";fit();
+  if(curLists){drawMode();drawLegend()}
+});
+$("fShape").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b||b.dataset.v===st.shape)return;
+  pressed($("fShape"),b);st.shape=b.dataset.v;
+  if(curLists){drawAreas(curLists);drawLegend()}
+});
+function updResLbl(){
+  $("resLbl").textContent=`~${fmt(AREA_AVG[st.res])} km² · arista ~${fmt(h3.getHexagonEdgeLengthAvg(st.res,"km"))} km`;
+}
+$("fRes").addEventListener("input",e=>{
+  const r=+e.target.value;if(r===st.res)return;
+  st.res=r;updResLbl();if(C)render();
+});
+$("gearBtn").addEventListener("click",()=>{
+  const p=$("gearPop"),open=p.hidden;p.hidden=!open;$("gearBtn").setAttribute("aria-expanded",open);
+});
+document.addEventListener("click",e=>{
+  if(!$("gearPop").hidden&&!e.target.closest(".gear")){$("gearPop").hidden=true;$("gearBtn").setAttribute("aria-expanded","false")}
+});
+$("fBase").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  pressed($("fBase"),b);globe.globeImageUrl(TEX+b.dataset.v);
+});
+
+// Año: 2000–2026; los años sin archivo en data/ quedan deshabilitados
+const Y_MIN=2000,Y_MAX=2026,ySel=$("fYear");
+for(let y=Y_MAX;y>=Y_MIN;y--){
+  const o=document.createElement("option"),ok=YEARS.includes(y);
+  o.value=y;o.textContent=ok?String(y):`${y} (sin datos)`;o.disabled=!ok;ySel.appendChild(o);
+}
+ySel.value=st.year;
+async function changeYear(y){
+  if(y===st.year||!YEARS.includes(y))return;
+  $("busy").hidden=false;
+  try{
+    const D=await loadYear(y);
+    const doy=st.day!=null?st.day:st.end;useYear(y,D);calcDaily();
+    st.end=Math.min(doy,ND-1);st.day=null;render();
+  }catch(err){alert(err.message)}
+  ySel.value=st.year;
+  $("busy").hidden=true;
+}
+ySel.addEventListener("change",()=>changeYear(+ySel.value));
+
+const tSel=$("fTerr");
+PROVINCIAS.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p.name;tSel.appendChild(o)});
+tSel.addEventListener("change",()=>setProv(+tSel.value));
+function setProv(i){
+  st.prov=i;tSel.value=i;
+  setPaths();
+  calcDaily();render();
+  pauseRot();scheduleResume();
+  if(i<0){globe.pointOfView({lat:-38,lng:-64,altitude:1.9},1200);return}
+  const [x0,y0,x1,y1]=PROVINCIAS[i].bbox;
+  const span=Math.max(x1-x0,y1-y0);
+  globe.pointOfView({lat:(y0+y1)/2,lng:(x0+x1)/2,altitude:Math.min(1.9,Math.max(.12,span*.06))},1200);
+}
+
+// ---- Puntero: tooltip y clic sin raycasting (coordenadas → H3 / provincia) ----
+function inRing(x,y,r){let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const [xi,yi]=r[i],[xj,yj]=r[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c}
+function provAt(lat,lng){
+  for(let i=0;i<PROVINCIAS.length;i++){
+    const p=PROVINCIAS[i],[x0,y0,x1,y1]=p.bbox;
+    if(lng<x0||lng>x1||(lat<y0&&lat>-56)||lat>y1)continue;
+    for(const poly of p.geo.coordinates)if(inRing(lng,lat,poly[0])&&!poly.slice(1).some(h=>inRing(lng,lat,h)))return i;
+  }
+  return -1;
+}
+const tip=$("tip");let mx=0,my=0,tipPending=false,hovering=false;
+function hideTip(){tip.hidden=true;if(hovering){hovering=false;scheduleResume()}}
+function updTip(){
+  tipPending=false;
+  const g=globe.toGlobeCoords(mx,my);
+  if(!g||!cur){hideTip();return}
+  const id=HX[st.res].ids.get(h3.latLngToCell(g.lat,g.lng,st.res)),o=id!==undefined?cur.m.get(id):null;
+  const pv=provAt(g.lat,g.lng),pn=pv>=0?PROVINCIAS[pv].name:"";
+  let h;
+  if(o&&st.layers[o.lvl]){
+    h=`<b>${fmt(o.n)}</b> focos · <b>${o.f.toFixed(1)}</b> MW<br>MODIS ${fmt(o.nM)} · VIIRS ${fmt(o.nV)}<br><span class="mut">Capa ${o.lvl+1} de 5${pn?" · "+pn:""} · ${fmt(hexGeo(st.res,o.id).area)} km²</span>`;
+  }else if(pv>=0){h=`${pn}<br><span class="mut">clic para analizar</span>`}
+  else{hideTip();return}
+  tip.innerHTML=h;tip.hidden=false;
+  const w=tip.offsetWidth,hh=tip.offsetHeight;
+  tip.style.left=Math.min(innerWidth-w-8,mx+14)+"px";tip.style.top=Math.max(8,my-hh-10)+"px";
+  if(!hovering){hovering=true;pauseRot()}
+}
+el.addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;if(!tipPending&&!dragging){tipPending=true;requestAnimationFrame(updTip)}});
+el.addEventListener("pointerleave",hideTip);
+let downXY=null;
+el.addEventListener("pointerdown",e=>{downXY=[e.clientX,e.clientY];pauseRot()});
+el.addEventListener("pointerup",e=>{
+  if(!downXY)return;const moved=Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1]);downXY=null;
+  if(moved>5)return;
+  const g=globe.toGlobeCoords(e.clientX,e.clientY);if(!g)return;
+  const pv=provAt(g.lat,g.lng);if(pv>=0&&pv!==st.prov)setProv(pv);
+});
+
+// ---- Rotación: pausa al interactuar, reanuda tras 6 s ----
+const rotChk=$("rot");
+let idleT=null,dragging=false;
+function pauseRot(){ctl.autoRotate=false;clearTimeout(idleT)}
+// Con algún filtro activo el planeta queda quieto (no se reanuda la rotación)
+const DEF_YEAR=YEARS[YEARS.length-1];
+function filtersActive(){
+  return st.prov>=0||st.conf>0||st.dn!=="all"||st.scale!=="week"||st.day!=null||st.year!==DEF_YEAR||st.layers.some(v=>!v)||tab==="al";
+}
+const canRotate=()=>rotChk.checked&&!dragging&&!hovering&&!filtersActive();
+function scheduleResume(){
+  clearTimeout(idleT);
+  if(!canRotate())return;
+  idleT=setTimeout(()=>{if(canRotate())ctl.autoRotate=true},6000);
+}
+function syncRotation(){if(filtersActive())pauseRot();else if(!ctl.autoRotate)scheduleResume()}
+ctl.addEventListener("start",()=>{dragging=true;tip.hidden=true;pauseRot()});
+ctl.addEventListener("end",()=>{dragging=false;scheduleResume()});
+el.addEventListener("wheel",()=>{pauseRot();scheduleResume()},{passive:true});
+rotChk.addEventListener("change",e=>{if(e.target.checked)scheduleResume();else pauseRot()});
+
+
+// ---- Depuración (?debug=1): FPS, resolución, hexágonos, triángulos ----
+if(DEBUG){
+  const dbg=$("dbg");dbg.hidden=false;let fr=0,t0=performance.now();
+  (function loop(t){fr++;if(t-t0>=500){
+    const tris=meshes.reduce((s,m)=>s+(m.visible?m.geometry.drawRange.count/3:0),0);
+    dbg.textContent=`${Math.round(fr*1000/(t-t0))} fps · modo ${st.mode} · H3 res ${st.res} · ${cur?fmt(cur.m.size):0} hex · ${fmt(tris)} triángulos · ${polysShown?globe.polygonsData().length:0} áreas · actualización ${lastMs.toFixed(1)} ms`;
+    fr=0;t0=t}requestAnimationFrame(loop)})(t0);
+}
+
+// ---- Inicio: último año, día pico ----
+loadYear(st.year).then(D=>{
+  useYear(st.year,D);calcDaily();st.end=peakDay();
+  // vista inicial por URL (?mode=hex|heat|area&shape=hexb|cent|smooth|hull&res=2..5)
+  const P=new URLSearchParams(location.search);
+  if(["hex","heat","area"].includes(P.get("mode"))){st.mode=P.get("mode");pressed($("fMode"),$("fMode").querySelector(`[data-v="${st.mode}"]`));$("fShape").hidden=st.mode!=="area"}
+  if(["hexb","cent","smooth","hull"].includes(P.get("shape"))){st.shape=P.get("shape");pressed($("fShape"),$("fShape").querySelector(`[data-v="${st.shape}"]`))}
+  if(RES.includes(+P.get("res"))){st.res=+P.get("res");$("fRes").value=st.res}
+  if(["week","month","year"].includes(P.get("scale")))st.scale=P.get("scale");
+  updResLbl();render();fit();
+  if(P.get("view")==="plan"){
+    setView("plan");
+    if(P.has("alert"))ensurePlanMap().then(()=>drawPlanAlerts()).then(()=>{
+      // ?mark=0,3,5 marca esas alertas como prioritarias (para probar la lista)
+      (P.get("mark")||"").split(",").filter(Boolean).forEach(k=>{const a=planAlerts[+k];if(a&&!isPri(a.h)){planSel=+k;togglePri(a)}});
+      // ?send=1 reporta a bomberos las zonas marcadas; ?ask=0 abre la confirmación de la alerta 0
+      if(P.has("send"))pri.forEach(z=>sendReport(z.h));
+      if(P.has("ask")){repAsk=planAlerts[+P.get("ask")]?.h;renderPriList()}
+      selectPlanAlert(+P.get("alert"));
+    });
+  }
+  // precarga del planisferio en segundo plano: el primer cambio de vista es instantáneo
+  else (window.requestIdleCallback||(f=>setTimeout(f,1500)))(()=>ensurePlanMap().catch(()=>{}));
+  const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),500);
+}).catch(e=>{$("load").textContent=e.message;console.error(e)});
+</script>
+</body>
+</html>
