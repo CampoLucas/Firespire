@@ -1,314 +1,43 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Globo de quemas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<title>Firespire | Museum of Fires</title>
+<meta name="theme-color" content="#faf6f2">
+<link rel="icon" href="./design/flame.png">
+<link rel="stylesheet" href="./design/fonts.css">
+<link rel="stylesheet" href="./design/icons.css">
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link rel="preload" as="image" href="/globe/textures/earth-bmng-8k.jpg">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#05070d; --surface:rgba(20,22,28,.82); --surface-solid:#16181d; --surface-2:rgba(255,255,255,.06); --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#a2a198;
-  --border:rgba(255,255,255,.12); --axis:#383835; --focus:#3987e5; --pill:#f0efec; --pill-ink:#0d0d0d;
-  --series-2:#d95926;
-  --fs-xs:13px; --fs-sm:14px; --fs-md:15px; --fs-lg:18px; --fs-xl:20px; --fs-2xl:26px;
-  --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:var(--fs-md)/1.45 var(--font);overflow:hidden}
-#globe{position:fixed;inset:0}
-.panel{position:fixed;background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
-.eyebrow{font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:0}
-h1{font-size:var(--fs-xl);line-height:1.1;margin:2px 0 4px;letter-spacing:-.01em}
-.sub{color:var(--ink-2);font-size:var(--fs-sm);margin:0}
-/* header flotante */
-#hdr{position:fixed;top:16px;left:16px;right:16px;height:56px;z-index:4;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 10px 0 14px;
-  background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:var(--fs-lg);letter-spacing:-.01em;color:var(--ink);text-decoration:none;min-width:0}
-.logo small{display:block;font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.logo svg{flex:none}
-/* switch Análisis / Planificación */
-#viewSw{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:99px;background:rgba(255,255,255,.05);border:1px solid var(--border);min-width:300px}
-#viewSw .thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:99px;background:var(--pill);transition:transform .25s cubic-bezier(.3,.7,.2,1)}
-#viewSw[data-v=plan] .thumb{transform:translateX(100%)}
-#viewSw button{position:relative;z-index:1;border-radius:99px;padding:6px 18px;color:var(--ink-2);font-weight:600;display:inline-flex;gap:7px;align-items:center;justify-content:center;transition:color .2s}
-#viewSw button:hover{background:transparent;color:var(--ink)}
-#viewSw button[aria-checked=true]{color:var(--pill-ink)}
-@media (prefers-reduced-motion:reduce){#viewSw .thumb{transition:none}}
-/* seguimiento con bomberos (línea de tiempo de ejemplo) */
-.trk{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:12px}
-.trk:empty{display:none}
-.trk-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.trk-h h4{margin:0;font-size:var(--fs-md)}
-.trk-ex{font-size:var(--fs-xs);font-weight:800;padding:2px 7px;border-radius:5px;background:#fab219;color:#0d0d0d}
-.trk-res{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;font-size:var(--fs-xs);line-height:1.35}
-.trk-res b{display:block;font-size:var(--fs-md)}
-.trk-res.ok{background:rgba(76,175,122,.16);border:1px solid rgba(76,175,122,.45)}
-.trk-res.warn{background:rgba(242,153,74,.14);border:1px solid rgba(242,153,74,.45)}
-.trk-res.run{background:rgba(111,167,238,.14);border:1px solid rgba(111,167,238,.45)}
-.trk-res .ic{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:var(--fs-xs);font-weight:900;color:#0d0d0d}
-.tl{list-style:none;margin:0;padding:0;position:relative}
-.tl::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--axis)}
-.tl li{position:relative;padding:0 0 12px 30px}
-.tl li:last-child{padding-bottom:0}
-.tl .dot{position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;border:2px solid var(--surface-solid);box-shadow:0 0 0 1.5px var(--c)}
-.tl .dot.app{--c:#6fa7ee;background:#6fa7ee}
-.tl .dot.bomb{--c:#eb5757;background:#eb5757}
-.tl .dot.ok{--c:#4caf7a;background:#4caf7a}
-.tl .dot.pend{background:var(--surface-solid);--c:var(--ink-3);border-style:dashed}
-.tl .who{font-size:var(--fs-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.tl .tt{font-weight:700;font-size:var(--fs-sm)}
-.tl .dd{font-size:var(--fs-xs);color:var(--ink-2);line-height:1.35}
-.tl .when{font-size:var(--fs-xs);color:var(--ink-3);font-variant-numeric:tabular-nums}
-.trk-hint{font-size:var(--fs-xs);color:var(--ink-3);border:1px dashed var(--axis);border-radius:8px;padding:10px}
-/* reporte desde la lista de prioritarias */
-.pri-rep{flex-basis:100%;padding:0 6px 6px 28px;font-size:var(--fs-xs)}
-.pri-item{flex-wrap:wrap}
-.rep-btn{min-height:28px;padding:4px 10px;border-radius:6px;border:1px solid var(--axis);font-size:var(--fs-sm);font-weight:650;flex:none}
-.rep-btn.go{background:#eb5757;border-color:#eb5757;color:#fff}
-.rep-btn.go:hover{background:#d84848}
-.rep-confirm{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:6px;background:rgba(0,0,0,.25)}
-.rep-confirm .row{gap:6px}
-.rep-state{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;color:var(--ink-2)}
-.st-pill{font-size:var(--fs-xs);font-weight:800;padding:1px 7px;border-radius:99px;color:#0d0d0d}
-.st-nueva{background:#f2c94c}.st-recibida{background:#6fa7ee}.st-encurso{background:#f2994a}.st-resuelta{background:#4caf7a}
-/* transición Análisis ⇄ Planificación: fundido cruzado + paneles que se deslizan */
-#left,#right,#bottom,#tbar,#banner,#planPh{transition:opacity .35s ease,transform .45s cubic-bezier(.2,.7,.2,1),visibility 0s linear 0s}
-body.plan #left,body.plan #right,body.plan #bottom,body.plan #tbar,body.plan #banner,
-body:not(.plan) #planPh{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,transform .35s ease,visibility 0s linear .35s}
-body.plan #left{transform:translateX(-24px)}
-body.plan #right{transform:translateX(24px)}
-body.plan #bottom{transform:translateY(24px)}
-body.plan #tbar,body.plan #banner{transform:translate(-50%,-16px)}
-body:not(.plan) #planPh{transform:translateX(-24px)}
-body.plan #tip{display:none!important}
-#globe{transition:opacity .5s ease}
-body.plan #globe{opacity:0}
-@media (prefers-reduced-motion:reduce){
-  #left,#right,#bottom,#tbar,#banner,#planPh,#globe,#planMap{transition:none!important}
-}
-#planPh{top:88px;left:16px;width:272px;display:flex;flex-direction:column;gap:4px;z-index:3}
-#planPh h2{margin:0;font-size:var(--fs-lg)}
-#planPh p{margin:0;color:var(--ink-2);font-size:var(--fs-sm)}
-.sim-badge{align-self:flex-start;background:#fab219;color:#0d0d0d;font-size:var(--fs-xs);font-weight:700;padding:3px 8px;border-radius:6px;margin:2px 0 4px}
-/* Planificación: planisferio plano (Leaflet) en lugar del globo */
-#planMap{position:fixed;inset:0;z-index:1;background:#b4d0e8;opacity:0;visibility:hidden;pointer-events:none;transform:scale(1.04);
-  transition:opacity .5s ease,transform .7s cubic-bezier(.2,.7,.2,1),visibility 0s linear .5s}
-body.plan #planMap{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .5s ease .1s,transform .7s cubic-bezier(.2,.7,.2,1),visibility 0s}
-/* alertas en el planisferio: puntos sutiles y cliqueables */
-.pa-icon{background:none;border:0}
-.pa{position:relative;display:block;width:100%;height:100%;border-radius:50%;background:var(--c);opacity:.9;
-  box-shadow:0 0 0 2px rgba(255,255,255,.9),0 1px 4px rgba(0,0,0,.3);transition:transform .15s ease,opacity .15s ease;cursor:pointer}
-.pa-icon:hover .pa,.pa-icon:focus-visible .pa{transform:scale(1.25);opacity:1}
-.pa-icon:focus-visible{outline:none}
-.pa-icon:focus-visible .pa{box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px var(--focus)}
-.pa.sel{transform:scale(1.35);opacity:1;box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(13,13,13,.7)}
-@media (prefers-reduced-motion:no-preference){
-  .pa.sel::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--c);animation:paPulse 2.2s ease-out infinite}
-}
-@keyframes paPulse{0%{transform:scale(.8);opacity:.6}100%{transform:scale(2.2);opacity:0}}
-#planMap .leaflet-tooltip.pa-tip{background:var(--surface-solid);color:var(--ink);border:1px solid var(--border);border-radius:6px;font:var(--fs-sm)/1.35 var(--font);padding:5px 8px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
-#planMap .leaflet-tooltip.pa-tip::before{display:none}
-/* card de la alerta seleccionada */
-#planCard{top:88px;right:16px;width:340px;max-height:calc(100vh - 120px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;z-index:3;
-  transition:opacity .25s ease,transform .3s cubic-bezier(.2,.7,.2,1),visibility 0s linear 0s}
-#planCard.off{opacity:0;transform:translateX(24px);visibility:hidden;pointer-events:none;transition:opacity .2s ease,transform .25s ease,visibility 0s linear .25s}
-body:not(.plan) #planCard{display:none}
-.pc-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.pc-chip{font-size:var(--fs-xs);font-weight:700;padding:2px 8px;border-radius:99px;color:#0d0d0d}
-#pcClose{flex:none;width:30px;height:30px;min-height:30px;padding:0;border-radius:6px;border:1px solid var(--axis);font-size:var(--fs-lg)}
-#planCard h3{margin:0;font-size:var(--fs-lg);line-height:1.2}
-.pc-sub{font-size:var(--fs-sm);color:var(--ink-3)}
-.pc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pc-kpis div{background:var(--surface-2);border-radius:8px;padding:8px 10px}
-.pc-kpis b{display:block;font-size:var(--fs-xl);font-variant-numeric:tabular-nums}
-.pc-kpis span{font-size:var(--fs-xs);color:var(--ink-3)}
-.pc-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.pc-days div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:var(--fs-xs);color:var(--ink-3)}
-.pc-days i{display:block;width:100%;height:10px;border-radius:3px}
-/* botón de la card: marcar / quitar prioridad */
-.pc-pri{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border-radius:8px;font-weight:700;
-  background:#f0efec;color:#0d0d0d;border:1px solid transparent;transition:background .15s ease}
-.pc-pri:hover{background:#fff}
-.pc-pri[aria-pressed=true]{background:transparent;color:var(--ink);border-color:var(--axis)}
-.pc-pri[aria-pressed=true]:hover{background:var(--surface-2)}
-/* panel izquierdo: lista de zonas prioritarias */
-#planPh{width:310px;max-height:calc(100vh - 120px);gap:8px}
-.pp-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.pp-n{min-width:26px;height:22px;padding:0 7px;border-radius:99px;background:var(--pill);color:var(--pill-ink);font-size:var(--fs-sm);font-weight:800;display:grid;place-items:center;font-variant-numeric:tabular-nums}
-.pp-info{font-size:var(--fs-sm)!important;color:var(--ink-3)!important}
-.pri-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0;scrollbar-width:thin}
-.pri-item{display:flex;align-items:center;gap:4px;padding:2px 4px 2px 2px;border-radius:8px;background:var(--surface-2);border:1px solid transparent;animation:priIn .3s ease}
-.pri-item.cur{border-color:var(--ink-3)}
-.pri-go{flex:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;align-items:center;padding:6px 8px;border-radius:6px;text-align:left;white-space:normal}
-.pri-go:hover{background:rgba(255,255,255,.05)}
-.pri-dot{width:10px;height:10px;border-radius:50%;grid-row:span 2}
-.pri-name{font-weight:700;font-size:var(--fs-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pri-meta{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
-.pri-del{flex:none;width:26px;height:26px;min-height:26px;padding:0;border-radius:6px;color:var(--ink-3)}
-.pri-del:hover{color:var(--ink);background:rgba(255,255,255,.08)}
-.pp-empty{font-size:var(--fs-sm)!important;color:var(--ink-3)!important;border:1px dashed var(--axis);border-radius:8px;padding:10px}
-.pp-clear{align-self:flex-start;flex:none;font-size:var(--fs-sm);color:var(--ink-3);padding:4px 8px;min-height:26px;border-radius:6px}
-.pp-clear:hover{color:var(--ink)}
-@keyframes priIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.pri-item{animation:none}}
-/* marcador de zona prioritaria: anillo oscuro */
-.pa.pri{opacity:1;box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px #0d0d0d}
-#planMap .leaflet-control-attribution{font:var(--fs-xs) var(--font);background:rgba(255,255,255,.7)}
-#planMap .leaflet-control-zoom{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:0 16px 16px 0}
-#planMap .leaflet-control-zoom a{background:var(--surface-solid);color:var(--ink);border-color:var(--axis)}
-#planMap .leaflet-control-zoom a:hover{background:#23252b}
-.user{justify-self:end;display:flex;align-items:center;gap:10px;flex:none;width:auto;padding:4px 6px 4px 12px;border-radius:99px;border:1px solid var(--border)}
-.user .nm{font-size:var(--fs-md);font-weight:600;text-align:right;line-height:1.15}
-.user .nm small{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-3)}
-.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#f07a1f,#7a1f0c);color:#fff}
-@media (max-width:900px){#hdr{grid-template-columns:auto 1fr auto}.logo .txt,.user .nm{display:none}#viewSw{min-width:0;justify-self:center}#viewSw button{padding:6px 10px}}
-#left{top:88px;left:16px;width:304px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
-#left.compact{gap:8px}
-#left.compact .note,#left.compact .sub,#left.compact .sim{display:none}
-.f{display:flex;flex-direction:column;gap:5px;min-width:0}
-.l{font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
-.seg{display:flex;border:1px solid var(--axis);border-radius:6px;overflow:hidden}
-button{font:inherit;color:var(--ink);background:transparent;border:0;padding:6px 10px;min-height:32px;cursor:pointer;flex:1;white-space:nowrap}
-.seg button{border-right:1px solid var(--axis)}.seg button:last-child{border-right:0}
-button:hover{background:var(--surface-2)}
-.seg button[aria-pressed=true]{background:var(--pill);color:var(--pill-ink);font-weight:600}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-select{font:inherit;color:var(--ink);background:var(--surface-solid);border:1px solid var(--axis);border-radius:6px;padding:6px 10px;min-height:34px;min-width:0;width:100%;cursor:pointer}
-.chk{display:flex;gap:8px;align-items:center;color:var(--ink-2);font-size:var(--fs-md);cursor:pointer}
-.note{font-size:var(--fs-sm);color:var(--ink-3);margin:4px 0 0}
-.sim{display:inline-flex;gap:6px;align-items:center;background:#1c6b4a;color:#fff;font-weight:650;font-size:var(--fs-xs);padding:4px 8px;border-radius:6px;align-self:flex-start}
-/* leyenda por capas */
-#legend{display:flex;flex-direction:column;gap:2px}
-.lyr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 6px;min-height:28px;border-radius:6px;text-align:left;font-size:var(--fs-sm)}
-.lyr .sw{width:18px;height:16px;clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}
-.lyr .mw{color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
-.lyr .ct{color:var(--ink-3);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;white-space:nowrap}
-.lyr[aria-pressed=false]{opacity:.38}
-.lyr[aria-pressed=false] .mw{text-decoration:line-through}
-#right{top:88px;right:16px;width:290px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.25) transparent}
-#right #tabs{position:sticky;top:-14px;z-index:1;background:var(--surface-solid);flex:none}
-.view{display:flex;flex-direction:column;gap:12px}
-.alist{display:flex;flex-direction:column;gap:6px}
-.al{display:grid;grid-template-columns:auto minmax(0,1fr);gap:1px 8px;padding:8px 10px;border-radius:8px;background:var(--surface-2);border:1px solid transparent;text-align:left;white-space:normal}
-.al:hover{border-color:var(--axis);background:var(--surface-2)}
-.lv{width:10px;height:10px;border-radius:50%;margin-top:5px;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
-.al .t{font-weight:650;font-size:var(--fs-md);display:flex;justify-content:space-between;gap:8px}
-.al .t em{font-style:normal;font-size:var(--fs-xs);font-weight:650;padding:0 6px;border-radius:99px;color:#0d0d0d;align-self:center}
-.al .s{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
-.strip{grid-column:2;display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:5px}
-.strip i{height:8px;border-radius:2px;display:block}
-.strip-l{grid-column:2;display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--ink-3)}
-.lvkey{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:var(--fs-xs);color:var(--ink-2)}
-.lvkey span{display:inline-flex;align-items:center;gap:5px}
-.lvkey i{width:8px;height:8px;border-radius:50%;display:inline-block}
-.demo{font-size:var(--fs-xs);color:#0d0d0d;background:#fab219;border-radius:6px;padding:4px 8px;font-weight:600}
-#banner{position:fixed;top:148px;left:50%;transform:translateX(-50%);z-index:5;background:#8e1b2c;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:7px 16px;font-weight:650;font-size:var(--fs-md);flex:none;box-shadow:0 6px 24px rgba(0,0,0,.35)}
-#banner:hover{background:#a52236}
-@media (prefers-reduced-motion:no-preference){#banner{animation:pulse 2s ease-in-out infinite}}
-@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(235,87,87,.25),0 6px 24px rgba(0,0,0,.35)}}
-.kpi .v{font-size:var(--fs-2xl);font-weight:650;letter-spacing:-.01em;line-height:1.1;font-variant-numeric:tabular-nums}
-.kpi .n{font-size:var(--fs-sm);color:var(--ink-2)}
-#terrName{font-size:var(--fs-md);font-weight:650;color:var(--ink)}
-#bottom{left:16px;right:16px;bottom:16px;display:grid;grid-template-columns:minmax(300px,400px) minmax(0,1fr);gap:10px 24px;align-items:start;padding:12px 16px}
-.ctrls{display:flex;flex-direction:column;gap:10px;min-width:0}
-.ystep{display:flex;gap:6px;align-items:stretch;min-width:0}
-.ystep select{flex:1;font-weight:650;font-variant-numeric:tabular-nums}
-option:disabled{color:#6f6d68}
-.filters{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(160px,1fr);gap:6px 16px;align-items:end}
-.filters>.f:nth-child(n+3){grid-column:1/-1}   /* Provincia y Momento a todo el ancho */
-@media (max-width:1240px){#bottom{grid-template-columns:minmax(0,1fr)}}
-.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.row .grow{flex:1;min-width:140px}
-#play{flex:none;width:40px;height:34px;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg);padding:0}
-#fecha{font-weight:650;font-variant-numeric:tabular-nums;min-width:200px}
-input[type=range]{width:100%;accent-color:var(--series-2)}
-/* historial: escala Semana / Mes / Año, alternativas A y B */
-.hist{display:flex;flex-direction:column;gap:8px;min-width:0}
-.hist-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
-.hist-h .seg button{min-height:30px;padding:4px 12px;font-size:var(--fs-md)}
-.per{display:flex;align-items:center;gap:4px;font-weight:650;font-variant-numeric:tabular-nums}
-.per button{flex:none;width:28px;min-height:28px;padding:0;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg);line-height:1}
-.per button:disabled{opacity:.3;cursor:default}
-#perLbl{min-width:190px;text-align:center;font-size:var(--fs-md)}
-#dayChip{flex:none;font-size:var(--fs-sm);font-weight:650;padding:3px 10px;min-height:26px;border-radius:99px;background:var(--pill);color:var(--pill-ink)}
-#cal{overflow-x:auto;overflow-y:hidden;height:124px}
-#cal [data-d]{cursor:pointer}
-.mt-b{font-size:var(--fs-xs);font-weight:700}
-/* semana A: tarjetas */
-.wk-cards{display:grid;grid-template-columns:repeat(7,minmax(84px,1fr));gap:6px;height:100%}
-.wk-card{display:flex;flex-direction:column;justify-content:space-between;text-align:left;border-radius:8px;padding:6px 8px;border:1px solid var(--border);border-left-width:4px;white-space:normal;min-height:0}
-.wk-card .dn{font-size:var(--fs-xs);color:var(--ink-3);font-weight:600}
-.wk-card .v{font-size:var(--fs-xl);font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.wk-card .s{font-size:var(--fs-xs);color:var(--ink-2);font-variant-numeric:tabular-nums}
-.split{display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.08)}
-.split i:first-child{background:#f8b13a}.split i:last-child{background:#6f7fe0}
-.wk-card[aria-pressed=true]{outline:2px solid var(--ink);outline-offset:1px}
-.dnkey{display:inline-flex;gap:10px;font-size:var(--fs-xs);color:var(--ink-3)}
-.dnkey i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
-#cal svg{display:block}
-#cal rect.d{cursor:pointer}
-#cal rect.d:hover{stroke:var(--ink);stroke-width:1}
-.mt{font-size:var(--fs-xs);fill:var(--ink-3);font-family:var(--font)}
-button,select,input{font-family:var(--font)}
-#tip{position:fixed;z-index:6;pointer-events:none;background:var(--surface-solid);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:var(--fs-sm)/1.4 var(--font);color:var(--ink);max-width:260px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
-#tip b{font-variant-numeric:tabular-nums}
-#tip .mut{color:var(--ink-3)}
-#dbg{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:7;background:#000;color:#7CFC9A;font:13px/1.3 ui-monospace,monospace;padding:4px 8px;border-radius:4px;pointer-events:none}
-#load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);color:var(--ink-2);z-index:10;transition:opacity .4s}
-/* barra flotante de visualización */
-#tbar{top:88px;left:50%;transform:translateX(-50%);z-index:4;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;padding:8px 10px;max-width:calc(100vw - 664px);min-width:min(560px,calc(100vw - 32px))}
-#tbar .seg button{min-height:30px;padding:4px 10px;font-size:var(--fs-md)}
-#tbar .gs{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-2)}
-#tbar .gs input{width:80px}
-#resLbl{font-variant-numeric:tabular-nums;white-space:nowrap}
-.gear{position:relative}
-#gearBtn{flex:none;width:34px;height:32px;padding:0;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg)}
-#gearPop{position:absolute;right:0;top:calc(100% + 10px);width:260px;display:flex;flex-direction:column;gap:12px;z-index:8}
-@media (max-width:1240px){#tbar{top:auto;bottom:calc(var(--bottom-h,260px) + 28px);max-width:calc(100vw - 32px)}}
-#busy{position:fixed;top:148px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:6px 14px;font-size:var(--fs-sm);color:var(--ink-2)}
-@media (max-width:900px){
-  .filters{grid-template-columns:1fr 1fr}
-  #right{top:auto;bottom:330px;right:16px;left:16px;width:auto;flex-direction:row}
-  #right>*{flex:1}
-  #left{width:auto;right:16px;max-height:30vh}
-}
-</style>
+<link rel="stylesheet" href="./controls.css">
 <link rel="stylesheet" href="./museum/museum.css">
+<link rel="stylesheet" href="./presentation.css">
 </head>
-<body>
-<div id="load">Cargando focos de calor…</div>
-<div id="busy" hidden>Cargando año…</div>
+<body data-experience="hero">
+<div id="load" role="status">Cargando focos de calor…</div>
+<div id="busy" role="status" hidden>Cargando año…</div>
 <div id="globe"></div>
 <div id="tip" hidden></div>
 <div id="dbg" hidden></div>
 
 <header id="hdr">
-  <a class="logo" href="#" aria-label="Globo de quemas, inicio">
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
-      <circle cx="17" cy="17" r="15" fill="none" stroke="#6fa7ee" stroke-width="1.6" opacity=".9"/>
-      <ellipse cx="17" cy="17" rx="15" ry="6" fill="none" stroke="#6fa7ee" stroke-width="1.2" opacity=".55" transform="rotate(-20 17 17)"/>
-      <path d="M17 7c1.4 3.2 5.6 5.6 5.6 10.4a5.6 5.6 0 0 1-11.2 0c0-2.6 1.4-4 2.6-5.4.2 1.8 1 2.8 2.1 3.2C15.6 12.6 16 9.6 17 7Z" fill="#f07a1f"/>
-      <path d="M17 15.4c.8 1.5 2.4 2.5 2.4 4.4a2.4 2.4 0 0 1-4.8 0c0-1.2.6-2 1.3-2.7.1.7.4 1.1.8 1.3-.1-1.1 0-2.1.3-3Z" fill="#fde68a"/>
-    </svg>
-    <span class="txt">Globo de quemas<small>NASA Space Apps 2026</small></span>
-  </a>
-  <div id="viewSw" role="radiogroup" aria-label="Vista" data-v="analisis">
-    <span class="thumb" aria-hidden="true"></span>
-    <button role="radio" data-v="analisis" aria-checked="true">
-      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14h12M4 11V8M8 11V4M12 11V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Análisis</button>
-    <button role="radio" data-v="plan" aria-checked="false">
-      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4l4-2 4 2 4-2v10l-4 2-4-2-4 2Z M6 2v10M10 4v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Planificación</button>
-  </div>
-  <button class="user" aria-label="Cuenta de usuario">
-    <span class="nm">Usuario<small>Analista</small></span>
-    <span class="avatar"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.5" r="3" fill="currentColor"/><path d="M2.5 14.5c.6-3 2.9-4.5 5.5-4.5s4.9 1.5 5.5 4.5Z" fill="currentColor"/></svg></span>
-  </button>
+  <a class="logo" href="#" aria-label="Firespire, explore the globe"><img src="./design/flame.png" alt="" width="23" height="32"><strong>Firespire</strong><span>Museum of Fires</span></a>
+  <nav id="world-nav" aria-label="Explore the museum">
+    <button type="button" data-hud="explore" aria-current="page"><i data-icon="locate-fixed" aria-hidden="true"></i><span>Explore</span></button>
+    <button type="button" data-hud="summary" aria-controls="right" aria-expanded="false"><i data-icon="chart-no-axes-column" aria-hidden="true"></i><span>Summary</span></button>
+    <button type="button" data-hud="calendar" aria-controls="bottom" aria-expanded="false"><i data-icon="calendar-days" aria-hidden="true"></i><span>Calendar</span></button>
+    <button type="button" data-hud="filters" aria-controls="left" aria-expanded="false"><i data-icon="funnel" aria-hidden="true"></i><span>Filters</span></button>
+  </nav>
 </header>
+<section id="hero" aria-labelledby="hero-title">
+  <div class="hero-copy"><h1 id="hero-title">Firespire</h1><p class="hero-subtitle">Museum of Fires</p><div class="red-rule" aria-hidden="true"></div><p class="hero-description">A digital museum of wildfires,<br> evidence and environmental impact.</p><button type="button" id="hero-entry" class="loading-entry" disabled><span class="loading-ring" aria-hidden="true"></span><span>Loading experiences…<small>Auto-zooming to Argentina</small></span></button></div>
+  <button type="button" id="continue" class="cta continue" disabled>Tap to continue <i data-icon="arrow-right" aria-hidden="true"></i></button>
+</section>
+<div class="globe-tools" id="globe-tools" aria-label="Globe controls"><button type="button" id="zoom-in" aria-label="Zoom in"><i data-icon="plus" aria-hidden="true"></i></button><button type="button" id="zoom-out" aria-label="Zoom out"><i data-icon="minus" aria-hidden="true"></i></button><button type="button" id="recenter" aria-label="Recenter on Argentina"><i data-icon="locate-fixed" aria-hidden="true"></i></button></div>
+<button type="button" class="activity-key" data-hud="filters" aria-controls="left" aria-expanded="false"><strong>Fire activity</strong><span class="gradient-key" aria-hidden="true"></span><span class="sr-only">Open activity layers</span></button>
+<p class="data-credit">NASA FIRMS · MODIS + VIIRS <span>Map: Natural Earth · NASA Blue Marble option</span></p>
+
 
 <section class="panel" id="left">
   <p class="sub">Focos de calor en Argentina</p>
@@ -330,7 +59,7 @@ button,select,input{font-family:var(--font)}
     <button id="gearBtn" aria-expanded="false" aria-controls="gearPop" aria-label="Ajustes del mapa">⚙</button>
     <div class="panel" id="gearPop" hidden>
       <div class="f"><span class="l">Mapa base</span>
-        <div class="seg" id="fBase"><button data-v="/globe/textures/earth-bmng-8k.jpg" aria-pressed="true">Satélite</button><button data-v="earth-dark.jpg" aria-pressed="false">Oscuro</button><button data-v="earth-night.jpg" aria-pressed="false">Nocturno</button></div></div>
+        <div class="seg" id="fBase"><button data-v="stylized" aria-pressed="true">Illustrated</button><button data-v="/globe/textures/earth-bmng-8k.jpg" aria-pressed="false">Satélite</button><button data-v="earth-dark.jpg" aria-pressed="false">Oscuro</button><button data-v="earth-night.jpg" aria-pressed="false">Nocturno</button></div></div>
       <label class="chk"><input type="checkbox" id="rot" checked> Rotación automática</label>
       <p class="note" style="margin:0">Se detiene mientras haya un filtro activo.</p>
     </div>
@@ -338,26 +67,6 @@ button,select,input{font-family:var(--font)}
 </div>
 
 <button id="banner" hidden></button>
-
-<div id="planMap" aria-label="Planisferio físico"></div>
-<section class="panel" id="planPh" aria-label="Zonas prioritarias">
-  <div class="pp-h"><h2>Zonas prioritarias</h2><span class="pp-n" id="priN">0</span></div>
-  <p id="planInfo" class="pp-info"></p>
-  <ul class="pri-list" id="priList"></ul>
-  <p class="pp-empty" id="priEmpty">Todavía no marcaste zonas. Elegí una alerta en el mapa y tocá <b>“Marcar como prioritaria”</b> en la card.</p>
-  <button class="pp-clear" id="priClear" hidden>Vaciar lista</button>
-</section>
-<section class="panel off" id="planCard" aria-live="polite" aria-label="Alerta seleccionada">
-  <div class="pc-h"><span class="pc-chip" id="pcChip"></span><button id="pcClose" aria-label="Cerrar">✕</button></div>
-  <div><h3 id="pcTitle"></h3><div class="pc-sub" id="pcSub"></div></div>
-  <div class="pc-kpis">
-    <div><b id="pcMax"></b><span>focos en 7 días</span></div>
-    <div><b id="pcPeak"></b><span>día con más focos</span></div>
-  </div>
-  <div><div class="l" style="margin-bottom:6px">Focos por día · últimos 7 días</div><div class="pc-days" id="pcDays"></div>
-    <div class="pc-sub" id="pcHigh" style="margin-top:6px"></div></div>
-  <div class="pc-sub" id="pcWhy"></div>
-  <button class="pc-pri" id="pcPri" aria-pressed="false"></button></section>
 
 <section class="panel" id="right">
   <div class="seg" id="tabs"><button data-v="sum" aria-pressed="true">Resumen</button><button data-v="al" aria-pressed="false">⚠ Alertas <span id="alN"></span></button></div>
@@ -406,10 +115,12 @@ button,select,input{font-family:var(--font)}
 <script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
 <script src="data/years.js"></script>
 <script src="data/provincias.js"></script>
+<script src="./design/earth-texture.js"></script>
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.151.3/build/three.module.js";
 
 import { createGlobeAdapter } from "./museum/globe-adapter.mjs";
+import { mountHud } from "./museum/hud.mjs";
 
 const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const DEBUG=/[?&]debug=1/.test(location.search);
@@ -422,8 +133,8 @@ function ramp(t){
   return `rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*u)).join(",")})`;
 }
 // 5 capas discretas de intensidad (0 = baja … 4 = máxima); la 4 se dibuja arriba
-const LAYER_COL=["#fde68a","#f8b13a","#f07a1f","#d8431a","#7a1f0c"];
-const LAYER_LINE=["#b58a1c","#a8670f","#a8460c","#7d1c08","#ffffff"];
+const LAYER_COL=["#1bc588","#d3cf27","#e3881e","#f25050","#c2222f"];
+const LAYER_LINE=["#158c62","#a1a023","#b36b19","#c43c3c","#ffffff"];
 const AREA_FILL=LAYER_COL.map(h=>{const [r,g,b]=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return `rgba(${r},${g},${b},.55)`});
 const fmt=n=>Math.round(n).toLocaleString("es-AR");
 const $=id=>document.getElementById(id);
@@ -547,10 +258,10 @@ PROVINCIAS.forEach((p,i)=>p.geo.coordinates.forEach(poly=>poly.forEach(ring=>pro
 let globeReady=false,museumUI=null;
 const globe=Globe()(el)
   .onGlobeReady(()=>{globeReady=true;museumUI?.refresh()})
-  .globeImageUrl("/globe/textures/earth-bmng-8k.jpg") // NASA Blue Marble NG (ene-2004), 8192x4096
+  .globeImageUrl(window.EARTH_MAP)
   .bumpImageUrl(TEX+"earth-topology.png")
-  .backgroundImageUrl(TEX+"night-sky.png")
-  .atmosphereColor("#6fa7ee").atmosphereAltitude(.18)
+  .backgroundColor("rgba(0,0,0,0)")
+  .atmosphereColor("#c0f3ed").atmosphereAltitude(.15)
   // líneas finas: contornos de provincias
   .pathPoints("pts").pathPointLat(p=>p[1]).pathPointLng(p=>p[0]).pathPointAlt(.0015)
   .pathColor(d=>d.i===st.prov?"rgba(240,239,236,.95)":"rgba(240,239,236,.22)")
@@ -605,16 +316,6 @@ function fillLayer(L,list){
 
 function fit(){
   document.documentElement.style.setProperty("--bottom-h",$("bottom").offsetHeight+"px");
-  // el aviso de alertas va justo debajo de la barra de visualización
-  const tb=$("tbar").getBoundingClientRect();
-  if(tb.top<innerHeight/2){$("banner").style.top=(tb.bottom+10)+"px";$("busy").style.top=(tb.bottom+10)+"px"}
-  // el panel derecho nunca pisa el de abajo: alto máximo + scroll interno
-  const R=$("right"),bTop=$("bottom").getBoundingClientRect().top;
-  if(getComputedStyle(R).top!=="auto")R.style.maxHeight=Math.max(160,bTop-R.getBoundingClientRect().top-16)+"px";
-  const L=$("left"),avail=bTop-L.getBoundingClientRect().top-16;
-  L.style.maxHeight=avail+"px";
-  L.classList.remove("compact");
-  if(L.scrollHeight>avail+1)L.classList.add("compact");
 }
 function resize(){globe.width(innerWidth).height(innerHeight);fit()}resize();addEventListener("resize",resize);
 
@@ -890,222 +591,6 @@ function setTab(v){
 $("tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setTab(b.dataset.v)});
 $("banner").addEventListener("click",()=>setTab("al"));
 
-// ---- Header: switch de vista Análisis / Planificación ----
-// Vistas: "analisis" (globo) · "plan" (planisferio)
-let curView="analisis";
-function setView(v){
-  if(cameraAdapter.leased||v===curView)return;
-  const sw=$("viewSw");sw.dataset.v=v;
-  sw.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",b.dataset.v===v));
-  const plan=v==="plan";curView=v;
-  document.body.classList.toggle("plan",plan);
-  const tok=++viewTok,RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  $("viewSw").setAttribute("aria-busy","true");
-  if(plan){
-    // el globo se aleja y se desvanece mientras aparece el planisferio; al terminar se pausa (no consume GPU)
-    savedPov=globe.pointOfView();pauseRot();
-    cameraAdapter.legacyFlight({lat:12,lng:savedPov.lng,altitude:3.4},RM?0:650);
-    ensurePlanMap().then(m=>{m.invalidateSize();return drawPlanAlerts()}).catch(err=>{$("planInfo").textContent="No se pudo cargar el mapa: "+err.message});
-    setTimeout(()=>{
-      if(tok!==viewTok)return;
-      meshes.forEach(m=>m.visible=false);heatMesh.visible=false;globe.polygonsData([]);polysShown=false;globe.ringsData([]);
-      globe.pauseAnimation();$("viewSw").removeAttribute("aria-busy");
-    },RM?0:700);
-  }else{
-    // el globo vuelve desde lejos a la vista donde estaba
-    closePlanCard();
-    globe.resumeAnimation();
-    if(curLists){drawMode();renderAlerts();fit()}
-    if(savedPov)cameraAdapter.legacyFlight(savedPov,RM?0:900);
-    setTimeout(()=>{if(tok===viewTok){$("viewSw").removeAttribute("aria-busy");scheduleResume()}},RM?0:900);
-  }
-}
-let viewTok=0,savedPov=null;
-
-// ---- Planificación: zonas con actividad alta en los últimos 7 días con datos, sobre el planisferio ----
-// Usa solo focos reales de NASA FIRMS: la ventana termina hoy (o ?hoy=AAAA-MM-DD) o, si todavía no hay
-// datos de ese día, en el último día con datos. Independiente de los filtros de Análisis.
-let alertLayer=null,zoneLayer=null,planSel=null,planAlerts=[],flyTok=0,planBase=null;
-const fdate=d=>`${d.getUTCDate()} ${MES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-const fshort=d=>fdate(d).replace(/ \d{4}$/,"");
-function planToday(){
-  const q=new URLSearchParams(location.search).get("hoy");
-  const m=q&&/^(\d{4})-(\d{2})-(\d{2})$/.exec(q);
-  const n=new Date();
-  return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
-}
-// Último año con datos y último día con focos que no pase de `today`; null si no hay ninguno.
-async function lastDataDay(today){
-  for(const y of YEARS.filter(y=>y<=today.getUTCFullYear()).sort((a,b)=>b-a)){
-    const P=prepYear(y,await loadYear(y));
-    const cap=y===today.getUTCFullYear()?Math.round((today-Date.UTC(y,0,1))/864e5):P.ND-1;
-    for(let d=Math.min(cap,P.ND-1);d>=0;d--)if(P.start[d+1]>P.start[d])return {y,P,to:d};
-  }
-  return null;
-}
-async function drawPlanAlerts(){
-  if(!planMap)return;
-  const today=planToday();
-  planAlerts=[];planBase=null;
-  const last=await lastDataDay(today);
-  if(!last){$("planInfo").textContent="No hay datos de FIRMS para mostrar.";renderPlanMarkers();return}
-  const {y,P,to}=last,day=k=>new Date(Date.UTC(y,0,1+to-6+k));   // k = 0..6 → días de la ventana
-  planAlerts=computeAlerts({C:P.C,start:P.start,rows:P.rows,to,conf:0,prov:-1});
-  planBase={day};
-  const rango=`entre el ${fdate(day(0))} y el ${fdate(day(6))}`;
-  const atraso=Math.round((today-day(6))/864e5);
-  $("planInfo").textContent=(planAlerts.length
-    ?`${planAlerts.length} zonas con actividad alta ${rango}`
-    :`Sin zonas con actividad alta ${rango}`)+
-    ` · NASA FIRMS${atraso>0?` · últimos datos: hace ${atraso} ${atraso===1?"día":"días"}`:""}.`;
-  renderPlanMarkers();
-}
-function renderPlanMarkers(){
-  if(!alertLayer)return;
-  alertLayer.clearLayers();
-  // de menor a mayor nivel: los más graves quedan arriba
-  planAlerts.map((a,i)=>({a,i})).sort((x,y)=>x.a.lvl-y.a.lvl||x.a.s-y.a.s).forEach(({a,i})=>{
-    const sz=10+a.lvl*2,L=window.L;        // 14–18 px según el nivel
-    const icon=L.divIcon({className:"pa-icon",iconSize:[sz,sz],
-      html:`<span class="pa${planSel===i?" sel":""}${isPri(a.h)?" pri":""}" style="--c:${LV[a.lvl].c}"></span>`});
-    const name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe";
-    L.marker([a.lat,a.lng],{icon,keyboard:true,title:`${name}: nivel ${LV[a.lvl].n}`,riseOnHover:true,zIndexOffset:a.lvl*100})
-      .bindTooltip(`<b>${name}</b><br>Nivel ${LV[a.lvl].n.toLowerCase()} · ${fmt(a.s)} focos en 7 días`,{className:"pa-tip",direction:"top",offset:[0,-sz/2-2]})
-      .on("click",()=>selectPlanAlert(i))
-      .addTo(alertLayer);
-  });
-}
-function selectPlanAlert(i){
-  const a=planAlerts[i],L=window.L;if(!a)return;
-  planSel=i;renderPlanMarkers();
-  // zona de la alerta: la celda y sus vecinas (~55 km)
-  zoneLayer.clearLayers();
-  const zone=h3.cellsToMultiPolygon(h3.gridDisk(a.h,1),true);
-  const z=L.geoJSON({type:"MultiPolygon",coordinates:zone},{interactive:false,
-    style:{color:LV[a.lvl].c,weight:2,opacity:.9,fillColor:LV[a.lvl].c,fillOpacity:.14,dashArray:"5 4"}}).addTo(zoneLayer);
-  // zoom a la región dejando lugar para la card
-  const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const B=z.getBounds(),pad={paddingTopLeft:[300,110],paddingBottomRight:[360,40],maxZoom:7};
-  const target=Math.min(7,planMap.getBoundsZoom(B,false,L.point(660,150))),dur=RM?0:1.1,tok=++flyTok;
-  if(RM)planMap.fitBounds(B,{...pad,animate:false});
-  else{
-    planMap.flyToBounds(B,{...pad,duration:dur});
-    // respaldo: si la animación no llegó (p. ej. pestaña en segundo plano), se ubica directo
-    setTimeout(()=>{if(tok===flyTok&&Math.abs(planMap.getZoom()-target)>.5)planMap.fitBounds(B,{...pad,animate:false})},dur*1000+500);
-  }
-  // card con la actividad observada en la zona
-  const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",day=planBase.day;
-  const mx=Math.max(...a.days),kMax=a.days.indexOf(mx),conFocos=a.days.filter(v=>v>0).length;
-  $("pcChip").textContent=`Nivel ${lv.n.toLowerCase()}`;$("pcChip").style.background=lv.c;
-  $("pcTitle").textContent=name;
-  $("pcSub").textContent=`${a.lat.toFixed(2)}°, ${a.lng.toFixed(2)}° · zona de ~${fmt(AREA_AVG[4]*7)} km²`;
-  $("pcMax").textContent=fmt(a.s);$("pcMax").style.color=lv.c;
-  $("pcPeak").textContent=`${fshort(day(kMax))} · ${fmt(mx)}`;
-  $("pcHigh").textContent=`${conFocos} de 7 días con focos`;
-  $("pcDays").innerHTML=a.days.map((v,k)=>{const d=day(k);
-    return `<div title="${fdate(d)}: ${fmt(v)} focos"><i style="background:${dayInk(v,mx)}"></i>${d.getUTCDate()}/${d.getUTCMonth()+1}</div>`}).join("");
-  $("pcWhy").textContent=`${fmt(a.s)} focos y ${fmt(a.f)} MW de FRP en la zona (celda H3 y vecinas) entre el ${fshort(day(0))} y el ${fshort(day(6))}. Fuente: NASA FIRMS, MODIS y VIIRS.`;
-  updPriBtn();
-  $("planCard").classList.remove("off");
-  $("planCard").scrollTop=0;
-  renderPriList();
-}
-function closePlanCard(){
-  $("planCard").classList.add("off");
-  if(planSel!=null){planSel=null;if(zoneLayer)zoneLayer.clearLayers();renderPlanMarkers();renderPriList()}
-}
-$("pcClose").addEventListener("click",closePlanCard);
-
-// ---- Zonas prioritarias: se marcan desde la card y se listan en el panel izquierdo ----
-// Se guardan en este navegador (localStorage); si no está disponible, viven solo en esta sesión.
-const PRI_KEY="globo-quemas:prioritarias";
-let pri=[];
-try{pri=JSON.parse(localStorage.getItem(PRI_KEY)||"[]");if(!Array.isArray(pri))pri=[]}catch{pri=[]}
-const savePri=()=>{try{localStorage.setItem(PRI_KEY,JSON.stringify(pri))}catch{}};
-const isPri=h=>pri.some(z=>z.h===h);
-function togglePri(a){
-  if(isPri(a.h))pri=pri.filter(z=>z.h!==a.h);
-  else{
-    const k=a.days.indexOf(Math.max(...a.days));
-    pri.unshift({h:a.h,name:a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",lvl:a.lvl,lat:a.lat,lng:a.lng,
-      n:a.s,peak:fdate(planBase.day(k)),added:Date.now()});
-  }
-  savePri();renderPriList();renderPlanMarkers();updPriBtn();
-}
-function updPriBtn(){
-  const a=planAlerts[planSel],b=$("pcPri");if(!a)return;
-  const on=isPri(a.h);
-  b.setAttribute("aria-pressed",on);
-  b.textContent=on?"✓ Marcada como prioritaria · quitar":"★ Marcar como prioritaria";
-}
-$("pcPri").addEventListener("click",()=>{const a=planAlerts[planSel];if(a)togglePri(a)});
-function renderPriList(){
-  const L=$("priList"),cur=planAlerts[planSel]?.h;
-  // primero las de mayor nivel; dentro del nivel, las últimas marcadas arriba
-  const list=pri.slice().sort((x,y)=>y.lvl-x.lvl||y.added-x.added);
-  L.innerHTML=list.map(z=>`<li class="pri-item${z.h===cur?" cur":""}">
-      <button class="pri-go" data-h="${z.h}" title="Ver en el mapa"><span class="pri-dot" style="background:${LV[z.lvl].c}"></span>
-      <span class="pri-name">${z.name}</span>
-      <span class="pri-meta">${LV[z.lvl].n}${z.n!=null?` · ${fmt(z.n)} focos`:""} · más focos el ${z.peak.replace(/ \d{4}$/,"")}</span></button>
-      <button class="pri-del" data-del="${z.h}" aria-label="Quitar ${z.name} de prioritarias">✕</button></li>`).join("");
-  $("priN").textContent=pri.length;
-  $("priEmpty").hidden=pri.length>0;$("priClear").hidden=pri.length<2;
-}
-$("priList").addEventListener("click",e=>{
-  const del=e.target.closest("[data-del]");
-  if(del){pri=pri.filter(z=>z.h!==del.dataset.del);savePri();renderPriList();renderPlanMarkers();updPriBtn();return}
-  const go=e.target.closest("[data-h]");if(!go)return;
-  const i=planAlerts.findIndex(a=>a.h===go.dataset.h);
-  if(i>=0){selectPlanAlert(i);return}
-  // la alerta ya no está vigente: igual se muestra la zona en el mapa
-  const z=pri.find(z=>z.h===go.dataset.h);if(!z||!planMap)return;
-  closePlanCard();
-  zoneLayer.clearLayers();
-  const g=window.L.geoJSON({type:"MultiPolygon",coordinates:h3.cellsToMultiPolygon(h3.gridDisk(z.h,1),true)},{interactive:false,
-    style:{color:"#0d0d0d",weight:2,opacity:.7,fillOpacity:.08,dashArray:"5 4"}}).addTo(zoneLayer);
-  planMap.fitBounds(g.getBounds(),{paddingTopLeft:[320,110],paddingBottomRight:[40,40],maxZoom:7});
-});
-$("priClear").addEventListener("click",()=>{if(confirm("¿Vaciar la lista de zonas prioritarias?")){pri=[];savePri();renderPriList();renderPlanMarkers();updPriBtn()}});
-
-renderPriList();
-addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("plan"))closePlanCard()});
-
-// ---- Planificación: planisferio físico plano con Leaflet (se carga la primera vez) ----
-let planMap=null,planMapP=null;
-function loadAsset(tag,attrs){return new Promise((ok,fail)=>{const e=document.createElement(tag);Object.assign(e,attrs);e.onload=ok;e.onerror=()=>fail(new Error(attrs.src||attrs.href));document.head.appendChild(e)})}
-function ensurePlanMap(){
-  if(planMapP)return planMapP;
-  planMapP=Promise.all([
-    loadAsset("link",{rel:"stylesheet",href:"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"}),
-    loadAsset("script",{src:"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"})
-  ]).then(()=>{
-    const L=window.L;
-    const WORLD=[[-85.05,-180],[85.05,180]];
-    planMap=L.map("planMap",{zoomControl:false,maxZoom:8,zoomSnap:0,zoomDelta:.5,
-      maxBounds:WORLD,maxBoundsViscosity:1,attributionControl:true});
-    // Mapa físico (vegetación, desiertos, hielo, batimetría), plano; solo mosaicos dentro del mundo
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}",
-      {maxZoom:8,noWrap:true,bounds:WORLD,attribution:"Mapa: Esri — US National Park Service"}).addTo(planMap);
-    // contorno de provincias argentinas (datos locales) como referencia
-    L.geoJSON({type:"FeatureCollection",features:PROVINCIAS.map(p=>({type:"Feature",properties:{name:p.name},geometry:p.geo}))},
-      {style:{color:"#5b4a3a",weight:.8,opacity:.6,fill:false},interactive:false}).addTo(planMap);
-    L.control.zoom({position:"bottomright"}).addTo(planMap);
-    alertLayer=L.layerGroup().addTo(planMap);zoneLayer=L.layerGroup().addTo(planMap);
-    // el planisferio ocupa todo el ancho; no se puede alejar más que eso
-    const fitW=()=>Math.log2(Math.max(256,$("planMap").clientWidth)/256);
-    planMap.setMinZoom(fitW());planMap.setView([20,0],fitW(),{animate:false});
-    addEventListener("resize",()=>{if(!planMap)return;const z=fitW();planMap.setMinZoom(z);if(planMap.getZoom()<z)planMap.setZoom(z)});
-    return planMap;
-  });
-  return planMapP;
-}
-$("viewSw").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setView(b.dataset.v)});
-$("viewSw").addEventListener("keydown",e=>{
-  if(e.key==="ArrowLeft")setView("analisis");else if(e.key==="ArrowRight")setView("plan");else return;
-  $("viewSw").querySelector('[aria-checked="true"]').focus();
-});
-document.querySelector(".logo").addEventListener("click",e=>{e.preventDefault();setView("analisis")});
-
 // ---- Historial: escala Semana / Mes / Año ----
 const DIAS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 const MESL=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -1236,7 +721,7 @@ document.addEventListener("click",e=>{
 });
 $("fBase").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  pressed($("fBase"),b);globe.globeImageUrl(b.dataset.v.startsWith("/")?b.dataset.v:TEX+b.dataset.v);
+  pressed($("fBase"),b);globe.globeImageUrl(b.dataset.v==="stylized"?window.EARTH_MAP:b.dataset.v.startsWith("/")?b.dataset.v:TEX+b.dataset.v);
 });
 
 // Año: 2000–2026; los años sin archivo en data/ quedan deshabilitados
@@ -1295,7 +780,7 @@ function hideTip(event){
 }
 function updTip(){
   tipPending=false;
-  if(cameraAdapter.leased||curView!=="analisis")return;
+  if(cameraAdapter.leased||document.body.dataset.experience!=="world")return;
   const g=globe.toGlobeCoords(mx,my);
   if(!g||!cur){hideTip();return}
   const id=HX[st.res].ids.get(h3.latLngToCell(g.lat,g.lng,st.res)),o=id!==undefined?cur.m.get(id):null;
@@ -1331,7 +816,7 @@ const DEF_YEAR=YEARS[YEARS.length-1];
 function filtersActive(){
   return st.prov>=0||st.conf>0||st.dn!=="all"||st.scale!=="week"||st.day!=null||st.year!==DEF_YEAR||st.layers.some(v=>!v)||tab==="al";
 }
-const canRotate=()=>!cameraAdapter.leased&&curView==="analisis"&&rotChk.checked&&!dragging&&!hovering&&!filtersActive();
+const canRotate=()=>!cameraAdapter.leased&&document.body.dataset.experience==="world"&&rotChk.checked&&!dragging&&!hovering&&!filtersActive();
 function scheduleResume(delay=6000){
   clearTimeout(idleT);rotationDeadline=null;
   if(!canRotate())return;
@@ -1356,10 +841,9 @@ if(DEBUG){
 
 // The museum borrows camera ownership; analysis controls and loaded data stay mounted.
 function museumLegacy(){
-  const panels=["hdr","left","right","tbar","bottom","banner","planMap","planPh","planCard","dbg"].map($);
+  const panels=["hdr","left","right","bottom","banner","dbg","globe-tools"].map($);
   return {
-    available:()=>globeReady&&curView==="analisis"&&$("busy").hidden&&!$("viewSw").hasAttribute("aria-busy"),
-    inAnalysis:()=>curView==="analisis",
+    available:()=>globeReady&&document.body.dataset.experience==="world"&&$("busy").hidden,
     dayLabel:lbl,
     lock(){
       const snapshot=Object.freeze({
@@ -1405,16 +889,7 @@ loadYear(st.year).then(D=>{
   if(RES.includes(+P.get("res"))){st.res=+P.get("res");$("fRes").value=st.res}
   if(["week","month","year"].includes(P.get("scale")))st.scale=P.get("scale");
   updResLbl();render();fit();
-  if(P.get("view")==="plan"){
-    setView("plan");
-    if(P.has("alert"))ensurePlanMap().then(()=>drawPlanAlerts()).then(()=>{
-      // ?mark=0,3,5 marca esas alertas como prioritarias (para probar la lista)
-      (P.get("mark")||"").split(",").filter(Boolean).forEach(k=>{const a=planAlerts[+k];if(a&&!isPri(a.h)){planSel=+k;togglePri(a)}});
-      selectPlanAlert(+P.get("alert"));
-    });
-  }
-  // precarga del planisferio en segundo plano: el primer cambio de vista es instantáneo
-  else (window.requestIdleCallback||(f=>setTimeout(f,1500)))(()=>ensurePlanMap().catch(()=>{}));
+  mountHud({globe,adapter:cameraAdapter,controls:ctl,onChange:()=>museumUI?.refresh()});
   // Los eventos curados vienen de /artifacts; si no cargan, el museo cae al catálogo ficticio.
   Promise.all([import("./museum/index.mjs"),import("./museum/curated.mjs")]).then(async([{mountMuseum},{loadCuratedExhibits}])=>{
     const exhibits=await loadCuratedExhibits();

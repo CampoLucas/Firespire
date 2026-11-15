@@ -1,11 +1,9 @@
 import { validateCatalog } from "./validate.mjs";
 import { validateCuratedExhibits } from "./curated-validate.mjs";
 import { CURATED_TAGLINE } from "./curated.mjs";
-import { legacyAnnotations, waypointHelp } from "./annotations.mjs";
-import { annotate, button, element } from "./dom.mjs";
+import { button, element } from "./dom.mjs";
 import { createBoard } from "./board-view.mjs";
 import { interpolatePose, travelSpec } from "./board-camera.mjs";
-import { createDeveloperOverlay } from "./developer-overlay.mjs";
 import { clamp, mix, reducedMotion, tween } from "./motion.mjs";
 import { initial, reduce, Stage } from "./state.mjs";
 
@@ -26,17 +24,17 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     ? "Museum of Fires fictional waypoints" : "Museum of Fires curated events");
   dock.append(element("span", "museum-dock-label", "Museum of Fires"));
   const markerRecords = exhibits.map((exhibit) => {
-    const help = waypointHelp(exhibit);
-    const marker = annotate(button(`museum-marker museum-marker--${exhibit.marker}${exhibit.approximate ? " museum-marker--approx" : ""}`, "", (event) => {
+    const marker = button(`museum-marker museum-marker--${exhibit.marker}${exhibit.approximate ? " museum-marker--approx" : ""}`, "", (event) => {
       select(exhibit, event.currentTarget);
-    }), exhibit.title, help);
+    });
     const shape = element("i");
+    marker.setAttribute("aria-label", `${exhibit.title}. ${exhibit.isMock ? "Fictional exhibit" : "Curated event"}${exhibit.approximate ? ", approximate location" : ""}`);
     shape.setAttribute("aria-hidden", "true");
     marker.append(shape, element("span", "", exhibit.isMock ? `${exhibit.short} · Fictional`
       : `${exhibit.short} · Curated${exhibit.approximate ? " · approximate location" : ""}`));
-    const link = annotate(button(`museum-dock-link museum-marker--${exhibit.marker}`, "", (event) => {
+    const link = button(`museum-dock-link museum-marker--${exhibit.marker}`, "", (event) => {
       select(exhibit, event.currentTarget);
-    }), exhibit.title, help);
+    });
     const icon = element("i");
     icon.setAttribute("aria-hidden", "true");
     link.append(icon, document.createTextNode(exhibit.short));
@@ -60,35 +58,12 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   let state = initial();
   let session = null;
   let scheduled = 0;
-  let cell = null;
-
-  const existing = [
-    ["#legend", "Globe burning activity", "activity"], ["#tip", "Globe activity under the pointer", "activity"],
-    ["#kN", "Detection count", "count"], ["#kF", "Fire radiative power", "frp"], ["#kA", "Grid area with activity", "area"],
-    ["#cal", "Burning activity calendar", "calendar"], ["#perLbl", "Selected time period", "calendar"],
-    ["#dayChip", "Selected calendar day", "calendar"], ["#alFrom", "Observed activity alerts", "alerts"],
-    ["#banner", "Observed activity alert banner", "alerts"], ["#planPh", "Priority zones", "alerts"],
-    ["#planCard", "Selected planning alert", "alerts"],
-  ].map(([selector, title, key]) => {
-    const node = document.querySelector(selector);
-    return node && annotate(node, title, legacyAnnotations[key]);
-  }).filter(Boolean);
-
-  const overlay = createDeveloperOverlay(root, () => {
-    const projected = markerRecords.map(({ marker }) => marker);
-    if (!session) return [...existing, cell, ...projected, ...markerRecords.map(({ link }) => link)];
-    const boardTargets = session.blend > .32 && session.board
-      ? [...session.board.root.querySelectorAll("[data-museum-help]")] : [];
-    // Preserve live annotations as a scene blends. Annotation buttons use
-    // their own hit targets even while the board itself is inert.
-    return [...(session.introOpacity > .22 ? [intro] : []), ...projected, ...boardTargets];
-  }, signal);
 
   function refresh() {
     cancelAnimationFrame(scheduled);
     scheduled = 0;
     const available = !session && legacy.available();
-    dock.hidden = Boolean(session) || !legacy.inAnalysis();
+    dock.hidden = Boolean(session) || !available;
     for (const { exhibit, marker, link } of markerRecords) {
       link.disabled = !available;
       const show = available || (session?.exhibit === exhibit && session.introOpacity > .25);
@@ -100,7 +75,6 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
       marker.classList.toggle("is-selected", Boolean(session));
       marker.disabled = Boolean(session);
     }
-    overlay.update();
   }
 
   function refreshSoon() {
@@ -121,7 +95,6 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   }
 
   function fillIntro(exhibit) {
-    annotate(intro, "Waypoint introduction", waypointHelp(exhibit, true));
     const heading = element("h1", "", exhibit.title);
     heading.id = "museum-exhibit-title";
     const start = button("museum-start", "Start investigation  →", () => dispatch({ type: "start" }));
@@ -133,6 +106,11 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     progress.setAttribute("aria-valuemax", "5");
     progress.setAttribute("aria-valuenow", "0");
     progress.append(bar);
+    const countdown = element("p", "museum-countdown-label", "Auto-start in 5 s");
+    const actions = element("div", "museum-preview-actions");
+    const timer = element("div", "museum-preview-timer");
+    timer.append(countdown, progress);
+    actions.append(start, timer);
     intro.replaceChildren(
       element("p", "museum-kicker", `Museum of Fires / ${exhibit.origin}`),
       heading,
@@ -140,12 +118,12 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
       element("p", "museum-intro-summary", exhibit.summary),
       element("p", "museum-intro-disclosure", exhibit.isMock
         ? "Fictional exhibit. Its dates are independent of the activity filters." : CURATED_TAGLINE),
-      start, progress,
+      actions,
     );
     intro.hidden = false;
     intro.inert = false;
     start.focus({ preventScroll: true });
-    return { progress, bar };
+    return { progress, bar, countdown };
   }
 
   function frameAnchor() {
@@ -193,17 +171,18 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     if (next === state) return;
     state = next;
     root.dataset.stage = state.stage;
+    document.body.dataset.museumStage = state.stage;
     const s = session;
     switch (event.type) {
       case "select": {
         exit.hidden = false;
         exit.disabled = false;
         exit.textContent = "← Back to globe";
-        const { progress, bar } = fillIntro(s.exhibit);
+        const { progress, bar, countdown } = fillIntro(s.exhibit);
         presentation(0, 1);
         live.textContent = `Approaching ${s.exhibit.title}`;
         const approach = adapter.sampleTo(adapter.altitudePose(s.exhibit), frameAnchor);
-        motion(1250, (t) => { approach(t); refreshSoon(); },
+        motion(780, (t) => { approach(t); refreshSoon(); },
           (token) => dispatch({ type: "arrived", ...token }));
 
         s.counterFrame = requestAnimationFrame((start) => {
@@ -214,6 +193,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
             const elapsed = clamp(now - start, 0, INTRO_MS);
             bar.style.transform = `scaleX(${elapsed / INTRO_MS})`;
             progress.setAttribute("aria-valuenow", String(Math.floor(elapsed / 1000)));
+            countdown.textContent = `Auto-start in ${Math.ceil((INTRO_MS - elapsed) / 1000)} s`;
             if (elapsed === INTRO_MS) expire();
             else s.counterFrame = requestAnimationFrame(tick);
           }
@@ -241,7 +221,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         clearCountdown(s);
         intro.inert = true;
         const dive = adapter.sampleTo(adapter.altitudePose({ ...s.exhibit, altitude: s.exhibit.altitude * .75 }), frameAnchor);
-        motion(900, (t) => {
+        motion(730, (t) => {
           dive(t);
           const overview = s.board.pose();
           s.pose = { ...overview, scale: overview.scale * mix(.81, 1, t) };
@@ -255,7 +235,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         s.board.root.inert = false;
         globe.pauseAnimation();
         s.paused = true;
-        if (!document.activeElement?.closest(".museum-dev-switch,.museum-help-trigger,.museum-help-pop,.museum-exit")) {
+        if (!document.activeElement?.closest(".museum-exit")) {
           s.board.title.focus({ preventScroll: true });
         }
         live.textContent = "Investigation board. Choose any pinned item.";
@@ -285,7 +265,6 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         clearCountdown(s);
         intro.inert = true;
         if (s.board) s.board.root.inert = true;
-        overlay.close();
         exit.textContent = "Returning to globe…";
         exit.disabled = true;
         live.textContent = exit.textContent;
@@ -296,7 +275,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         const view = s.snapshot.view;
         const fly = adapter.sampleTo(s.snapshot, () => view?.enabled
           ? [view.offsetX / view.fullWidth, view.offsetY / view.fullHeight] : [0, 0]);
-        motion(960, (t) => {
+        motion(625, (t) => {
           fly(t);
           if (from) s.board.setCamera({ ...from, scale: from.scale * mix(1, .88, t) });
           presentation(blend * (1 - t), introOpacity * (1 - t));
@@ -336,16 +315,12 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   window.addEventListener("resize", onResize, { signal });
   document.addEventListener("scroll", refreshSoon, { capture: true, passive: true, signal });
   document.addEventListener("keydown", (event) => {
-    if (overlay.escape(event)) {
-      event.preventDefault();
-      return;
-    }
     if (event.key === "Escape" && session) {
       event.preventDefault();
       dispatch({ type: "exit" });
     }
     if (![Stage.travel, Stage.evidence].some((stage) => stage === state.stage) ||
-        !(event.target instanceof Element) || event.target.closest("input,select,textarea,.museum-paper-body,.museum-help-pop,.museum-help-trigger")) return;
+        !(event.target instanceof Element) || event.target.closest("input,select,textarea,.museum-paper-body")) return;
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
       step(event.key === "ArrowLeft" ? -1 : 1);
@@ -353,17 +328,6 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   }, { signal });
   controls.addEventListener("change", refreshSoon);
   const calendar = document.querySelector("#cal");
-  const watchCell = (event) => {
-    const node = event.target.closest("[data-d]");
-    if (!node || node === cell) return;
-    cell = annotate(node, `Calendar day · ${legacy.dayLabel(Number(node.dataset.d))}`, {
-      ...legacyAnnotations.calendar,
-      role: "This day shows the raw detection count after the selected globe filters. Select the cell to display that day.",
-    });
-    refreshSoon();
-  };
-  calendar?.addEventListener("pointerover", watchCell, { signal });
-  calendar?.addEventListener("focusin", watchCell, { signal });
   calendar?.addEventListener("keydown", (event) => {
     if (!(event instanceof KeyboardEvent) || !(event.target instanceof Element)) return;
     const day = event.target.closest("[data-d]");
@@ -394,11 +358,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   const observer = new MutationObserver(() => { keyboardDays(); refreshSoon(); });
   if (calendar) observer.observe(calendar, { childList: true, subtree: true });
   const visibility = new MutationObserver(refreshSoon);
-  for (const node of existing) visibility.observe(node, { attributes: true, attributeFilter: ["hidden", "class"] });
-  const viewSwitch = document.querySelector("#viewSw");
-  if (viewSwitch) visibility.observe(viewSwitch, { attributes: true, attributeFilter: ["aria-busy", "data-v"] });
-  const busy = document.querySelector("#busy");
-  if (busy) visibility.observe(busy, { attributes: true, attributeFilter: ["hidden"] });
+  visibility.observe(document.body, { attributes: true, attributeFilter: ["data-experience"] });
   keyboardDays();
   refresh();
   return {
@@ -416,7 +376,6 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         adapter.release(session.snapshot);
         legacy.unlock(session.original, session.snapshot.controls.autoRotate);
       }
-      overlay.close();
       root.remove();
       document.body.classList.remove("has-museum");
     },

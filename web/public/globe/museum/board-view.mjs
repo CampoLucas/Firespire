@@ -1,9 +1,9 @@
 import { BOARD } from "./catalog.mjs";
-import { annotate, button, element } from "./dom.mjs";
-import { boardHelpFor, edgeHelp, itemHelp } from "./annotations.mjs";
+import { button, element } from "./dom.mjs";
 import { renderBlocks } from "./blocks.mjs";
 import { isHttpsUrl } from "./curated-validate.mjs";
 import { cameraMatrix, focusPose, overviewPose } from "./board-camera.mjs";
+import { layoutEvidence } from "./board-layout.mjs";
 
 const types = { article: "Press clipping", report: "Field report", photo: "Image attachment", satellite: "Satellite sample" };
 
@@ -21,8 +21,7 @@ function pinPosition({ placement: { x, y, height, rotation } }) {
 
 function renderEvidence(item, select) {
   const { x, y, width, height, rotation } = item.placement;
-  const paper = annotate(element("article", `museum-paper museum-paper--${item.kind}${item.isMock ? "" : " museum-paper--curated"}`),
-    item.title, itemHelp(item));
+  const paper = element("article", `museum-paper museum-paper--${item.kind}${item.isMock ? "" : " museum-paper--curated"}`);
   paper.dataset.item = item.id;
   Object.assign(paper.style, {
     left: `${x - width / 2}px`, top: `${y - height / 2}px`,
@@ -56,8 +55,7 @@ function renderEvidence(item, select) {
   }
   for (const paragraph of item.body ?? []) body.append(element("p", "", paragraph));
   if (item.blocks) renderBlocks(body, item.blocks);
-  const source = annotate(element("footer", "museum-paper-source"),
-    `Source for ${item.title}`, itemHelp(item, true));
+  const source = element("footer", "museum-paper-source");
   source.append(element("b", "", item.source.name), element("span", "", item.source.date));
   // Enlace a la fuente original: solo https, y sus eventos no deben seleccionar ni deslizar la tarjeta.
   let link = null;
@@ -83,9 +81,8 @@ function renderEvidence(item, select) {
 export function createBoard(exhibit, actions) {
   const root = element("section", "museum-scene");
   root.setAttribute("aria-label", "Investigation board");
-  const header = annotate(element("header", "museum-board-header"), "Investigation board", {
-    ...boardHelpFor(exhibit), role: `${boardHelpFor(exhibit).role} ${exhibit.boardNote}`,
-  });
+  root.dataset.boardView = "whiteboard";
+  const header = element("header", "museum-board-header");
   header.append(element("p", "museum-kicker", exhibit.isMock
     ? "Museum of Fires / Fictional exhibit" : "Museum of Fires / Curated event · satellite overlap, not attribution"));
   const title = element("h2", "", exhibit.title);
@@ -113,13 +110,41 @@ export function createBoard(exhibit, actions) {
     ];
     const d = `M ${a.join(" ")} Q ${guides[0].join(" ")} ${x} ${y} Q ${guides[1].join(" ")} ${b.join(" ")}`;
     strings.append(svg("path", { d }));
-    const label = annotate(element("span", "museum-edge", edge.label), edge.label, edgeHelp(edge));
+    const label = element("span", "museum-edge", edge.label);
     Object.assign(label.style, { left: `${x}px`, top: `${y}px` });
     label.title = `Mock relationship. ${edge.basis}`;
     world.append(label);
   }
   if (!exhibit.items.length) world.append(element("p", "museum-empty", "This exhibit has no evidence records."));
-  viewport.append(world);
+  const canvas = element("div", "museum-board-canvas");
+  canvas.append(world);
+  viewport.append(canvas);
+
+  const tabs = element("div", "museum-board-tabs");
+  tabs.setAttribute("role", "group");
+  tabs.setAttribute("aria-label", "Investigation view");
+  const whiteboard = button("", "Whiteboard", () => showView("whiteboard"));
+  const evidence = button("", "Evidence", () => showView("evidence"));
+  tabs.append(whiteboard, evidence);
+  const list = element("div", "museum-evidence-list");
+  list.setAttribute("aria-label", "Documentary evidence");
+  for (const item of exhibit.items) {
+    const choice = button("", item.title, () => {
+      showView("whiteboard");
+      actions.select(item.id);
+    });
+    choice.dataset.evidence = item.id;
+    choice.append(element("small", "", item.isMock ? "Fictional exhibit" : item.typeLabel));
+    list.append(choice);
+  }
+  function showView(view) {
+    root.dataset.boardView = view;
+    whiteboard.setAttribute("aria-pressed", String(view === "whiteboard"));
+    evidence.setAttribute("aria-pressed", String(view === "evidence"));
+    list.hidden = view !== "evidence";
+    viewport.inert = view === "evidence";
+  }
+  showView("whiteboard");
 
   const footer = element("footer", "museum-board-footer");
   const note = element("p", "museum-board-note", exhibit.boardNote);
@@ -142,7 +167,7 @@ export function createBoard(exhibit, actions) {
   index.addEventListener("change", () => index.value ? actions.select(index.value) : actions.overview());
   controls.append(whole, previous, index, next);
   footer.append(note, controls);
-  root.append(header, viewport, footer);
+  root.append(header, tabs, viewport, list, footer);
 
   let swipe;
   viewport.addEventListener("pointerdown", (event) => {
@@ -160,6 +185,8 @@ export function createBoard(exhibit, actions) {
 
   function mark(id, settled = false) {
     index.value = id ?? "";
+    root.dataset.focused = String(id != null);
+    viewport.scrollTop = 0;
     whole.hidden = id == null;
     previous.hidden = next.hidden = id == null;
     const at = exhibit.items.findIndex((item) => item.id === id);
@@ -185,12 +212,38 @@ export function createBoard(exhibit, actions) {
     pose(id = null) {
       const width = viewport.clientWidth;
       const height = viewport.clientHeight;
-      const item = exhibit.items.find((item) => item.id === id);
-      return item ? focusPose(item.placement, width, height) : overviewPose(width, height);
+      const compact = matchMedia("(max-width: 699px)").matches;
+      if (!compact && root.dataset.boardView === "evidence") showView("whiteboard");
+      const layout = layoutEvidence(exhibit.items, compact);
+      world.style.width = `${layout.width}px`;
+      world.style.height = `${layout.height}px`;
+      for (const item of layout.items) {
+        const { x, y, width: w, height: h, rotation } = item.placement;
+        Object.assign(papers.get(item.id).paper.style, {
+          left: `${x - w / 2}px`, top: `${y - h / 2}px`, width: `${w}px`, height: `${h}px`, transform: `rotate(${rotation}deg)`,
+        });
+      }
+      strings.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+      const labels = world.querySelectorAll(".museum-edge");
+      exhibit.edges.forEach((edge, index) => {
+        const a = pinPosition(layout.items.find((item) => item.id === edge.from));
+        const b = pinPosition(layout.items.find((item) => item.id === edge.to));
+        const [x, y] = compact ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] : edge.via;
+        const guides = !compact && edge.guides ? edge.guides : [[a[0], y], [b[0], y]];
+        strings.children[index].setAttribute("d", `M ${a.join(" ")} Q ${guides[0].join(" ")} ${x} ${y} Q ${guides[1].join(" ")} ${b.join(" ")}`);
+        Object.assign(labels[index].style, { left: `${x}px`, top: `${y}px` });
+      });
+      const item = layout.items.find((item) => item.id === id);
+      if (item) return focusPose(item.placement, width, height);
+      if (!compact) return overviewPose(width, height);
+      const scale = Math.max(.01, (width - 16) / layout.width);
+      return { x: layout.width / 2, y: height / (2 * scale) - 16, scale, roll: 0 };
     },
     setCamera(pose) {
       world.style.setProperty("--museum-scale", String(pose.scale));
       world.style.transform = `matrix(${cameraMatrix(pose, viewport.clientWidth, viewport.clientHeight).join(",")})`;
+      canvas.style.height = !index.value && matchMedia("(max-width: 699px)").matches
+        ? `${parseFloat(world.style.height) * pose.scale + 24}px` : "100%";
     },
   };
 }
