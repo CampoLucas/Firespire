@@ -1,5 +1,6 @@
-import { exhibits } from "./catalog.mjs";
 import { validateCatalog } from "./validate.mjs";
+import { validateCuratedExhibits } from "./curated-validate.mjs";
+import { CURATED_TAGLINE } from "./curated.mjs";
 import { legacyAnnotations, waypointHelp } from "./annotations.mjs";
 import { annotate, button, element } from "./dom.mjs";
 import { createBoard } from "./board-view.mjs";
@@ -10,8 +11,10 @@ import { initial, reduce, Stage } from "./state.mjs";
 
 const INTRO_MS = 5000;
 
-export function mountMuseum({ adapter, globe, controls, legacy }) {
-  validateCatalog(exhibits);
+export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
+  const mock = exhibits.filter(({ isMock }) => isMock);
+  if (mock.length) validateCatalog(mock);
+  if (mock.length < exhibits.length) validateCuratedExhibits(exhibits.filter(({ isMock }) => !isMock));
   const lifetime = new AbortController();
   const { signal } = lifetime;
   const root = element("div", "museum-root");
@@ -19,23 +22,25 @@ export function mountMuseum({ adapter, globe, controls, legacy }) {
   root.dataset.stage = Stage.globe;
   const markers = element("div", "museum-markers");
   const dock = element("nav", "museum-dock");
-  dock.setAttribute("aria-label", "Museum of Fires fictional waypoints");
+  dock.setAttribute("aria-label", exhibits.every(({ isMock }) => isMock)
+    ? "Museum of Fires fictional waypoints" : "Museum of Fires curated events");
   dock.append(element("span", "museum-dock-label", "Museum of Fires"));
   const markerRecords = exhibits.map((exhibit) => {
     const help = waypointHelp(exhibit);
-    const marker = annotate(button(`museum-marker museum-marker--${exhibit.marker}`, "", (event) => {
+    const marker = annotate(button(`museum-marker museum-marker--${exhibit.marker}${exhibit.approximate ? " museum-marker--approx" : ""}`, "", (event) => {
       select(exhibit, event.currentTarget);
     }), exhibit.title, help);
     const shape = element("i");
     shape.setAttribute("aria-hidden", "true");
-    marker.append(shape, element("span", "", `${exhibit.short} · Fictional`));
+    marker.append(shape, element("span", "", exhibit.isMock ? `${exhibit.short} · Fictional`
+      : `${exhibit.short} · Curated${exhibit.approximate ? " · approximate location" : ""}`));
     const link = annotate(button(`museum-dock-link museum-marker--${exhibit.marker}`, "", (event) => {
       select(exhibit, event.currentTarget);
     }), exhibit.title, help);
     const icon = element("i");
     icon.setAttribute("aria-hidden", "true");
     link.append(icon, document.createTextNode(exhibit.short));
-    link.setAttribute("aria-label", `Open fictional exhibit: ${exhibit.title}`);
+    link.setAttribute("aria-label", `${exhibit.isMock ? "Open fictional exhibit" : "Open curated event"}: ${exhibit.title}`);
     markers.append(marker);
     dock.append(link);
     return { exhibit, marker, link };
@@ -133,7 +138,8 @@ export function mountMuseum({ adapter, globe, controls, legacy }) {
       heading,
       element("p", "museum-intro-location", `${exhibit.region} · ${exhibit.period}`),
       element("p", "museum-intro-summary", exhibit.summary),
-      element("p", "museum-intro-disclosure", "Fictional exhibit. Its dates are independent of the activity filters."),
+      element("p", "museum-intro-disclosure", exhibit.isMock
+        ? "Fictional exhibit. Its dates are independent of the activity filters." : CURATED_TAGLINE),
       start, progress,
     );
     intro.hidden = false;

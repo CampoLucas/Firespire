@@ -50,3 +50,5 @@ __pycache__/
 fuentes/nrt/
 
 .obsidian
+# candidatos del museo (firespire museum candidates)
+pipeline/out/

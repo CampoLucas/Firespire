@@ -106,7 +106,7 @@ Video ≤ 30 s or ≤ 7 slides (D-11 open). Told from a real fire:
 ## Submission checklist
 
 - [ ] App, submission page and linked materials in English.
-- [ ] Data and resources declared: NASA FIRMS (MODIS C6.1, VIIRS 375 m: S-NPP, NOAA-20, NOAA-21), NASA EONET if used, provincial boundaries source, Tavily (curation), every source URL used in the museum.
+- [ ] Data and resources declared: NASA FIRMS (MODIS C6.1, VIIRS 375 m: S-NPP, NOAA-20, NOAA-21), NASA Blue Marble: Next Generation (January 2004, topography and bathymetry; NASA Earth Observatory, Reto Stöckli) as the globe texture, NASA EONET if used, provincial boundaries source, Tavily (curation), every source URL used in the museum.
 - [ ] Tools and AI use declared: Claude Code, Tavily MCP/API, any other assistant used by the team.
 - [ ] No NASA logos or branding in generated content; AI-generated images or video carry a visible watermark.
 - [ ] Deployed URL works logged out; no key in the browser.
