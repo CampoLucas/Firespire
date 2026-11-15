@@ -28,7 +28,8 @@ Datos de hoy (artefactos `v1-nrt`, los que sirve `latest.json`):
 - Web (dentro de `web/`):
   - `npm install`, `npm run dev`, `npm run build`, `npm run lint`
   - `npm test` (vitest); un test: `npx vitest run lib/__tests__/<archivo> -t "<nombre>"`
-- Legado: `python -I prep.py fuentes` (raíz) regenera `web/public/globe/data/*.js`. Necesita `numpy`, `pandas` y `fuentes/provincias_ign.json` (111 MB, en `.gitignore`, no está en el repo); sin ese archivo no corre.
+- Globo: `uv run firespire globe ../fuentes/nrt [--years 2026]` (dentro de `pipeline/`) escribe `web/public/globe/data/data-YYYY.js` y rehace `years.js` con todos los años presentes. Mismo formato que `prep.py`, pero asigna provincias con `provincias.geojson` (el índice `prov` sigue el orden de `provincias.js`) y suma todos los satélites VIIRS del año. Así se generó `data-2026.js`.
+- Legado: `python -I prep.py fuentes` (raíz) también escribe `web/public/globe/data/*.js`, pero necesita `fuentes/provincias_ign.json` (111 MB, en `.gitignore`, no está en el repo) y toma un solo archivo VIIRS por año. `data-2023/2024/2025.js` salieron de ahí; los CSV de 2025 no están en el repo.
 
 ## Arquitectura
 
