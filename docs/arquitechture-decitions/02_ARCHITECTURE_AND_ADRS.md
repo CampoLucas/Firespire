@@ -70,7 +70,7 @@ The three files that change together stay the same: `web/lib/artifact-types.ts`,
 
 **Choose** SP (standard processing) for history and NRT only after the SP cutoff.
 
-- **SP cutoff** = the earliest of the SP max dates across the sources used (from `/api/data_availability` or the files' last `acq_date`). NRT starts at cutoff + 1 for **all** sources, the same common-window rule `fetch.py::window` already applies.
+- **SP cutoff is per source**: each source uses SP up to its own last SP date (from `/api/data_availability`) and NRT from the next day (`firespire fetch --after-sp`). A single common cutoff does not work: on 2026-11-15 MODIS_SP ends 2026-08-31 and the three VIIRS SP products end 2026-07-31, but MODIS_NRT only starts 2026-09-01, so a common cutoff of 2026-07-31 would leave MODIS without August 2026. A month with any NRT row is provisional and stays out of calibration.
 - **Satellite completeness:** a month enters calibration only if the VIIRS satellites observed that month include every satellite the regime expects (`Regime.satellites`). Otherwise it is reported in `meta.warnings` and skipped. This fixes the V3 bias.
 - **Limitations declared, not corrected:** MODIS Terra-only from 2000-11 to 2002-07 (D-09); NRT months marked provisional and outside calibration (T-11).
 - **Size:** if `monthly.bin` exceeds about 15 MB, serve only the two `uint8` cell-day blocks to the browser in a second file and keep hotspot blocks for the CSV route. Decide after measuring, not before.

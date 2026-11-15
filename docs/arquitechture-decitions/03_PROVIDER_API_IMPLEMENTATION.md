@@ -65,14 +65,31 @@ GET https://firms.modaps.eosdis.nasa.gov/api/area/csv/{FIRMS_MAP_KEY}/{SOURCE}/{
 - Limit: 5,000 transactions per 10 minutes; `fetch.py::key_status` prints usage without the key.
 - Errors can come as a text body with HTTP 200; `fetch.py::_get` already treats a body starting with "invalid" or containing "error" as a failure and masks the key in messages.
 
-**Needed change** (Track A, [06](06_IMPLEMENTATION_RUNBOOK.md#track-a-data-and-harmonization)): `fetch.SOURCES` lists only NRT products. Add a `--product sp|nrt` option that switches to the four SP products and writes to `fuentes/sp/`. File names stay the same, so `ingest` tells SP from NRT by the `version` column, as today.
+**Implemented in Track A** ([06](06_IMPLEMENTATION_RUNBOOK.md#track-a-data-and-harmonization)): `firespire fetch --product sp` switches to the four SP products (`fetch.SP_SOURCES`) and writes to `fuentes/sp/`; `--after-sp` starts each NRT source the day after its SP cutoff. File names stay the same, so `ingest` tells SP from NRT by the `version` column. SP CSVs from the area API carry the `type` column and `version` without an NRT suffix (verified 2026-11-15 with `VIIRS_NOAA21_SP`).
 
 ### SP/NRT cutoff
 
-1. Read `availability()` for the four SP products. `sp_cutoff = min(max_date)` over the products that exist for the period.
-2. Use SP up to `sp_cutoff` for every source. Drop SP rows after it.
-3. Fetch NRT from `sp_cutoff + 1` to today for every source with one common window (`fetch --start`).
+The cutoff is **per source** (`fetch.py::sp_cutoff`, `after_sp_starts`):
+
+1. For each source, its SP cutoff is the `max_date` of its SP product in `availability()`.
+2. Use SP up to that date for that source.
+3. Fetch NRT for each source from its own cutoff + 1 day to today: `firespire fetch --after-sp`.
 4. Never keep both SP and NRT rows for the same source and day.
+
+Availability measured on 2026-11-15 with the team's key:
+
+| Product | First day | Last day |
+|---|---|---|
+| `MODIS_SP` | 2000-11-01 | 2026-08-31 |
+| `VIIRS_SNPP_SP` | 2012-01-20 | 2026-07-31 |
+| `VIIRS_NOAA20_SP` | 2018-04-01 | 2026-07-31 |
+| `VIIRS_NOAA21_SP` | 2023-03-01 | 2026-07-31 |
+| `MODIS_NRT` | 2026-09-01 | 2026-11-15 |
+| `VIIRS_SNPP_NRT` | 2026-08-01 | 2026-11-02 |
+| `VIIRS_NOAA20_NRT` | 2026-08-01 | 2026-11-15 |
+| `VIIRS_NOAA21_NRT` | 2024-01-17 | 2026-11-15 |
+
+A single common cutoff (2026-07-31) would leave MODIS without August 2026, because `MODIS_NRT` starts on 2026-09-01.
 
 ### `hotspots.csv` proxy (runtime)
 

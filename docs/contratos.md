@@ -56,8 +56,10 @@ CLI: `uv run firespire build <carpeta_csv>... [--version v0] [--out web/public/a
 - VIIRS: confianza fuera de `VIIRS_DROP_CONFIDENCE`, y `type = 0` cuando `type` no es NULL.
 - Los CSV NRT de la API no traen `type` (verificado el 2026-11-14 con `/api/area`); en esos datos las fuentes estáticas solo las saca la máscara de persistentes.
 
-## Descarga NRT
+## Descarga NRT y SP
 - `uv run firespire fetch [--days 30 | --start YYYY-MM-DD] [--end YYYY-MM-DD]` baja `MODIS_NRT`, `VIIRS_SNPP_NRT`, `VIIRS_NOAA20_NRT` y `VIIRS_NOAA21_NRT` a `fuentes/nrt/` con los nombres de arriba.
+- `--product sp` baja `MODIS_SP`, `VIIRS_SNPP_SP`, `VIIRS_NOAA20_SP` y `VIIRS_NOAA21_SP` a `fuentes/sp/`, con los mismos nombres de archivo. Los CSV SP de la API traen `type` y `version` sin sufijo NRT (verificado el 2026-11-15 con `VIIRS_NOAA21_SP`). Cada corrida pisa el archivo de cada año que toca: bajar años completos.
+- `--after-sp` (solo NRT, excluyente con `--start` y `--days`): cada fuente NRT arranca el día siguiente al corte de su SP (la última fecha de su producto SP en `/api/data_availability`), para que SP y NRT no se solapen. El corte es por fuente: el 2026-11-15, `MODIS_SP` llega al 2026-08-31 y los VIIRS SP al 2026-07-31.
 - Usa `/api/area` con el recuadro `-74,-56,-53,-21` en pedidos de hasta 5 días y recorta con `provincias.geojson` (margen de 0,05°). El endpoint `/api/country` responde "Invalid API call" (verificado el 2026-11-14).
 - Todas las fuentes usan una ventana común (si no, un mes tendría días de un sensor sin el otro); cada una se recorta a lo que informa `/api/data_availability`. Para meses comparables, empezar el día 1 con `--start`. La MAP_KEY sale de `FIRMS_MAP_KEY` o de `web/.env.local`.
 
@@ -87,10 +89,14 @@ Una fila por celda × día × satélite × producto, sin las celdas enmascaradas
 - **Mes** = mes calendario UTC, `YYYY-MM`.
 - **Mes provisorio** = tiene al menos una fila `NRT`. `first_provisional_month` es el primero; los meses desde ahí no entran a la calibración.
 - **Régimen de un mes** = último régimen de `config.REGIMES` con `start` ≤ día 1 del mes.
-- **k de un régimen** = Σ celda-días MODIS / Σ celda-días VIIRS sobre sus meses no provisorios, sumando todas las celdas. `method: "direct"`.
-- Régimen sin meses no provisorios: se estima con los meses SP del régimen anterior quitando las filas de `SNPP` (`method: "drop_snpp"`). Si el régimen anterior no tiene filas de `SNPP` o no hay datos, `k: null` y `method: "none"`.
-- **Serie armonizada** de una celda-mes: celda-días MODIS si el mes es anterior a `HARMONIZED_START`; si no, `k × celda-días VIIRS`. La calcula la web.
-- **Holdout**: k estimado con todos los meses SP menos los últimos 12, aplicado a esos 12. Se informa `mape_monthly` y `bias_total`. Con menos de 24 meses SP: `skipped`.
+- **Meses SP emparejados** de un régimen = sus meses no provisorios con celda-días MODIS > 0 y VIIRS > 0. Un mes con una sola familia no entra a k (sesgaría el cociente). Se dividen en **completos** (los satélites VIIRS observados ese mes incluyen todos los del régimen) e **incompletos** (los demás).
+- **k de un régimen** = Σ celda-días MODIS / Σ celda-días VIIRS sobre sus meses completos, sumando todas las celdas. `method: "direct"`.
+- **k por mes calendario** (D-06, `config.CALIBRATION_K_BY_CALENDAR_MONTH`): el cociente MODIS/VIIRS varía 1,5–1,8× entre meses del año dentro de un régimen (mínimo may–jun, máximo ago–sep). Por eso cada régimen lleva `k_by_month` (12 valores, índice 0 = enero; `float` o `null`) y `k_by_month_n` (12 enteros: meses de calibración que respaldan ese valor, 0 donde es `null`). Para el mes calendario c, con los meses usados del régimen (los mismos que alimentan `k`) cuyo mes del año es c: si hay al menos `CALIBRATION_MIN_MONTHS_PER_CALENDAR_MONTH` (2) y Σ VIIRS > 0 y Σ MODIS > 0, `k_by_month[c]` = Σ MODIS / Σ VIIRS; si no, `null`. `null` significa "usar el `k` del régimen" (fallback). `k` sigue siendo el k agrupado del régimen. En `drop_snpp` se hace lo mismo con los meses del régimen anterior que usa la estimación y el VIIRS sin SNPP; en `method: "none"` todo es `null`. Con la opción en `False`, `k_by_month` es todo `null`, `k_by_month_n` todo 0 y `k_granularity` vale `"regime"` (si no, `"regime_month"`). Helper en Python: `calibrate.k_for(regime, "YYYY-MM")`.
+- Régimen sin meses completos pero con incompletos: k sale de los incompletos y `method: "direct_incomplete"` (provisorio y sesgado hacia la constelación parcial; `meta.warnings` lo avisa). Con `config.CALIBRATION_REQUIRE_ALL_SATELLITES = False` se usan todos los emparejados y el método es `"direct"`.
+- Campos por régimen: `sp_months` = meses usados para k (0 en `drop_snpp`); `sp_months_incomplete` = meses emparejados a los que les falta un satélite esperado, se usen o no; `satellites_observed_sp` = satélites VIIRS presentes en los meses usados; `celldays_modis` / `celldays_viirs` = sumas sobre los meses usados.
+- Régimen sin meses emparejados: se estima con los meses emparejados del régimen anterior (completos si hay, si no incompletos) quitando las filas de `SNPP` (`method: "drop_snpp"`). Si el régimen anterior no tiene filas de `SNPP` o no hay datos, `k: null` y `method: "none"`.
+- **Serie armonizada** de una celda-mes: celda-días MODIS si el mes es anterior a `HARMONIZED_START`; si no, `k × celda-días VIIRS`, con `k` = `k_by_month` del mes calendario si no es `null`, y si no el `k` del régimen. La calcula la web.
+- **Holdout**: valida el método que se usa de verdad, k por régimen y mes calendario. El test son los últimos 12 meses de calibración; para cada régimen con meses en el test, el k agrupado y el k de cada mes calendario se estiman con los meses de calibración de ese régimen menos los del test (mismo mínimo de meses por mes calendario, con fallback al k agrupado de entrenamiento) y se aplican a sus meses de test (`series` usa el k estacional). El régimen con menos de 12 meses de entrenamiento queda fuera del test (y se nombra en `reason`). Se informa `mape_monthly`, `bias_total`, `k_train` (k del régimen del último mes de test, por compatibilidad), `k_train_by_regime` y `train_months_by_regime`, más `k_granularity`, `k_train_by_regime_month` (id de régimen → 12 valores `float|null`) y la comparación contra el k único por régimen (el método anterior): `mape_monthly_single_k` y `bias_total_single_k` (campos nuevos, opcionales en la web). Con menos de 24 meses de calibración, o sin ningún régimen entrenable: `skipped`.
 - **Caída de S-NPP**: desde 2025-01, comparar `k_V3 × VIIRS` con `k_drop × VIIRS sin SNPP` contra MODIS. Sin filas de `SNPP`: `skipped`.
 
 # Artefactos v1
@@ -101,7 +107,7 @@ Destino: `web/public/artifacts/<version>/`, más `web/public/artifacts/latest.js
 | `meta.json` | `schema`, `version`, `generated_at`, `h3_res`, `first_month`, `n_months`, `first_provisional_month`, `n_cells`, `filters`, `satellites`, `warnings`, `monthly.blocks` |
 | `cells.json` | `h3[]` (orden lexicográfico), `prov[]` (índice de provincia, -1 si ninguna), `provinces[]` |
 | `monthly.bin` | cuatro bloques consecutivos, ver abajo |
-| `calibration.json` | `scale`, `harmonized_start`, `regimes[]` |
+| `calibration.json` | `scale`, `harmonized_start`, `k_granularity` (`"regime_month"` o `"regime"`), `regimes[]` (`id`, `start`, `first_month`, `last_month`, `satellites_expected`, `satellites_observed`, `k`, `k_by_month`, `k_by_month_n`, `method`, `sp_months`, `sp_months_incomplete`, `satellites_observed_sp`, `celldays_modis`, `celldays_viirs`) |
 | `validation.json` | `holdout`, `snpp_drop` |
 
 ## `monthly.bin`

@@ -82,7 +82,7 @@ The globe and the History page are different products: the globe shows **raw** d
 |---|---|---|---|
 | 1 | Calendar starts in 2023-01 | Core requirement "from the early 2000s" unmet | Ingest full archive (A1–A4) |
 | 2 | V3 k calibrated with NOAA-20 only, while 2026 has three VIIRS satellites: harmonized ≈ 2× MODIS in Sep–Oct 2026 | Harmonization is visibly wrong in the most recent months | SP files for every satellite + satellite-completeness guard (A2, A3) |
-| 3 | SP and NRT can overlap in recent months | Inflated raw counts; month wrongly excluded from calibration | One SP cutoff, NRT only after it (A1) |
+| 3 | SP and NRT can overlap in recent months | Inflated raw counts; month wrongly excluded from calibration | Per-source SP cutoff, NRT only after it: `fetch --after-sp` (A2) |
 | 4 | `sp_months` counts months without data (V3 reports 42) | Misleading method box | Count only months with rows (A3) |
 | 5 | No date-range controls, no current-month-vs-median | Core selection and recommended comparison missing | B1, B2 |
 | 6 | `export.csv` is cell×month analytics, not hotspots of a search | Recommended output missing | B4 (`hotspots.csv`, cuttable) |

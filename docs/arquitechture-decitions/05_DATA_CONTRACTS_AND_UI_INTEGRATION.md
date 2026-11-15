@@ -27,7 +27,7 @@ Per regime, add:
 | `sp_months_incomplete` | string[] | SP months skipped because an expected satellite had no rows |
 | `satellites_observed_sp` | string[] | VIIRS satellites seen in the calibration months |
 
-`meta.warnings` gets one English sentence per skipped month range. `config.py` gets `CALIBRATION_REQUIRE_ALL_SATELLITES = True`.
+As implemented: k uses only *paired* SP months (MODIS and VIIRS both with cell-days) where every satellite the regime expects was observed. If a regime has no such month but has incomplete ones, k comes from those and `method` is `"direct_incomplete"` (provisional), so the app keeps working on partial archives. `meta.warnings` gets one English sentence per regime with skipped or incomplete months. `config.py` has `CALIBRATION_REQUIRE_ALL_SATELLITES = True`. The holdout validates the same thing the app uses: k per regime, estimated without the 12 test months (`k_train_by_regime`, `train_months_by_regime`).
 
 ## Median and anomaly (web)
 
@@ -72,7 +72,7 @@ export function monthBaseline(points: SeriesPoint[], month: Month, opts?: { minY
 | FIRMS error or timeout | 502 `{error}`, upstream URL never included |
 | Body > 4 MB | 413 asking to narrow the range |
 
-Source selection: SP products for dates ≤ SP cutoff, NRT after (cutoff read from `meta.json`, new field `sp_cutoff`).
+Source selection, per source: its SP product for dates up to that source's SP cutoff, its NRT product after (cutoffs from `/api/data_availability`, cached in the route).
 
 ## `events.json` (curated input)
 

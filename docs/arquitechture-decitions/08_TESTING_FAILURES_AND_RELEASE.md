@@ -51,11 +51,21 @@ Fill these after A5; they go in the method box, the slides and the submission pa
 
 | Number | Source | Value |
 |---|---|---|
-| k per regime (V1, V2, V3) | `calibration.json` | [pending A4] |
-| Holdout MAPE and total bias | `validation.json::holdout` | [pending A4] |
-| S-NPP drop test MAPE, with and without the S-NPP k | `validation.json::snpp_drop` | [pending A4] |
-| Months covered, first and last | `meta.json` | [pending A4] |
+| k per regime | `calibration.json` | V1 0.474 (74 months), V2 0.316 (59), V3 0.257 (41), all `direct` on complete-constellation months; V4 0.300 (`drop_snpp`) |
+| Yearly harmonized / MODIS, 2012–2025 | computed from `monthly.bin` | 0.915 to 1.062; no step at 2018-04 or 2023-03 |
+| In-sample monthly MAPE per regime | computed from `monthly.bin` | V1 19.0 %, V2 21.4 %, V3 24.0 % (bias 0 by construction) |
+| Holdout, k per regime (train 2023-03..2025-07, test 2025-08..2026-07) | `validation.json::holdout` | monthly MAPE 35.8 %, total bias +6.9 %, k_train 0.262 |
+| S-NPP drop test (test 2025-01..2026-11) | `validation.json::snpp_drop` | MAPE 26.2 % with k without S-NPP (0.300) vs 26.9 % with the V3 k; bias +7.7 % vs +6.9 % |
+| Months covered | `meta.json` | 2000-11 to 2026-11 (313 months, 12,144 cells); provisional from 2026-08 |
 | Museum events and verdicts | `museum.json` | [pending C4] |
+
+Artifact version `v2-full`, built 2026-11-15 from the full archive (7,093,918 detections). Known weaknesses behind these numbers, to state openly rather than hide:
+
+- **k is seasonal.** Within each regime the implied k (MODIS / VIIRS per calendar month) varies by a factor of 1.5–1.8: lowest in May–June, highest in August–September. A single k per regime is right per year and off by about ±20–25 % per month. Fix under decision D-06: k per regime and calendar month.
+- **2026 runs above MODIS.** January–July 2026 harmonized is 1.41× MODIS; single low-season months reach 2.5×. Most of the holdout MAPE comes from May–July 2026.
+- **November 2026** is partial and provisional, and is assigned to V3 although S-NPP stopped on 2026-11-02: 0.66× MODIS (0.76× with the V4 k).
+- **k is national.** Per province the ratio ranges from 0.84 (Salta, Santiago del Estero) to 1.37 (Misiones).
+- **Terra-only period.** 2000-11 to 2002-06 has one MODIS satellite: 2001 has about 40 % of the cell-days of 2003–2004 (D-09, declared, not corrected).
 
 ## Unit tests to add
 

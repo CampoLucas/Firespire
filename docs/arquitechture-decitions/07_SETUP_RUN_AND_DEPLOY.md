@@ -61,13 +61,14 @@ From `pipeline\`:
 
 ```powershell
 uv sync
-uv run firespire fetch --start 2026-08-01 --out ..\fuentes\nrt
+uv run firespire fetch --after-sp
 ```
 
-Replace `2026-08-01` with `sp_cutoff + 1` (see [03](03_PROVIDER_API_IMPLEMENTATION.md#spnrt-cutoff)). *After implementation* (A2), SP gaps:
+`--after-sp` starts each NRT source the day after its own SP cutoff (see [03](03_PROVIDER_API_IMPLEMENTATION.md#spnrt-cutoff)) and writes to `fuentes\nrt`. SP gaps go to `fuentes\sp`. Always fetch whole years per run: a run overwrites that source's file for each year it touches.
 
 ```powershell
-uv run firespire fetch --product sp --start 2026-01-01 --end 2026-07-31 --sources VIIRS_SNPP_SP,VIIRS_NOAA21_SP --out ..\fuentes\sp
+uv run firespire fetch --product sp --start 2023-01-01 --end 2024-12-31 --sources VIIRS_SNPP_SP,VIIRS_NOAA21_SP
+uv run firespire fetch --product sp --start 2025-01-01
 ```
 
 ### 3. Build harmonized artifacts
