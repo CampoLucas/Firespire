@@ -576,7 +576,13 @@ function preloadImg(url,ms){
 }
 const RMQ=matchMedia("(prefers-reduced-motion: reduce)");
 const raf2=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-const texReady=preloadImg(TEX+"earth-blue-marble.jpg").then(raf2);   // 2 frames: three ya subió la textura a la GPU
+// Listo = globe.gl ya aplicó su propia textura y mostró el planeta (onGlobeReady). Una precarga aparte
+// no sirve: globe.gl baja la imagen con su TextureLoader y oculta el planeta hasta tenerla, mientras que
+// las mallas de focos viven en globe.scene() y no se ocultan con él. El timeout es solo por si la textura falla.
+const texReady=new Promise(ok=>{
+  const t=setTimeout(ok,20000);
+  globe.onGlobeReady(()=>{clearTimeout(t);ok()});
+}).then(raf2);
 function setPaths(){globe.pathsData(provPaths)}
 setPaths();
 
@@ -1411,7 +1417,9 @@ loadYear(st.year).then(D=>{
   // el overlay se retira recién cuando el planeta tiene su textura; luego los focos entran con fade-in
   texReady.then(()=>{
     const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),RMQ.matches?0:500);
-    setTimeout(()=>fadeData(1,700),RMQ.matches?0:250);
+    // 1200 ms = animación de entrada de globe.gl (escala + un giro del planeta), que corre aunque haya
+    // reduced-motion; los focos no giran con él, así que siempre se espera a que termine
+    setTimeout(()=>fadeData(1,700),1200);
   });
 }).catch(e=>{$("load").textContent=e.message;console.error(e)});
 </script>
