@@ -40,6 +40,7 @@ export const legacyAnnotations = {
 };
 
 export function waypointHelp(exhibit, intro = false) {
+  if (!exhibit.isMock) return exhibit.help[intro ? "intro" : "waypoint"];
   return {
     status: `Fictional · ${exhibit.origin}`,
     role: intro ? "This panel reads the title, region, documentation dates and summary from the selected waypoint. Its five-second bar is a UI timer."
@@ -57,6 +58,10 @@ export const boardHelp = {
   relation: "FIRMS can supply an observation record. Read other source types independently, and require source linkage or a verified incident ID before connecting them.",
   limits: "The available evidence determines what can be shown. An exhibit may have no imagery, investigation finding or satellite record.",
 };
+
+export function boardHelpFor(exhibit) {
+  return exhibit.isMock ? boardHelp : exhibit.help.board;
+}
 
 const types = {
   article: {
@@ -82,6 +87,7 @@ const types = {
 };
 
 export function itemHelp(item, attribution = false) {
+  if (!item.isMock) return attribution ? item.sourceHelp : item.help;
   return {
     status: "Fictional · local mock record",
     role: attribution ? `Prototype credit: ${item.source.name}. Date field: ${item.source.date}. This source has no original URL.`

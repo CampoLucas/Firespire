@@ -298,3 +298,32 @@
 .museum-help-pop p:not(.museum-kicker) { margin-top: 7px; font-size: 12px; }
 .museum-help-pop p > b { display: block; color: #ffbc89; }
 @media (prefers-reduced-motion: reduce) { .museum-slider::before { transition: none; } }
+
+/* ---- Eventos curados reales ---- */
+.museum-paper--curated h3 { font-size: 24px; }
+.museum-paper--curated .museum-paper-body { font-size: 18px; line-height: 1.3; }
+.museum-paper--curated.is-readable .museum-paper-body { font-size: max(15px, calc(15px / var(--museum-scale, 1))); }
+.museum-paper--curated.is-readable .museum-observation { font-size: max(14px, calc(14px / var(--museum-scale, 1))); }
+.museum-paper--event { background-color: #ead6b2; border-top: 10px solid #5d6a52; padding-top: 19px; }
+.museum-paper--chart, .museum-paper--context { background-color: #d8d8c5; padding: 24px 14px 12px; }
+.museum-paper--method { background-color: #e1d3c3; border-top: 10px solid #735240; padding-top: 19px; }
+.museum-quote { margin: 0; padding-left: 12px; border-left: 4px solid #967959; font-style: italic; }
+.museum-source-link {
+  color: #70382c; font-weight: 700; text-decoration: underline;
+  width: fit-content; padding: 2px 0;
+}
+.museum-source-link:focus-visible { outline: 3px solid #70382c; outline-offset: 3px; }
+.museum-chart { margin: 0; }
+.museum-chart-svg { width: 100%; height: auto; display: block; background: #f2efe2; border: 1px solid #9b754b72; }
+.museum-chart-grid { stroke: #9b754b66; stroke-width: 1; }
+.museum-chart-tick { fill: #4b3528; font: 10px var(--museum-mono); }
+.museum-line { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.museum-line--modis { stroke: #a8442c; stroke-width: 1.6; }
+.museum-line--viirs { stroke: #2b6f73; stroke-width: 1.6; stroke-dasharray: 5 3; }
+.museum-line--harmonized { stroke: #2d2118; stroke-width: 2.4; }
+.museum-legend { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font: 13px/1.2 var(--museum-mono); }
+.museum-swatch { display: inline-block; width: 18px; height: 0; margin-right: 6px; vertical-align: middle; border-top: 3px solid; }
+.museum-swatch--modis { border-color: #a8442c; }
+.museum-swatch--viirs { border-color: #2b6f73; border-top-style: dashed; }
+.museum-swatch--harmonized { border-color: #2d2118; border-top-width: 4px; }
+.museum-marker--approx i { border-style: dashed; outline: 2px dashed #ffbb7eb0; outline-offset: 6px; }

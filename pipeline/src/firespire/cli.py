@@ -17,9 +17,10 @@ def _count(con, table: str) -> int | str:
         return "?"
 
 
-def build(folders: list[Path], version: str, out: Path) -> Path:
+def prepare(folders: list[Path]):
+    """Etapas ingest -> celldays.build y calibración. Devuelve (con, calibración)."""
     # Los módulos de la etapa 1-5 los escribe otro paquete; se importan acá por nombre.
-    from firespire import celldays, export, filters, ingest, mask
+    from firespire import celldays, filters, ingest, mask
 
     con = duckdb.connect(":memory:")
     ingest.ingest(con, folders)
@@ -36,12 +37,32 @@ def build(folders: list[Path], version: str, out: Path) -> Path:
     ks = ", ".join(f"{r['id']}={r['k'] if r['k'] is None else round(r['k'], 4)} ({r['method']})"
                    for r in cal["regimes"])
     print(f"calibrate: k per regime: {ks}")
+    return con, cal
+
+
+def build(folders: list[Path], version: str, out: Path) -> Path:
+    from firespire import export, museum
+
+    con, cal = prepare(folders)
     val = validate.compute(con)
     print(
         f"validate: holdout={val['holdout']['status']}, snpp_drop={val['snpp_drop']['status']}"
     )
     path = export.write(con, cal, val, out, version)
     print(f"export: wrote {path}")
+    mpath = museum.maybe_build(con, cal, out, version)  # solo si existe el archivo de eventos
+    if mpath is not None:
+        print(f"museum: wrote {mpath}")
+    return path
+
+
+def candidates(folders: list[Path], out: Path, top: int) -> Path:
+    from firespire import museum
+
+    con, cal = prepare(folders)
+    items = museum.candidates(con, cal, top=top)
+    path = museum.write_candidates(items, out, top)
+    print(f"museum: {len(items)} candidates -> {path}")
     return path
 
 
@@ -74,9 +95,17 @@ def main(argv: list[str] | None = None) -> None:
     g.add_argument("folders", nargs="+", type=Path, metavar="csv_folder")
     g.add_argument("--years", type=lambda s: [int(y) for y in s.split(",")], default=None,
                    help="solo estos años, separados por coma (default: todos los encontrados)")
+    m = sub.add_parser("museum", help="museo de incendios: candidatos desde los datos")
+    ms = m.add_subparsers(dest="museum_cmd", required=True)
+    c = ms.add_parser("candidates", help="episodios candidatos -> pipeline/out/candidates.json")
+    c.add_argument("folders", nargs="+", type=Path, metavar="csv_folder")
+    c.add_argument("--out", type=Path, default=config.CANDIDATES_OUT)
+    c.add_argument("--top", type=int, default=15)
     args = parser.parse_args(argv)
     if args.cmd == "build":
         build(args.folders, args.version, args.out)
+    elif args.cmd == "museum":
+        candidates(args.folders, args.out, args.top)
     elif args.cmd == "globe":
         from firespire import globe
 
