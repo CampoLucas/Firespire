@@ -1,143 +1,120 @@
+---
+type: Decision
+title: "Firespire — MVP architecture and decision records"
+description: "Data flow from the FIRMS archive to the harmonized calendar, globe and curated museum, with ADR 1–7 and what is deferred."
+tags: ["firespire", "nasa-space-apps-2026", "architecture", "adr"]
+sources:
+  - "../contratos.md"
+  - "../decisiones.md"
+privacy: open
+status: draft
+generated:
+  by: "andy/claude-code"
+  at: "2026-11-15T14:40:00-03:00"
+---
 # 02. Architecture and decisions
 
 [Index](00_START_HERE.md) · [Audit](01_CURRENT_APPLICATION_AUDIT.md) · [Contracts](05_DATA_CONTRACTS_AND_UI_INTEGRATION.md)
 
-## Contents
-
-[Architecture](#architecture) · [Ownership and files](#ownership-and-files) · [Decision records](#decision-records) · [Request lifecycle](#request-lifecycle) · [Budgets and caching](#budgets-and-caching) · [Security and deployment limits](#security-and-deployment-limits)
-
 ## Architecture
-
-Use the existing Node-backed Next.js App Router (`web/app/api/v1/series/route.ts::GET`, `web/lib/artifacts.server.ts::loadArtifactsFromFs`) and documented Vercel target (`web/README.md`). The legacy globe remains a same-origin static HTML client. No Python server, separate service, database, worker queue, provider SDK or language model is required.
 
 ```mermaid
 flowchart TD
-  A["index.html: selection bridge"] --> B["discovery-client.mjs: Search"]
-  B --> C["POST /api/museum/discover"]
-  C --> D["validate selection and limits"]
-  D --> E["firms-context.server.ts"]
-  F["private FIRMS monthly index"] --> E
-  E --> G["activity windows"]
-  G --> H["EONET leads"]
-  G --> I["Brave News and Web"]
-  H --> I
-  I --> J["deduplicate and rank URLs"]
-  J --> K["Tavily Extract"]
-  K --> L["source normalization and claims"]
-  L --> M["eligibility and cause rules"]
-  M --> N["validated exhibit adapter"]
-  N --> O["ready result set, all categories"]
-  O --> P["mountMuseum: filters and markers"]
-  P --> Q["existing intro and spatial board"]
+  A["FIRMS archive SP<br/>MODIS 2000-11 → SP cutoff<br/>VIIRS S-NPP, NOAA-20, NOAA-21"] --> C
+  B["FIRMS area API NRT<br/>SP cutoff+1 → today<br/>(firespire fetch)"] --> C
+  C["pipeline: ingest → filters → cells → mask → cell_days"] --> D["calibrate: k per regime<br/>(complete-satellite SP months only)"]
+  D --> E["validate: holdout, S-NPP drop"]
+  C --> M["museum: candidates → cross-match"]
+  T["Tavily search/extract<br/>(curation time, API or MCP)"] --> R["events.json<br/>(human-reviewed)"]
+  R --> M
+  E --> F["export: artifacts/&lt;version&gt;/"]
+  M --> F
+  F --> G["History (core): harmonized calendar,<br/>median comparison, CSV"]
+  F --> H["Museum boards: sources + MODIS / VIIRS / harmonized"]
+  I["/api/v1/hotspots.csv<br/>(FIRMS_MAP_KEY, server)"] --> G
+  J["globe: raw detections explorer<br/>(firespire globe)"] --> H
 ```
 
-All new module names in the diagram are **proposed**. Existing symbols and their source citations are cataloged in [01](01_CURRENT_APPLICATION_AUDIT.md#museum-contracts). `mountMuseum`, `createBoard`, `reduce` and the globe adapter remain the presentation backbone.
+Everything left of `export` is Python and runs on a team laptop. Everything right of it is static files plus four small Next.js routes on Vercel. There is no database, no queue, no runtime search provider.
 
 ## Ownership and files
 
-| Proposed path | Responsibility / exported boundary |
-|---|---|
-| `web/lib/museum/contracts.ts` | Normalized public types, no environment reads |
-| `web/lib/museum/validate.ts` | Runtime request/result checks, strict URL/date/geometry schemas |
-| `web/lib/museum/discover.server.ts` | `discover(query, context): Promise<DiscoveryResult>`; sole orchestration/budget owner |
-| `web/lib/museum/firms-context.server.ts` | Read validated local shards; exact point clipping; per-product activity windows |
-| `web/lib/museum/providers/{http,eonet,brave,tavily,firms}.server.ts` | Fetch, bounds, timeouts, provider errors and mappings |
-| `web/lib/museum/normalize.ts` | Canonical URL, supported location/date mentions, source identity |
-| `web/lib/museum/causes.ts` | Candidate sentences, authority gates, claim status and cause precedence |
-| `web/lib/museum/waypoints.ts` | Eligibility and conservative grouping; no rendering |
-| `web/lib/museum/authorities.ts` | Small jurisdiction/domain registry with independent authority basis, never incident content |
-| `web/lib/museum/cache.server.ts` | Bounded in-process cache and local request limiter; explicitly nondurable |
-| `web/lib/museum/adapter.ts` | `toLiveExhibit(waypoint, records): LiveExhibit`; validated complete payload |
-| `web/app/api/museum/discover/route.ts` | POST validation/origin guard, cancellation, JSON result |
-| `web/app/api/museum/status/route.ts` | GET configuration/coverage booleans, no secret values, no paid calls |
-| `web/scripts/build-discovery-data.mjs` | Offline Node generation of private shards from supplied CSVs |
-| `web/scripts/probe-providers.mjs` | Explicit operator smoke request for each provider; never dumps secrets/full source text |
-| `web/data/museum/{coverage.json,boundaries.json,YYYY-MM.json}` | Generated nonpublic deployment inputs; source hashes and acquisition records |
-| `web/public/globe/museum/discovery-client.mjs` | Request generation/abort, result validation, status, all-category store |
-| `web/public/globe/museum/discovery-controls.mjs` | Search/date/custom-area inputs and independent cause toggles |
-| `web/public/globe/museum/board-layout.mjs` | Neutral default dimensions and deterministic variable layout |
-| `web/public/globe/museum/live-contracts.d.ts` | Browser type import/re-export of public types plus renderer types |
-| `web/public/globe/museum/live-validate.mjs` | Standalone browser runtime validation of live exhibits |
+| Path | Responsibility | New or existing |
+|---|---|---|
+| `pipeline/src/firespire/config.py` | All thresholds: regimes, mask, museum AOI radius and match thresholds | Existing, extend |
+| `pipeline/src/firespire/fetch.py` | Area API download; add SP sources and an output folder per product | Existing, extend |
+| `pipeline/src/firespire/calibrate.py` | k per regime; add satellite-completeness guard | Existing, extend |
+| `pipeline/src/firespire/museum.py` | `candidates()` ranking and `cross_match()` → `museum.json` | **New** |
+| `pipeline/resources/museum/events.json` | Curated, human-reviewed events (input) | **New** |
+| `web/lib/artifact-types.ts` | Types for all artifacts, including `MuseumArtifact` | Existing, extend |
+| `web/lib/harmonize.ts` | Add `monthBaseline()` (median and anomaly) | Existing, extend |
+| `web/app/components/HistoryView.tsx` | Date range, comparison KPI, anomaly view, chart download | Existing, extend |
+| `web/app/api/v1/hotspots.csv/route.ts` | FIRMS proxy for raw hotspots of a search | **New** |
+| `web/public/globe/museum/curated.mjs` | Loads `museum.json` and maps events to boards | **New** |
+| `web/public/globe/museum/curated-validate.mjs` | Validator for curated exhibits (real URLs allowed) | **New** |
+| `docs/contratos.md` | Contract for `events.json`, `museum.json`, `hotspots.csv` | Existing, extend |
 
-Existing files to extend: `web/public/globe/index.html::{museumLegacy,render}`, museum `index.mjs::{mountMuseum,refresh,fillIntro,select}`, `board-view.mjs::{createBoard,renderEvidence}`, `board-camera.mjs::overviewPose`, `annotations.mjs` helpers, `contracts.d.ts`, `museum.css`; `web/next.config.ts::outputFileTracingIncludes`, `web/.env.example`; test files under `web/lib/__tests__/`. Do not modify unrelated History/pipeline behavior.
+The three files that change together stay the same: `web/lib/artifact-types.ts`, `pipeline/src/firespire/config.py`, `docs/contratos.md`.
 
 ## Decision records
 
-### ADR 1: one bounded foreground request
+### ADR 1: core first
 
-**Choose** POST returning a complete or honest partial result within a 50-second work deadline, route `maxDuration=60`. A partial result contains only fully prepared waypoints. No durable job IDs, polling or background work after response. Alternative queue/job architecture would require new operational infrastructure; an unpersisted job Map would break across Vercel instances. Streaming is unnecessary to prove the slice and does not remove function time limits. If the 50-second budget expires before any usable source, report timeout/partial, not a completed empty search.
+**Choose** the harmonized calendar as the product spine (closes D-01 as option a). The challenge's two parts are harmonization and a web app that takes harmonized data as input; the museum and globe support that story, they do not replace it. **Rejected:** spending the remaining hours on live documentary discovery (8–16 h by the previous package's own estimate) while the calendar still starts in 2023.
 
-### ADR 2: reuse raw local FIRMS for exact geometry
+### ADR 2: one method, in Python
 
-**Choose** one offline Node indexing script for supplied 2023/2024 CSVs and a private runtime JSON reader. This avoids costly NASA calls for data already present and avoids treating 0.1-degree globe grid centers as raw detections. Preserve original CSVs and globe assets. Alternative direct parsing of each CSV per request wastes time; trusting browser-supplied counts permits fabricated anchors; using monthly History loses daily and point precision. The build script is small preprocessing, not a new backend.
+**Keep** the existing rule: the method lives only in the pipeline; the web only applies `calibration.json` (serie armonizada = k × VIIRS cell-days from `harmonized_start`). The museum cross-match also runs in Python, so museum numbers and calendar numbers come from the same `cell_days` table and the same k.
 
-2025/2026 globe files are retained by the existing renderer. Their absent original CSV provenance is isolated as a discovery coverage gate. The optional FIRMS adapter may serve a missing short slice only after availability verification; it is not a promise to retrieve arbitrary archives today.
+### ADR 3: full-archive ingest
 
-### ADR 3: explicit search, immutable exhibit session
+**Choose** SP (standard processing) for history and NRT only after the SP cutoff.
 
-**Choose** a Search button seeded from `index.html::range()` and selected province, with optional start/end override and custom GeoJSON upload. Geographic/date/confidence/daynight changes mark results stale and abort pending work. Camera rotation, visual resolution and thermal layer changes do not spend quota. Cause toggles are local. This implements automatic discovery from the selected area without automatically billing every slider change.
+- **SP cutoff** = the earliest of the SP max dates across the sources used (from `/api/data_availability` or the files' last `acq_date`). NRT starts at cutoff + 1 for **all** sources, the same common-window rule `fetch.py::window` already applies.
+- **Satellite completeness:** a month enters calibration only if the VIIRS satellites observed that month include every satellite the regime expects (`Regime.satellites`). Otherwise it is reported in `meta.warnings` and skipped. This fixes the V3 bias.
+- **Limitations declared, not corrected:** MODIS Terra-only from 2000-11 to 2002-07 (D-09); NRT months marked provisional and outside calibration (T-11).
+- **Size:** if `monthly.bin` exceeds about 15 MB, serve only the two `uint8` cell-day blocks to the browser in a second file and keep hotspot blocks for the CSV route. Decide after measuring, not before.
 
-Once a ready waypoint is clicked, freeze its exhibit revision and query/filter snapshot for the existing `select`/`dispatch` flow. No network operation is needed during the intro. A result refresh cannot replace evidence while the visitor is on the board.
+### ADR 4: museum is a curated static dataset
 
-### ADR 4: deterministic interpretation with narrow authority gates
+**Choose** offline curation over runtime discovery. Steps (detail in [04](04_DISCOVERY_AND_CAUSE_ENGINE.md)):
 
-**Choose** local ES/EN sentence/date/place rules and an agency capability registry. No LLM dependency. Extraction locates candidate statements; classification applies explicit, auditable checks in [04](04_DISCOVERY_AND_CAUSE_ENGINE.md). Unknown is an expected useful result. Domain trust alone, source rankings, snippet language or model confidence cannot establish a cause. Broad parsing coverage is traded for lower false attribution. Unrecognized prose stays unknown or ineligible, with reasons.
+1. The pipeline ranks candidate fire episodes from the data (harmonized cell-days and anomaly by province and month).
+2. A team member documents candidates with Tavily search and extract (API or the Tavily MCP inside a Claude Code session).
+3. A person reviews and writes `events.json`: dates, place, lat/lon with its basis, source URLs, short quote, stated cause and category.
+4. The pipeline cross-matches each event against FIRMS detections and the harmonized series and writes `museum.json`.
 
-### ADR 5: URL-first exhibits, conservative grouping
+The "mock data" of the museum is therefore **fixed data, not live data**; the events and sources are real and reviewed. **Rejected:** Brave (paid), runtime Tavily (keys and credits at runtime, latency, quota), the deterministic cause engine (low recall, likely empty "official" filter in the demo).
 
-**Choose** one qualifying source as the stable anchor. Additional evidence joins only through an explicit citation/incident identifier and compatible occurrence/location. Nearby results remain separate. Region-level documentation receives a labeled region locator, never an invented ignition point. Empty boards and duplicate cards added for visual balance are forbidden.
+### ADR 5: explicit spatiotemporal link, never attribution
 
-### ADR 6: bounded local cache, protected demonstration deployment
+**Choose** to compute and show how FIRMS detections overlap each curated event: area of interest (AOI) × date window. The board says "N detections fell inside this area and period" and never "these detections are this fire". Each event carries a verdict `overlap`, `weak` or `none` with the thresholds used.
 
-**Choose** in-process LRU cache as an optimization, not a database or global quota controller. Local demo and access-protected Vercel preview are the day-one deployment modes. Public unauthenticated deployment requires platform-enforced rate controls and provider spend caps verified first. Do not claim memory counters protect a distributed deployment. A persistent store is deferred only for hardening; actual live discovery is not deferred.
+This **changes the current globe rule** in `CLAUDE.md` ("Museum of Fires adds a separate documentary layer of fictional exhibits, with visible labels and no inferred links with real detections"). Proposed as team decision **D-14**; until it is approved, Track C stops before wiring `museum.json` into the globe.
 
-### ADR 7: preserve camera and renderer, remove mock-only coupling
+### ADR 6: hotspots of a search through a server proxy
 
-**Choose** a distinct `LiveExhibit` and validator, mapping normalized records into the existing placement/body/fields contract. Extend dimensions per exhibit. Preserve `state.mjs::reduce`, `globe-adapter.mjs`, `focusPose`, `travelSpec`, the board world transform and the five-second countdown. Remove runtime catalog imports from live camera/render paths. Alternative rewriting the museum in React has no demonstrated benefit for today's requirement.
+**Choose** `GET /api/v1/hotspots.csv?province=&from=YYYY-MM-DD&to=YYYY-MM-DD` that calls the FIRMS area API with `FIRMS_MAP_KEY`, the province bounding box and up to 10 days (two 5-day chunks per source, fetched in parallel), clips points to the province polygon and streams CSV. Raw detections for 26 years are too large to ship as static files. Above 10 days: 400 with a message to narrow the range. Cuttable if time runs out.
 
-### ADR 8: deliberate scope and specification resolutions
+### ADR 7: keys
 
-The specification's proposed bbox-only request is replaced by validated administrative IDs or polygon geometry, because bbox alone cannot represent the selected province. A geographic label supplied by a client is display-only until checked against boundaries. The original mock-only handoff is historical. The functional requirements take precedence over the prototype's independent-of-calendar fictional markers. The prior “parallel layers” concept is preserved visually, while the new discovery orchestration is explicitly FIRMS-first. No product decision is reopened.
+| Key | Where it lives | Used by |
+|---|---|---|
+| `FIRMS_MAP_KEY` | `web/.env.local` locally; Vercel environment (server) | `firespire fetch`, `/api/v1/hotspots.csv` |
+| `TAVILY_API_KEY` | Curator's `web/.env.local` or the Tavily MCP config | Curation only; **never in Vercel** |
 
-## Request lifecycle
+No `NEXT_PUBLIC_` key. `fetch.py` already never prints the MAP_KEY; the proxy must not log upstream URLs.
 
-1. **idle/stale:** controls remain usable; no provider traffic. Configuration/coverage status can be read once.
-2. **validating:** enforce 32 KiB request, valid ISO dates, 1–366 days, supported area; derive trusted boundary. Return 400/413 for bad input. Reject antimeridian geometries with an explicit unsupported-area code today.
-3. **FIRMS context:** load exact matching daily points. No observations with known coverage → `no_activity`; unavailable or uncertain coverage → `historical_data_unavailable`. Neither makes provider requests.
-4. **discovering:** EONET and base Brave search begin after positive context. EONET failure/zero does not cancel Brave. Later Brave slots use real discovered titles/place/time and agency scopes.
-5. **extracting/classifying:** retrieve selected URLs; preserve per-URL failures; apply location/time/cause/eligibility rules; no waypoint publication yet.
-6. **ready/partial:** serialize only valid complete exhibits and provenance; client atomically replaces the matching result set. Display counts for hidden categories and warnings.
-7. **selection changed/cancelled:** abort browser fetch; request signal and global deadline abort provider fetches. Generation counter rejects late replies even if abort arrives too late. Already incurred provider charges cannot be undone.
-8. **board open:** freeze results and disable discovery controls except Developer View/exit. Restore filters and selection before accepting pending refreshes after return. No automatic refresh starts on exit.
+## Deferred: live documentary discovery
 
-HTTP 200 includes completed semantic outcomes such as no activity or no eligible sources. HTTP 503 means discovery cannot run because required configuration is absent; 502 means unusable provider responses and no usable result; 429 local rate cap; 504 global timeout with no useful output. With usable exhibits plus failures return 200 `partial`, never discard evidence just because another provider failed.
+The previous package designed `POST /api/museum/discover`: FIRMS activity windows → EONET + Brave News/Web → Tavily Extract → deterministic date, place and cause parsing with five "official final cause" gates → live boards. It stays a sound post-hackathon direction, with two changes when it returns: Tavily Search instead of Brave, and activity windows ranked on harmonized cell-days instead of one sensor's raw counts. Full text: git commit `f6ab34f`, folder `docs/arquitechture-decitions/`.
 
-## Budgets and caching
+## Budgets
 
-These are **application choices**, not claims about provider limits.
-
-| Resource | Day-one cap |
+| Resource | Cap |
 |---|---|
-| Input area/time | Argentina country/province/custom polygon; 366 days; 500 vertices, 20 rings, no antimeridian |
-| Activity windows | Two non-overlapping 7-day windows, selected within the query; expose searched windows and skipped-window count |
-| EONET | One selected-area request, 50 results, 6-second timeout; saturation yields coverage warning |
-| Brave | Six total calls including retries/pagination; max one in flight and 1.1 seconds between starts; 5-second timeout each |
-| Extraction | Up to eight URLs, one basic batch, 10-second provider timeout and 12-second transport timeout; optional one advanced retry only within eight-URL/credit budget and deadline |
-| Source processing | At most 200,000 characters per source, eight sources, no executing HTML; over-cap text loses official-classification eligibility if relevant context may be truncated |
-| Results | At most eight primary exhibits, at most ten evidence cards each, total JSON under 1 MiB; excess is explicit `truncated` |
-| Work deadline | 50 seconds server; stop new searches at 32 seconds, reserve extraction/normalization; client timeout 65 seconds |
-| Local limiter | One active query per client, one active orchestration per process, three starts per client/10 minutes, 30 starts/process/hour; cache hits do not call providers |
-
-Cache key = SHA-256 of canonical area geometry/ID, dates, confidence/daynight, dataset content hash, language, query/normalization/classifier versions and provider enablement. Exclude camera, cause toggles and API key values. Use stable JSON serialization, sorted keys and canonical coordinates; reordered custom rings may miss cache but must never incorrectly share one. No reusable cached exception Promise.
-
-FIRMS immutable shards: cache by dataset hash, up to four monthly shards or 32 MiB. Discovery cache: max 20 responses/16 MiB, TTL 15 minutes for complete, 60 seconds for partial, 2 minutes for valid empty. Upstream 401/403/429/5xx are not negative evidence and are not cached as `no_sources`. TTL **defaults to zero for retained provider-derived results until account storage rights are confirmed** (`MUSEUM_RESULT_CACHE_ENABLED=false`). Active request/session rendering is still necessary; do not persist full text. No localStorage/sessionStorage content cache. Cache hits expose timestamps and provider-call counts. Refresh bypasses permitted result cache, still obeys limits. No automatic stale-while-revalidate jobs.
-
-## Security and deployment limits
-
-Only `.server.ts` modules read keys; no `NEXT_PUBLIC_` keys, client dotenv files, provider URLs containing MAP_KEY in responses, raw response logs, or secret-valued exceptions. Browser calls same-origin `/api/museum/*`. Require JSON and matching `Origin` for paid POST; a missing Origin is permitted only for loopback development or an authenticated deployment-protected operator path. No wildcard CORS, arbitrary proxy endpoint or URL supplied by a visitor for extraction.
-
-URLs entering Tavily must come from server-held search/EONET responses. Reject userinfo, IP literals, localhost/private/reserved addresses, unsupported schemes, nonstandard ports and excessive lengths; prefer HTTPS. No direct arbitrary server fetch fallback today, avoiding a new SSRF crawler. If a provider reports a redirect to another host, its authority must be reassessed. Exact host/path matching, never substring matching for government trust. Search operators are built from length-limited normalized tokens, with user punctuation/operators removed.
-
-Render text through existing `museum/dom.mjs::element`/`textContent`. External links are validated HTTPS and use `target=_blank`, `rel=noopener noreferrer`; they must remain keyboard accessible in evidence view. No HTML injection, raw Markdown rendering, third-party scripts, unrestricted iframes or automatic photograph loading. Extracted text is source data, never executable instructions.
-
-Vercel documentation confirms a 4.5 MB function payload ceiling; the proposed 1 MiB response is deliberately smaller. Current duration documentation lists 300 seconds for Hobby with Fluid Compute, but this design uses at most 60 seconds and requires checking the actual deployment's timeout. Sources: [duration](https://vercel.com/docs/functions/configuring-functions/duration), [limits](https://vercel.com/docs/functions/limitations). Build tracing must include `./data/museum/**/*` for the two new routes. Local memory/files are not durable serverless state. Exact deployment procedure is [07](07_SETUP_RUN_AND_DEPLOY.md#deployment).
+| FIRMS API | 5,000 transactions per 10 minutes per key; an area request costs about 4 (`CLAUDE.md`). `fetch` stays well under it with sequential 5-day chunks |
+| `hotspots.csv` | ≤ 10 days, one province, ≤ 8 upstream requests, response ≤ 4 MB (Vercel's 4.5 MB function limit) |
+| Tavily | Curation only: about 5 basic searches (1 credit each) + 10 basic extracts (1 credit per 5 URLs) per candidate, ≤ 15 candidates → about 105 credits of the 1,000 free monthly credits [estimate from Tavily's published pricing, see 03] |
+| `museum.json` | ≤ 5 events, ≤ 1,500 sampled points per event, ≤ 1 MB |
+| Static artifacts | Served from `public/`, never through a function |
