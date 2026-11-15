@@ -41,7 +41,10 @@ Datos de hoy (artefactos `v1-nrt`, los que sirve `latest.json`):
 - **Tres lugares que cambian juntos**: `web/lib/artifact-types.ts`, `pipeline/src/firespire/config.py` y `docs/contratos.md`. Si cambia uno, revisar los otros dos.
 - **`web/lib/`**: `artifacts.ts` es seguro para el browser (sin `fs`); `artifacts.server.ts` usa `fs` y solo corre en server; `harmonize.ts` aplica la calibración.
 - **API**: `/api/v1/series`, `/api/v1/validation`, `/api/v1/export.csv`. Vercel corta respuestas a 4.5 MB, así que los artefactos se sirven siempre como archivos estáticos, no por función. `artifacts.server.ts` cachea los artefactos en memoria: después de un `build` hay que reiniciar `npm run dev` para que la API vea los nuevos.
-- **Globo legado**: `web/public/globe/` es el prototipo estático, servido en `/globe/index.html`. Su vista de planificación usa datos simulados (cuarteles y reportes inventados en `localStorage`); no presentarlos como reales (ver `docs/diseno.md`).
+- **Globo**: `web/public/globe/` es el entregable visual, un `index.html` estático servido en `/globe/index.html`.
+- **Regla del globo**: todo lo que muestra sale de FIRMS. No hay datos simulados, pronósticos ni cuarteles inventados: se sacaron el 2026-11-14.
+- **Alertas y planificación**: muestran actividad observada en los 7 días que terminan en la fecha elegida, en zonas H3 res 4 (celda y vecinas), con niveles por cantidad de focos (≥5, 15, 40, 100). La planificación toma los últimos 7 días con datos hasta hoy (o `?hoy=AAAA-MM-DD`).
+- **Zonas prioritarias**: son marcas del usuario guardadas en `localStorage`. No agregues nada que no venga de la API sin acordarlo con el equipo.
 
 ## Convenciones
 
