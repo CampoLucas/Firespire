@@ -48,3 +48,5 @@ __pycache__/
 
 # datos NRT bajados de la API de FIRMS (se regeneran con `firespire fetch`)
 fuentes/nrt/
+
+.obsidian
