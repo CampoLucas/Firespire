@@ -17,9 +17,10 @@ def _count(con, table: str) -> int | str:
         return "?"
 
 
-def build(folders: list[Path], version: str, out: Path) -> Path:
+def prepare(folders: list[Path]):
+    """Etapas ingest -> celldays.build y calibración. Devuelve (con, calibración)."""
     # Los módulos de la etapa 1-5 los escribe otro paquete; se importan acá por nombre.
-    from firespire import celldays, export, filters, ingest, mask
+    from firespire import celldays, filters, ingest, mask
 
     con = duckdb.connect(":memory:")
     ingest.ingest(con, folders)
@@ -36,12 +37,32 @@ def build(folders: list[Path], version: str, out: Path) -> Path:
     ks = ", ".join(f"{r['id']}={r['k'] if r['k'] is None else round(r['k'], 4)} ({r['method']})"
                    for r in cal["regimes"])
     print(f"calibrate: k per regime: {ks}")
+    return con, cal
+
+
+def build(folders: list[Path], version: str, out: Path) -> Path:
+    from firespire import export, museum
+
+    con, cal = prepare(folders)
     val = validate.compute(con)
     print(
         f"validate: holdout={val['holdout']['status']}, snpp_drop={val['snpp_drop']['status']}"
     )
     path = export.write(con, cal, val, out, version)
     print(f"export: wrote {path}")
+    mpath = museum.maybe_build(con, cal, out, version)  # solo si existe el archivo de eventos
+    if mpath is not None:
+        print(f"museum: wrote {mpath}")
+    return path
+
+
+def candidates(folders: list[Path], out: Path, top: int) -> Path:
+    from firespire import museum
+
+    con, cal = prepare(folders)
+    items = museum.candidates(con, cal, top=top)
+    path = museum.write_candidates(items, out, top)
+    print(f"museum: {len(items)} candidates -> {path}")
     return path
 
 
@@ -54,32 +75,55 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--out", type=Path, default=config.DEFAULT_OUT)
     from firespire import fetch
 
-    f = sub.add_parser("fetch", help="bajar datos NRT recientes de la API de FIRMS")
-    f.add_argument("--days", type=int, default=30, help="días hacia atrás desde --end")
+    f = sub.add_parser("fetch", help="bajar datos NRT o SP de la API de FIRMS")
+    f.add_argument("--days", type=int, default=None,
+                   help="días hacia atrás desde --end (default: 30)")
     f.add_argument("--start", type=date.fromisoformat, default=None,
                    help="primer día YYYY-MM-DD (reemplaza a --days; usar día 1 para meses completos)")
     f.add_argument("--end", type=date.fromisoformat, default=None,
                    help="último día YYYY-MM-DD (default: el último disponible)")
-    f.add_argument("--out", type=Path, default=fetch.DEFAULT_OUT)
-    f.add_argument("--sources", default=",".join(fetch.SOURCES),
-                   help="fuentes FIRMS separadas por coma")
+    f.add_argument("--product", choices=["nrt", "sp"], default="nrt",
+                   help="nrt (tiempo casi real) o sp (procesamiento estándar); default: nrt")
+    f.add_argument("--after-sp", action="store_true",
+                   help="solo con --product nrt: arranca el día siguiente al corte del SP "
+                        "(cada fuente desde el corte de su SP + 1 día; excluyente con --start y --days)")
+    f.add_argument("--out", type=Path, default=None,
+                   help="carpeta de salida (default: fuentes/nrt o fuentes/sp según el producto)")
+    f.add_argument("--sources", default=None,
+                   help="fuentes FIRMS separadas por coma (default: las cuatro del producto)")
     g = sub.add_parser("globe", help="generar web/public/globe/data/data-YYYY.js para el globo")
     g.add_argument("folders", nargs="+", type=Path, metavar="csv_folder")
     g.add_argument("--years", type=lambda s: [int(y) for y in s.split(",")], default=None,
                    help="solo estos años, separados por coma (default: todos los encontrados)")
+    m = sub.add_parser("museum", help="museo de incendios: candidatos desde los datos")
+    ms = m.add_subparsers(dest="museum_cmd", required=True)
+    c = ms.add_parser("candidates", help="episodios candidatos -> pipeline/out/candidates.json")
+    c.add_argument("folders", nargs="+", type=Path, metavar="csv_folder")
+    c.add_argument("--out", type=Path, default=config.CANDIDATES_OUT)
+    c.add_argument("--top", type=int, default=15)
     args = parser.parse_args(argv)
     if args.cmd == "build":
         build(args.folders, args.version, args.out)
+    elif args.cmd == "museum":
+        candidates(args.folders, args.out, args.top)
     elif args.cmd == "globe":
         from firespire import globe
 
         globe.run(args.folders, only=args.years)
     else:
-        sources = [s.strip() for s in args.sources.split(",") if s.strip()]
-        unknown = set(sources) - set(fetch.SOURCES)
+        available = fetch.sources_for(args.product)
+        raw = args.sources if args.sources is not None else ",".join(available)
+        sources = [s.strip() for s in raw.split(",") if s.strip()]
+        unknown = set(sources) - set(available)
         if unknown:
             parser.error(f"fuentes desconocidas: {sorted(unknown)}")
-        fetch.run(args.days, args.end, args.out, sources, start=args.start)
+        if args.after_sp and args.product != "nrt":
+            parser.error("--after-sp solo vale con --product nrt")
+        if args.after_sp and (args.start is not None or args.days is not None):
+            parser.error("--after-sp es excluyente con --start y --days")
+        out = args.out or (fetch.DEFAULT_OUT_SP if args.product == "sp" else fetch.DEFAULT_OUT)
+        fetch.run(args.days or 30, args.end, out, sources, start=args.start,
+                  product=args.product, after_sp=args.after_sp)
 
 
 if __name__ == "__main__":

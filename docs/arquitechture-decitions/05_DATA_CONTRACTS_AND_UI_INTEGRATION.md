@@ -26,6 +26,8 @@ Per regime, add:
 | `sp_months` | int | **Changed:** SP months **with rows** used for k (was: all months in range) |
 | `sp_months_incomplete` | string[] | SP months skipped because an expected satellite had no rows |
 | `satellites_observed_sp` | string[] | VIIRS satellites seen in the calibration months |
+| `k_by_month` | (number \| null)[12] | k per calendar month (index 0 = January); null means use the regime `k`. Needs at least `CALIBRATION_MIN_MONTHS_PER_CALENDAR_MONTH` (2) calibration months |
+| `k_by_month_n` | int[12] | Calibration months behind each value |
 
 As implemented: k uses only *paired* SP months (MODIS and VIIRS both with cell-days) where every satellite the regime expects was observed. If a regime has no such month but has incomplete ones, k comes from those and `method` is `"direct_incomplete"` (provisional), so the app keeps working on partial archives. `meta.warnings` gets one English sentence per regime with skipped or incomplete months. `config.py` has `CALIBRATION_REQUIRE_ALL_SATELLITES = True`. The holdout validates the same thing the app uses: k per regime, estimated without the 12 test months (`k_train_by_regime`, `train_months_by_regime`).
 

@@ -1,0 +1,398 @@
+{
+  "schema": 1,
+  "note": "DRAFT 2026-11-15 (update 18:30: 3 events from January 2026 added, Chubut and La Pampa): sources found and read with Tavily (search + extract) by andy/claude-code. Pending human review before publication: open every URL, check dates and quotes, and confirm the El Bolson coordinates on a map.",
+  "events": [
+    {
+      "id": "ev-la-pampa-2000-2001",
+      "title": "La Pampa rangeland fires, summer 2000-2001",
+      "province": "La Pampa",
+      "place": "La Pampa province",
+      "lat": -37.837,
+      "lon": -66.317,
+      "location_basis": "satellite_centroid",
+      "radius_km": 60,
+      "start": "2000-12-01",
+      "end": "2001-01-31",
+      "date_precision": "month",
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
+      "summary": "Between late 2000 and early 2001 fires burned millions of hectares of rangeland in La Pampa, one of the largest fire seasons recorded in the province.",
+      "sources": [
+        {
+          "id": "src-rionegro-2019-lapampa-2001",
+          "kind": "article",
+          "title": "En el incendio de 2001, La Pampa sufrió el doble de hectáreas perdidas que la Amazonia hoy",
+          "publisher": "Diario Río Negro",
+          "published": null,
+          "url": "https://www.rionegro.com.ar/en-el-incendio-de-2001-la-pampa-sufrio-el-doble-de-hectareas-perdidas-que-la-amazonia-hoy-1085802",
+          "quote": "entre noviembre de 2000 y enero de 2001, la provincia argentina sufrió la pérdida de 3,6 millones de hectáreas",
+          "language": "es"
+        },
+        {
+          "id": "src-uncoma-idera-2023-lapampa",
+          "kind": "report",
+          "title": "Áreas quemadas en la provincia de La Pampa en temporada estival",
+          "publisher": "Jornadas IDERA 2023 (Universidad Nacional del Comahue repository)",
+          "published": null,
+          "url": "https://opendata.fi.uncoma.edu.ar/jornadasIDERA/trabajos2023/Pereyra.pdf",
+          "quote": "en la temporada de los años 2000 y 2001 también ocurrieron grandes incendios, llegando a alcanzar casi los 3 millones de hectáreas",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-delta-parana-2008",
+      "title": "Paraná Delta wetland fires, April 2008",
+      "province": "Entre Ríos",
+      "place": "Islands of the Paraná Delta, southern Entre Ríos",
+      "lat": -33.434,
+      "lon": -59.506,
+      "location_basis": "satellite_centroid",
+      "radius_km": 60,
+      "start": "2008-04-01",
+      "end": "2008-04-30",
+      "date_precision": "month",
+      "area_burned_ha": {
+        "value": 70000,
+        "source_id": "src-wikipedia-es-delta-2008"
+      },
+      "cause": {
+        "text": "Intentional burning of wetlands to convert them to cattle grazing, made uncontrollable by drought.",
+        "category": "reported",
+        "source_id": "src-wikipedia-es-delta-2008"
+      },
+      "summary": "In April 2008 hundreds of fires burned the islands of the Paraná Delta; the smoke reached Buenos Aires and led the national weather service to issue visibility alerts.",
+      "sources": [
+        {
+          "id": "src-wikipedia-es-delta-2008",
+          "kind": "article",
+          "title": "Incendios en el delta del río Paraná de 2008",
+          "publisher": "Wikipedia (es)",
+          "published": null,
+          "url": "https://es.wikipedia.org/wiki/Incendios_en_el_delta_del_r%C3%ADo_Paran%C3%A1_de_2008",
+          "quote": "El Instituto Nacional de Tecnología Agropecuaria llegó a contabilizar 570 focos de incendio en el área afectada de más 70 mil ha.",
+          "language": "es"
+        },
+        {
+          "id": "src-unsam-2020-delta",
+          "kind": "article",
+          "title": "El Delta en llamas: Incendios en las islas del Bajo Paraná",
+          "publisher": "Noticias UNSAM",
+          "published": "2020-08-10",
+          "url": "https://noticias.unsam.edu.ar/2020/08/10/el-delta-en-llamas-incendios-en-las-islas-del-bajo-parana",
+          "quote": "En 2008, extensas áreas de juncales fueron las más afectadas.",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-rio-negro-2016",
+      "title": "Northeastern Río Negro rangeland fires, December 2016",
+      "province": "Río Negro",
+      "place": "Departments of General Conesa and Pichi Mahuida",
+      "lat": -39.882,
+      "lon": -63.842,
+      "location_basis": "satellite_centroid",
+      "radius_km": 60,
+      "start": "2016-12-21",
+      "end": "2017-01-01",
+      "date_precision": "day",
+      "area_burned_ha": {
+        "value": 540000,
+        "source_id": "src-infocampo-inta-rionegro-2016"
+      },
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
+      "summary": "Between 21 December 2016 and 1 January 2017 wind-driven fires swept across the rangelands of northeastern Río Negro and crossed into Buenos Aires and La Pampa.",
+      "sources": [
+        {
+          "id": "src-infocampo-inta-rionegro-2016",
+          "kind": "report",
+          "title": "Causas y consecuencias de los incendios en Río Negro según el INTA",
+          "publisher": "Infocampo (reproduces an INTA report)",
+          "published": null,
+          "url": "https://www.infocampo.com.ar/causas-y-consecuencias-de-los-incendios-en-rio-negro-segun-el-inta",
+          "quote": "una evaluación preliminar de los efectos de los incendios ocurridos en la provincia de Río Negro entre el 21 de diciembre de 2016 y 01 de enero de 2017",
+          "language": "es"
+        },
+        {
+          "id": "src-lanueva-2016-12-31",
+          "kind": "article",
+          "title": "Río Negro: combaten un incendio que consumió más de 270.000 hectáreas",
+          "publisher": "La Nueva",
+          "published": "2016-12-31",
+          "url": "https://www.lanueva.com/nota/2016-12-31-9-45-0-rio-negro-combaten-un-incendio-que-consumio-mas-de-270-000-hectareas",
+          "quote": "El incendio se inició el 24 de diciembre y se expandió sobre los departamentos de Adolfo Alsina, Conesa, Pichi Mahuida y Avellaneda.",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-corrientes-2022",
+      "title": "Corrientes and Iberá wetland fires, summer 2022",
+      "province": "Corrientes",
+      "place": "Corrientes province, including the Esteros del Iberá",
+      "lat": -28.707,
+      "lon": -57.993,
+      "location_basis": "satellite_centroid",
+      "radius_km": 60,
+      "start": "2022-01-01",
+      "end": "2022-02-28",
+      "date_precision": "month",
+      "area_burned_ha": {
+        "value": 934238,
+        "source_id": "src-natgeo-2022-corrientes"
+      },
+      "cause": {
+        "text": "High temperatures, water stress and low humidity, together with intentional or negligent ignitions.",
+        "category": "reported",
+        "source_id": "src-wikipedia-es-corrientes-2022"
+      },
+      "summary": "In January and February 2022 fires burned about 11 percent of Corrientes, reaching the Esteros del Iberá wetlands and the Iberá National Park.",
+      "sources": [
+        {
+          "id": "src-natgeo-2022-corrientes",
+          "kind": "article",
+          "title": "Incendios en Argentina: las pérdidas, sus causas y la destrucción masiva de biodiversidad",
+          "publisher": "National Geographic Latinoamérica (cites INTA Corrientes)",
+          "published": "2022-02",
+          "url": "https://www.nationalgeographicla.com/medio-ambiente/2022/02/incendios-en-argentina-las-perdidas-sus-causas-y-la-destruccion-masiva-de-biodiversidad",
+          "quote": "la cobertura vegetal afectada por el fuego al 21 de febrero, alcanza ya las 934.238 hectáreas",
+          "language": "es"
+        },
+        {
+          "id": "src-wikipedia-es-corrientes-2022",
+          "kind": "article",
+          "title": "Incendios en Corrientes de 2022",
+          "publisher": "Wikipedia (es)",
+          "published": null,
+          "url": "https://es.wikipedia.org/wiki/Incendios_en_Corrientes_de_2022",
+          "quote": "Entre el 7 y el 16 de febrero, el ritmo de crecimiento del fuego fue de 30 000 hectáreas por día",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-el-bolson-2025",
+      "title": "Mallín Ahogado fire, El Bolsón, February 2025",
+      "province": "Río Negro",
+      "place": "Mallín Ahogado, El Bolsón",
+      "lat": -41.88,
+      "lon": -71.52,
+      "location_basis": "named_place",
+      "radius_km": 25,
+      "start": "2025-02-01",
+      "end": "2025-02-28",
+      "date_precision": "month",
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
+      "summary": "In early February 2025 a forest fire in Mallín Ahogado, on the outskirts of El Bolsón, burned thousands of hectares and destroyed or damaged 221 homes.",
+      "sources": [
+        {
+          "id": "src-rionegro-gov-2025-02-19",
+          "kind": "report",
+          "title": "En cifras, el impacto del incendio en El Bolsón",
+          "publisher": "Gobierno de Río Negro",
+          "published": "2025-02-19",
+          "url": "https://rionegro.gov.ar/articulo/52954/en-cifras-el-impacto-del-incendio-en-el-bolson",
+          "quote": "el fuego alcanzó 221 viviendas. De ese total, 166 sufrieron pérdidas totales y otras 55 presentan daños severos.",
+          "language": "es"
+        },
+        {
+          "id": "src-lanacion-2025-02-04",
+          "kind": "article",
+          "title": "Desoladoras consecuencias del incendio en Mallín Ahogado",
+          "publisher": "La Nación",
+          "published": "2025-02-04",
+          "url": "https://www.lanacion.com.ar/sociedad/desoladoras-consecuencias-del-incendio-en-mallin-ahogado-este-dano-intencional-es-incalculable-nid04022025",
+          "quote": "Con más de 2800 hectáreas consumidas por el incendio que permanece activo en Mallín Ahogado, en las afueras de El Bolsón",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-chubut-puerto-patriada-2026",
+      "title": "Puerto Patriada and Epuyén fires, January 2026",
+      "province": "Chubut",
+      "place": "Puerto Patriada (El Hoyo) to Epuyén, Cushamen department",
+      "lat": -42.05,
+      "lon": -71.52,
+      "location_basis": "named_place",
+      "radius_km": 25,
+      "start": "2026-01-05",
+      "end": "2026-01-31",
+      "date_precision": "day",
+      "area_burned_ha": {
+        "value": 22300,
+        "source_id": "src-dw-emergencia-2026"
+      },
+      "cause": {
+        "text": "The provincial prosecutor said the fire started with an accelerant (petrol), and the governor described it as intentional. No suspect is identified.",
+        "category": "reported",
+        "source_id": "src-dw-evacuados-2026"
+      },
+      "summary": "A fire that started on 5 January 2026 at Puerto Patriada spread through the Andean forest and forced the evacuation of more than 3,000 tourists and residents.",
+      "sources": [
+        {
+          "id": "src-dw-evacuados-2026",
+          "kind": "article",
+          "title": "Miles de turistas evacuados por incendios en la Patagonia",
+          "publisher": "DW Español",
+          "published": "2026-01-07",
+          "url": "https://www.dw.com/es/miles-de-turistas-evacuados-por-incendios-en-la-patagonia/a-75427575",
+          "quote": "se inició con un acelerante o nafta, que es lo que determina que efectivamente alguien quiso prender ese fuego",
+          "language": "es"
+        },
+        {
+          "id": "src-dw-emergencia-2026",
+          "kind": "article",
+          "title": "Argentina declara emergencia por incendios en la Patagonia",
+          "publisher": "DW Español",
+          "published": "2026-01-30",
+          "url": "https://www.dw.com/es/argentina-declara-emergencia-por-incendios-en-la-patagonia/a-75720964",
+          "quote": "el otro incendio forestal que azota a la provincia abarca casi 22.300 hectáreas entre el paraje de Puerto Patriada y la localidad de Epuyén",
+          "language": "es"
+        },
+        {
+          "id": "src-wiki-incendios-2026",
+          "kind": "article",
+          "title": "Incendios forestales en Argentina de 2026",
+          "publisher": "Wikipedia (es)",
+          "published": null,
+          "url": "https://es.wikipedia.org/wiki/Incendios_forestales_en_Argentina_de_2026",
+          "quote": "El desastre consumió 1800 hectáreas en tan solo 48 horas, cifra que aumento a 12 mil hectáreas para el 11 de enero de 2026",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T18:30:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-los-alerces-2026",
+      "title": "Los Alerces National Park fire, January 2026",
+      "province": "Chubut",
+      "place": "Parque Nacional Los Alerces",
+      "lat": -42.85,
+      "lon": -71.85,
+      "location_basis": "named_place",
+      "radius_km": 25,
+      "start": "2026-01-01",
+      "end": "2026-01-31",
+      "date_precision": "month",
+      "area_burned_ha": {
+        "value": 20000,
+        "source_id": "src-dw-emergencia-2026"
+      },
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
+      "summary": "The most affected area of the Patagonian fire season of early 2026 was the Los Alerces National Park, where about 20,000 hectares of forest burned.",
+      "sources": [
+        {
+          "id": "src-dw-emergencia-2026",
+          "kind": "article",
+          "title": "Argentina declara emergencia por incendios en la Patagonia",
+          "publisher": "DW Español",
+          "published": "2026-01-30",
+          "url": "https://www.dw.com/es/argentina-declara-emergencia-por-incendios-en-la-patagonia/a-75720964",
+          "quote": "La zona más afectada es el Parque Nacional Los Alerces, en la provincia de Chubut, con 20.000 hectáreas de bosque quemadas.",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T18:30:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-la-pampa-2026",
+      "title": "La Pampa rangeland fires, January 2026",
+      "province": "La Pampa",
+      "place": "West and south of La Pampa province",
+      "lat": -35.78,
+      "lon": -65.16,
+      "location_basis": "satellite_centroid",
+      "radius_km": 60,
+      "start": "2026-01-01",
+      "end": "2026-01-31",
+      "date_precision": "month",
+      "area_burned_ha": {
+        "value": 168000,
+        "source_id": "src-infobae-lapampa-2026"
+      },
+      "cause": {
+        "text": "The provincial security minister said that during a lightning storm 21 simultaneous fires started. Other causes are not stated.",
+        "category": "reported",
+        "source_id": "src-perfil-lapampa-2026"
+      },
+      "summary": "In January 2026 rural fires burned about 168,000 hectares in La Pampa; on one night a lightning storm started 21 active fires at once.",
+      "sources": [
+        {
+          "id": "src-infobae-lapampa-2026",
+          "kind": "article",
+          "title": "Los incendios en La Pampa ya consumieron casi 170 mil hectáreas",
+          "publisher": "Infobae",
+          "published": "2026-01-23",
+          "url": "https://www.infobae.com/sociedad/2026/01/23/los-incendios-en-la-pampa-ya-consumieron-casi-170-mil-hectareas",
+          "quote": "un total de 168.000 hectáreas se vieron perjudicadas, desde el inicio del fuego",
+          "language": "es"
+        },
+        {
+          "id": "src-perfil-lapampa-2026",
+          "kind": "article",
+          "title": "La Pampa registró 170.000 hectáreas quemadas: \"Ya venimos con los recursos al límite\"",
+          "publisher": "Canal E (Perfil)",
+          "published": null,
+          "url": "https://www.perfil.com/noticias/canal-e/la-pampa-registro-170000-hectareas-quemadas-ya-venimos-con-los-recursos-al-limite-recursos-humanos-fundamentalmente.phtml",
+          "quote": "en una noche, en el lapso de dos horas, tuvimos 21 fuegos activos simultáneos",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T18:30:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    }
+  ]
+}

@@ -189,3 +189,32 @@ def test_regime_without_k_warns(tmp_path):
     assert load(vdir, "calibration.json")["regimes"][1]["k"] is None
     raw = (vdir / "calibration.json").read_text()
     assert "NaN" not in raw and "null" in raw
+
+
+def test_direct_incomplete_and_skipped_months_warn(tmp_path):
+    con = duckdb.connect(":memory:")
+    con.execute(CREATE)
+    # V2 (espera SNPP + N20): 2019-01 solo N20 (incompleto); no hay meses completos.
+    con.executemany(
+        "INSERT INTO cell_days VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (BA, date(2019, 1, 1), "MODIS", "Terra", "SP", 1),
+            (BA, date(2019, 1, 1), "VIIRS", "N20", "SP", 1),
+        ],
+    )
+    _, vdir = run(tmp_path, con)
+    warns = load(vdir, "meta.json")["warnings"]
+    assert any("Regime V2" in w and "missing SNPP" in w and "provisional" in w for w in warns)
+    # con un mes completo ademas, el incompleto se saltea y se avisa
+    con.executemany(
+        "INSERT INTO cell_days VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (BA, date(2019, 2, 1), "MODIS", "Terra", "SP", 1),
+            (BA, date(2019, 2, 1), "VIIRS", "N20", "SP", 1),
+            (BA, date(2019, 2, 1), "VIIRS", "SNPP", "SP", 1),
+        ],
+    )
+    _, vdir = run(tmp_path, con, version="v2")
+    warns = load(vdir, "meta.json")["warnings"]
+    assert any("Regime V2 k skips 1 standard-product" in w for w in warns)
+    assert not any("provisional and biased" in w for w in warns)

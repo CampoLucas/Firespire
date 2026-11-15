@@ -72,9 +72,25 @@ export interface RegimeCalibration {
   satellites_observed: string[];
   /** Factor a escala MODIS; null si no se pudo estimar. */
   k: number | null;
-  /** direct: meses SP propios. drop_snpp: estimado quitando S-NPP del régimen anterior. */
-  method: "direct" | "drop_snpp" | "none";
+  /**
+   * k por mes calendario (índice 0 = enero ... 11 = diciembre). null o ausente => se usa `k`.
+   * Opcional: los artefactos viejos (v0, v1-nrt) no lo traen.
+   */
+  k_by_month?: (number | null)[];
+  /** Cantidad de meses de calibración que alimentaron cada valor de k_by_month (12 enteros). */
+  k_by_month_n?: number[];
+  /**
+   * direct: meses SP propios con todos los satélites esperados. direct_incomplete: meses SP
+   * propios, pero a todos les falta algún satélite esperado (k provisorio y sesgado).
+   * drop_snpp: estimado quitando S-NPP del régimen anterior.
+   */
+  method: "direct" | "direct_incomplete" | "drop_snpp" | "none";
+  /** Meses SP con datos de MODIS y VIIRS que se usaron para k. */
   sp_months: number;
+  /** Meses SP emparejados del régimen a los que les falta algún satélite esperado. */
+  sp_months_incomplete: Month[];
+  /** Satélites VIIRS presentes en los meses usados para k. */
+  satellites_observed_sp: string[];
   celldays_modis: number;
   celldays_viirs: number;
 }
@@ -84,6 +100,8 @@ export interface Calibration {
   /** Desde este mes la serie armonizada es k × VIIRS; antes es MODIS. */
   harmonized_start: Month;
   regimes: RegimeCalibration[];
+  /** Granularidad de k: un valor por régimen o por régimen y mes calendario. Ausente = "regime". */
+  k_granularity?: "regime" | "regime_month";
 }
 
 export interface ValidationPoint {
@@ -98,11 +116,24 @@ export interface HoldoutValidation {
   reason?: string;
   train?: { from: Month; to: Month };
   test?: { from: Month; to: Month };
+  /** k del régimen del último mes de test (el holdout usa un k por régimen). */
   k_train?: number;
+  /** k de entrenamiento por id de régimen VIIRS (solo en artefactos nuevos). */
+  k_train_by_regime?: Record<string, number>;
+  /** Meses de entrenamiento por id de régimen (solo en artefactos nuevos). */
+  train_months_by_regime?: Record<string, number>;
   /** Error absoluto porcentual medio mensual, armonizado vs. MODIS, en el período de test (0–1). */
   mape_monthly?: number;
   /** (Σ armonizado − Σ MODIS) / Σ MODIS en el período de test. */
   bias_total?: number;
+  /** Granularidad de k usada en el holdout (solo en artefactos nuevos). */
+  k_granularity?: "regime" | "regime_month";
+  /** MAPE mensual del mismo holdout con un único k por régimen (comparación; 0–1). */
+  mape_monthly_single_k?: number | null;
+  /** Sesgo total del mismo holdout con un único k por régimen (comparación). */
+  bias_total_single_k?: number | null;
+  /** k de entrenamiento por id de régimen y mes calendario (12 valores, índice 0 = enero). */
+  k_train_by_regime_month?: Record<string, (number | null)[]>;
   series?: ValidationPoint[];
 }
 

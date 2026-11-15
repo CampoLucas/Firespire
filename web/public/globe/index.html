@@ -6,7 +6,7 @@
 <title>Globo de quemas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link rel="preload" as="image" href="https://unpkg.com/three-globe@2.27.2/example/img/earth-blue-marble.jpg" crossorigin>
+<link rel="preload" as="image" href="/globe/textures/earth-bmng-8k.jpg">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -330,7 +330,7 @@ button,select,input{font-family:var(--font)}
     <button id="gearBtn" aria-expanded="false" aria-controls="gearPop" aria-label="Ajustes del mapa">⚙</button>
     <div class="panel" id="gearPop" hidden>
       <div class="f"><span class="l">Mapa base</span>
-        <div class="seg" id="fBase"><button data-v="earth-blue-marble.jpg" aria-pressed="true">Satélite</button><button data-v="earth-dark.jpg" aria-pressed="false">Oscuro</button><button data-v="earth-night.jpg" aria-pressed="false">Nocturno</button></div></div>
+        <div class="seg" id="fBase"><button data-v="/globe/textures/earth-bmng-8k.jpg" aria-pressed="true">Satélite</button><button data-v="earth-dark.jpg" aria-pressed="false">Oscuro</button><button data-v="earth-night.jpg" aria-pressed="false">Nocturno</button></div></div>
       <label class="chk"><input type="checkbox" id="rot" checked> Rotación automática</label>
       <p class="note" style="margin:0">Se detiene mientras haya un filtro activo.</p>
     </div>
@@ -547,7 +547,7 @@ PROVINCIAS.forEach((p,i)=>p.geo.coordinates.forEach(poly=>poly.forEach(ring=>pro
 let globeReady=false,museumUI=null;
 const globe=Globe()(el)
   .onGlobeReady(()=>{globeReady=true;museumUI?.refresh()})
-  .globeImageUrl(TEX+"earth-blue-marble.jpg")
+  .globeImageUrl("/globe/textures/earth-bmng-8k.jpg") // NASA Blue Marble NG (ene-2004), 8192x4096
   .bumpImageUrl(TEX+"earth-topology.png")
   .backgroundImageUrl(TEX+"night-sky.png")
   .atmosphereColor("#6fa7ee").atmosphereAltitude(.18)
@@ -1236,7 +1236,7 @@ document.addEventListener("click",e=>{
 });
 $("fBase").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  pressed($("fBase"),b);globe.globeImageUrl(TEX+b.dataset.v);
+  pressed($("fBase"),b);globe.globeImageUrl(b.dataset.v.startsWith("/")?b.dataset.v:TEX+b.dataset.v);
 });
 
 // Año: 2000–2026; los años sin archivo en data/ quedan deshabilitados
@@ -1415,8 +1415,10 @@ loadYear(st.year).then(D=>{
   }
   // precarga del planisferio en segundo plano: el primer cambio de vista es instantáneo
   else (window.requestIdleCallback||(f=>setTimeout(f,1500)))(()=>ensurePlanMap().catch(()=>{}));
-  import("./museum/index.mjs").then(({mountMuseum})=>{
-    museumUI=mountMuseum({adapter:cameraAdapter,globe,controls:ctl,legacy:museumLegacy()});
+  // Los eventos curados vienen de /artifacts; si no cargan, el museo cae al catálogo ficticio.
+  Promise.all([import("./museum/index.mjs"),import("./museum/curated.mjs")]).then(async([{mountMuseum},{loadCuratedExhibits}])=>{
+    const exhibits=await loadCuratedExhibits();
+    museumUI=mountMuseum({exhibits,adapter:cameraAdapter,globe,controls:ctl,legacy:museumLegacy()});
     fit();
   }).catch(err=>console.error("Museum of Fires could not initialize",err));
   const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),500);

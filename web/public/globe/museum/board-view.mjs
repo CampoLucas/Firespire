@@ -1,6 +1,8 @@
 import { BOARD } from "./catalog.mjs";
 import { annotate, button, element } from "./dom.mjs";
-import { boardHelp, edgeHelp, itemHelp } from "./annotations.mjs";
+import { boardHelpFor, edgeHelp, itemHelp } from "./annotations.mjs";
+import { renderBlocks } from "./blocks.mjs";
+import { isHttpsUrl } from "./curated-validate.mjs";
 import { cameraMatrix, focusPose, overviewPose } from "./board-camera.mjs";
 
 const types = { article: "Press clipping", report: "Field report", photo: "Image attachment", satellite: "Satellite sample" };
@@ -19,14 +21,14 @@ function pinPosition({ placement: { x, y, height, rotation } }) {
 
 function renderEvidence(item, select) {
   const { x, y, width, height, rotation } = item.placement;
-  const paper = annotate(element("article", `museum-paper museum-paper--${item.kind}`),
+  const paper = annotate(element("article", `museum-paper museum-paper--${item.kind}${item.isMock ? "" : " museum-paper--curated"}`),
     item.title, itemHelp(item));
   paper.dataset.item = item.id;
   Object.assign(paper.style, {
     left: `${x - width / 2}px`, top: `${y - height / 2}px`,
     width: `${width}px`, height: `${height}px`, transform: `rotate(${rotation}deg)`,
   });
-  const type = element("p", "museum-paper-type", `${types[item.kind]} / fictional`);
+  const type = element("p", "museum-paper-type", item.isMock ? `${types[item.kind]} / fictional` : item.typeLabel);
   const title = element("h3", "", item.title);
   const body = element("div", "museum-paper-body");
   body.tabIndex = -1;
@@ -53,24 +55,39 @@ function renderEvidence(item, select) {
     body.append(fields);
   }
   for (const paragraph of item.body ?? []) body.append(element("p", "", paragraph));
+  if (item.blocks) renderBlocks(body, item.blocks);
   const source = annotate(element("footer", "museum-paper-source"),
     `Source for ${item.title}`, itemHelp(item, true));
   source.append(element("b", "", item.source.name), element("span", "", item.source.date));
+  // Enlace a la fuente original: solo https, y sus eventos no deben seleccionar ni deslizar la tarjeta.
+  let link = null;
+  if (item.link && isHttpsUrl(item.source.url)) {
+    link = element("a", "museum-source-link", "Open original source");
+    link.href = item.source.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.tabIndex = -1;
+    for (const type of ["pointerdown", "pointerup", "click", "keydown"]) {
+      link.addEventListener(type, (event) => event.stopPropagation());
+    }
+    source.append(link);
+  }
   const hit = button("museum-paper-hit", "", () => select(item.id));
   hit.setAttribute("aria-label", `Examine ${item.title}`);
   const pin = element("i", "museum-pin");
   pin.setAttribute("aria-hidden", "true");
   paper.append(type, title, body, source, hit, pin);
-  return { paper, hit, body };
+  return { paper, hit, body, link };
 }
 
 export function createBoard(exhibit, actions) {
   const root = element("section", "museum-scene");
   root.setAttribute("aria-label", "Investigation board");
   const header = annotate(element("header", "museum-board-header"), "Investigation board", {
-    ...boardHelp, role: `${boardHelp.role} ${exhibit.boardNote}`,
+    ...boardHelpFor(exhibit), role: `${boardHelpFor(exhibit).role} ${exhibit.boardNote}`,
   });
-  header.append(element("p", "museum-kicker", "Museum of Fires / Fictional exhibit"));
+  header.append(element("p", "museum-kicker", exhibit.isMock
+    ? "Museum of Fires / Fictional exhibit" : "Museum of Fires / Curated event · satellite overlap, not attribution"));
   const title = element("h2", "", exhibit.title);
   title.tabIndex = -1;
   header.append(title, element("p", "museum-board-location", `${exhibit.region} · ${exhibit.period}`));
@@ -148,7 +165,7 @@ export function createBoard(exhibit, actions) {
     const at = exhibit.items.findIndex((item) => item.id === id);
     previous.disabled = at <= 0;
     next.disabled = at >= exhibit.items.length - 1;
-    for (const [itemID, { paper, hit, body }] of papers) {
+    for (const [itemID, { paper, hit, body, link }] of papers) {
       const focused = id === itemID;
       const readable = focused && settled;
       paper.classList.toggle("is-focused", focused);
@@ -156,6 +173,7 @@ export function createBoard(exhibit, actions) {
       hit.hidden = focused;
       body.tabIndex = readable ? 0 : -1;
       body.inert = !readable;
+      if (link) link.tabIndex = readable ? 0 : -1;
     }
   }
 

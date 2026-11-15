@@ -10,7 +10,8 @@ export const CELLDAYS_VIIRS = [4, 5, 6, 0, 0, 0, 7, 8, 9];
 export const HOTSPOTS_MODIS = [10, 20, 30, 0, 0, 500, 40000, 0, 0];
 export const HOTSPOTS_VIIRS = [100, 200, 300, 0, 0, 0, 65535, 70, 80];
 
-export function buildFixture(opts: { pad?: number } = {}): { artifacts: ArtifactSet; buffer: ArrayBuffer } {
+/** kByMonth: k_by_month (12 valores, enero = 0) por id de régimen; sin él, el régimen no lo trae. */
+export function buildFixture(opts: { pad?: number; kByMonth?: { r0?: (number | null)[]; r1?: (number | null)[] } } = {}): { artifacts: ArtifactSet; buffer: ArrayBuffer } {
   const pad = opts.pad ?? 0;
   const n = N_CELLS * N_MONTHS;
   const total = pad + n * 6;
@@ -59,8 +60,8 @@ export function buildFixture(opts: { pad?: number } = {}): { artifacts: Artifact
       scale: "MODIS",
       harmonized_start: "2024-12",
       regimes: [
-        regime("r0", "2020-01-01", 1),
-        regime("r1", "2024-12-01", 2),
+        regime("r0", "2020-01-01", 1, opts.kByMonth?.r0),
+        regime("r1", "2024-12-01", 2, opts.kByMonth?.r1),
       ],
     },
     validation: { holdout: { status: "skipped", reason: "test" }, snpp_drop: { status: "skipped" } },
@@ -76,8 +77,9 @@ export function buildFixture(opts: { pad?: number } = {}): { artifacts: Artifact
   return { artifacts, buffer };
 }
 
-function regime(id: string, start: string, k: number | null) {
+function regime(id: string, start: string, k: number | null, kByMonth?: (number | null)[]) {
   return {
+    ...(kByMonth ? { k_by_month: kByMonth, k_by_month_n: kByMonth.map((v) => (v === null ? 0 : 1)) } : {}),
     id,
     start,
     first_month: null,
@@ -87,6 +89,8 @@ function regime(id: string, start: string, k: number | null) {
     k,
     method: "direct" as const,
     sp_months: 0,
+    sp_months_incomplete: [],
+    satellites_observed_sp: [],
     celldays_modis: 0,
     celldays_viirs: 0,
   };

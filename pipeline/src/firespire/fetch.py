@@ -1,7 +1,9 @@
-"""Descarga NRT reciente de la API de FIRMS (endpoint de área) a CSV con nombres que entiende ingest.
+"""Descarga de la API de FIRMS (endpoint de área) a CSV con nombres que entiende ingest.
 
 `firespire fetch --days 30` baja los últimos 30 días de cada fuente NRT para Argentina y
 escribe `fuentes/nrt/modis_YYYY_Argentina.csv` y `viirs-<clave>_YYYY_Argentina.csv`.
+Con `--product sp` baja procesamiento estándar (SP) a `fuentes/sp/`, y con `--after-sp` el NRT
+arranca, fuente por fuente, el día siguiente al corte de su SP para que ambos nunca se solapen.
 La MAP_KEY se lee de `FIRMS_MAP_KEY` o de `web/.env.local`, y nunca se imprime.
 """
 from __future__ import annotations
@@ -22,6 +24,7 @@ BASE = "https://firms.modaps.eosdis.nasa.gov"
 COUNTRY_NAME = "Argentina"
 AREA_BBOX = "-74,-56,-53,-21"  # oeste,sur,este,norte: Argentina continental e islas
 DEFAULT_OUT = config.REPO_ROOT / "fuentes" / "nrt"
+DEFAULT_OUT_SP = config.REPO_ROOT / "fuentes" / "sp"
 ENV_FILE = config.REPO_ROOT / "web" / ".env.local"
 CHUNK_DAYS = 5  # tope seguro de DAY_RANGE por pedido
 
@@ -32,6 +35,40 @@ SOURCES = {
     "VIIRS_NOAA20_NRT": "viirs-jpss1",
     "VIIRS_NOAA21_NRT": "viirs-jpss2",
 }
+
+# Procesamiento estándar (SP): mismos prefijos de archivo; ingest distingue NRT/SP por `version`
+SP_SOURCES = {
+    "MODIS_SP": "modis",
+    "VIIRS_SNPP_SP": "viirs-snpp",
+    "VIIRS_NOAA20_SP": "viirs-jpss1",
+    "VIIRS_NOAA21_SP": "viirs-jpss2",
+}
+
+
+def sources_for(product: str) -> dict[str, str]:
+    """Fuentes FIRMS (id -> prefijo de archivo) de un producto: "nrt" o "sp"."""
+    if product == "nrt":
+        return SOURCES
+    if product == "sp":
+        return SP_SOURCES
+    raise FirmsError(f"Producto desconocido: {product!r} (nrt o sp)")
+
+
+# Cada fuente NRT con su equivalente SP (y a la inversa)
+NRT_TO_SP = {
+    "MODIS_NRT": "MODIS_SP",
+    "VIIRS_SNPP_NRT": "VIIRS_SNPP_SP",
+    "VIIRS_NOAA20_NRT": "VIIRS_NOAA20_SP",
+    "VIIRS_NOAA21_NRT": "VIIRS_NOAA21_SP",
+}
+SP_TO_NRT = {sp: nrt for nrt, sp in NRT_TO_SP.items()}
+
+
+def sp_counterpart(source: str) -> str:
+    """Id SP equivalente a una fuente NRT (MODIS_NRT -> MODIS_SP)."""
+    if source not in NRT_TO_SP:
+        raise FirmsError(f"Fuente NRT desconocida: {source!r}")
+    return NRT_TO_SP[source]
 
 
 class FirmsError(RuntimeError):
@@ -132,7 +169,26 @@ def fetch_source(key: str, source: str, start: date, end: date, geom) -> pd.Data
 
 
 def output_name(source: str, year: int) -> str:
-    return f"{SOURCES[source]}_{year}_{COUNTRY_NAME}.csv"
+    prefix = SOURCES.get(source) or SP_SOURCES[source]
+    return f"{prefix}_{year}_{COUNTRY_NAME}.csv"
+
+
+def sp_cutoff(avail: dict[str, tuple[date, date]], sp_source: str) -> date:
+    """Corte del SP de una fuente: su última fecha disponible (el corte es por fuente)."""
+    if sp_source not in avail:
+        raise FirmsError(f"{sp_source} no figura en la disponibilidad de FIRMS")
+    return avail[sp_source][1]
+
+
+def after_sp_starts(
+    avail: dict[str, tuple[date, date]], sources: list[str],
+) -> dict[str, tuple[date, date]]:
+    """Por fuente NRT: (corte de su SP, inicio = corte + 1 día), para no solapar SP y NRT."""
+    out = {}
+    for s in sources:
+        cutoff = sp_cutoff(avail, sp_counterpart(s))
+        out[s] = (cutoff, cutoff + timedelta(days=1))
+    return out
 
 
 def window(
@@ -141,7 +197,8 @@ def window(
 ) -> tuple[date, date]:
     """Ventana común a todas las fuentes, para que los meses sean comparables entre sensores.
 
-    Fin: `end` o la última fecha disponible entre las fuentes. Inicio: `start` o fin - days + 1.
+    Fin: `end` o la última fecha disponible entre las fuentes.
+    Inicio: `start` o fin - days + 1.
     """
     last = end or max(avail[s][1] for s in sources if s in avail)
     first = start or last - timedelta(days=days - 1)
@@ -152,6 +209,7 @@ def window(
 
 def run(
     days: int, end: date | None, out: Path, sources: list[str], start: date | None = None,
+    product: str = "nrt", after_sp: bool = False,
 ) -> list[Path]:
     key = load_key()
     st = key_status(key)
@@ -160,6 +218,14 @@ def run(
         f"transacciones en {st.get('transaction_interval')}"
     )
     avail = availability(key)
+    print(f"producto: {product}")
+    starts: dict[str, date] = {}
+    if after_sp:
+        # cada fuente NRT arranca el día siguiente al corte de su SP; el fin es común
+        for s, (cutoff, first_nrt) in after_sp_starts(avail, sources).items():
+            print(f"{s}: corte del SP {cutoff}, NRT desde {first_nrt}")
+            starts[s] = first_nrt
+        start = min(starts.values())
     w_first, w_last = window(avail, sources, days, start, end)
     print(f"ventana común: {w_first} a {w_last}")
     geom = country_shape()
@@ -170,7 +236,7 @@ def run(
             print(f"{source}: sin datos disponibles, se omite")
             continue
         lo, hi = avail[source]
-        first, last = max(w_first, lo), min(w_last, hi)
+        first, last = max(starts.get(source, w_first), lo), min(w_last, hi)
         if first > last:
             print(f"{source}: fuera de rango ({lo} a {hi}), se omite")
             continue

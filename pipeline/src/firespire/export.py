@@ -88,6 +88,18 @@ def _coverage_warnings(calibration: dict, satellites: dict[str, list[str]]) -> l
                     f"Regime {r['id']} expects satellite {sat} but no {sat} data was found "
                     f"between {span}."
                 )
+        if r["method"] == "direct_incomplete":
+            missing = [x for x in r["satellites_expected"] if x not in r["satellites_observed_sp"]]
+            out.append(
+                f"Regime {r['id']} k comes only from standard-product months missing "
+                f"{', '.join(missing)}; it is provisional and biased until a complete archive "
+                "is loaded."
+            )
+        elif r["method"] == "direct" and r["sp_months_incomplete"]:
+            out.append(
+                f"Regime {r['id']} k skips {len(r['sp_months_incomplete'])} standard-product "
+                "months that lack an expected satellite."
+            )
         if r["k"] is None:
             out.append(f"Regime {r['id']} ({span}) has no k estimate; VIIRS cannot be harmonized there.")
     return out

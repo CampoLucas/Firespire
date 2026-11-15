@@ -89,6 +89,42 @@ describe("kForMonth", () => {
     expect(kForMonth(c, "2025-01")).toBeNull();
     expect(kForMonth(c, "2024-11")).toBe(1);
   });
+
+  // r1 (desde 2024-12): diciembre = 3, enero = null, resto sin dato útil. r0: noviembre = 0.5.
+  const seasonal = (): ReturnType<typeof buildFixture>["artifacts"]["calibration"] => {
+    const r1 = Array<number | null>(12).fill(null);
+    r1[11] = 3;
+    const r0 = Array<number | null>(12).fill(null);
+    r0[10] = 0.5;
+    return buildFixture({ kByMonth: { r0, r1 } }).artifacts.calibration;
+  };
+  it("returns the calendar-month value when k_by_month has one", () => {
+    const c = seasonal();
+    expect(kForMonth(c, "2024-12")).toBe(3);
+    expect(kForMonth(c, "2024-11")).toBe(0.5);
+  });
+  it("falls back to the regime k when the month entry is null", () => {
+    expect(kForMonth(seasonal(), "2025-01")).toBe(2);
+  });
+  it("falls back to the regime k when k_by_month is missing", () => {
+    const c = seasonal();
+    delete c.regimes[1].k_by_month;
+    expect(kForMonth(c, "2024-12")).toBe(2);
+  });
+  it("ignores non-finite entries and keeps null for regimes without k", () => {
+    const c = seasonal();
+    c.regimes[1].k_by_month![0] = Number.NaN;
+    expect(kForMonth(c, "2025-01")).toBe(2);
+    c.regimes[1].k = null;
+    expect(kForMonth(c, "2025-01")).toBeNull();
+    expect(kForMonth(c, "2024-12")).toBe(3);
+  });
+  it("is unchanged before harmonized_start and before the first regime", () => {
+    const c = seasonal();
+    expect(c.harmonized_start).toBe("2024-12");
+    expect(kForMonth(c, "2024-11")).toBe(0.5); // k del régimen vigente, como siempre
+    expect(kForMonth(c, "2019-12")).toBeNull();
+  });
 });
 
 describe("monthlySeries", () => {
@@ -112,6 +148,13 @@ describe("monthlySeries", () => {
     expect(s[0].value).toBe(11); // MODIS
     expect(s[1].value).toBe(26); // 2 x 13
     expect(s[2].value).toBe(30); // 2 x 15
+  });
+
+  it("harmonized value uses the seasonal k of the calendar month", () => {
+    const r1 = Array<number | null>(12).fill(null);
+    r1[11] = 3; // diciembre; enero cae al k del régimen (2)
+    const s = monthlySeries(buildFixture({ kByMonth: { r1 } }).artifacts, { source: "harmonized" });
+    expect(s.map((p) => p.value)).toEqual([11, 39, 30]); // MODIS, 3 x 13, 2 x 15
   });
 
   it("harmonized value is null where k is null, but not before harmonized_start", () => {
