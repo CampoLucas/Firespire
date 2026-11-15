@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Globo de quemas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preload" as="image" href="https://unpkg.com/three-globe@2.27.2/example/img/earth-blue-marble.jpg" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -276,6 +278,7 @@ button,select,input{font-family:var(--font)}
   #left{width:auto;right:16px;max-height:30vh}
 }
 </style>
+<link rel="stylesheet" href="./museum/museum.css">
 </head>
 <body>
 <div id="load">Cargando focos de calor…</div>
@@ -405,6 +408,8 @@ button,select,input{font-family:var(--font)}
 <script src="data/provincias.js"></script>
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.151.3/build/three.module.js";
+
+import { createGlobeAdapter } from "./museum/globe-adapter.mjs";
 
 const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const DEBUG=/[?&]debug=1/.test(location.search);
@@ -539,7 +544,9 @@ const el=$("globe");
 const TEX="https://unpkg.com/three-globe@2.27.2/example/img/";
 const provPaths=[];
 PROVINCIAS.forEach((p,i)=>p.geo.coordinates.forEach(poly=>poly.forEach(ring=>provPaths.push({kind:"p",i,pts:ring}))));
+let globeReady=false,museumUI=null;
 const globe=Globe()(el)
+  .onGlobeReady(()=>{globeReady=true;museumUI?.refresh()})
   .globeImageUrl(TEX+"earth-blue-marble.jpg")
   .bumpImageUrl(TEX+"earth-topology.png")
   .backgroundImageUrl(TEX+"night-sky.png")
@@ -564,6 +571,8 @@ const globe=Globe()(el)
 globe.pointOfView({lat:-38,lng:-64,altitude:1.9},0);
 globe.renderer().setPixelRatio(Math.min(devicePixelRatio,2));
 const ctl=globe.controls();ctl.autoRotate=true;ctl.autoRotateSpeed=.35;ctl.enableDamping=true;
+const cameraAdapter=createGlobeAdapter(globe,ctl,THREE,el);
+ctl.addEventListener("start",()=>cameraAdapter.cancelFlight());
 function setPaths(){globe.pathsData(provPaths)}
 setPaths();
 
@@ -872,7 +881,7 @@ function renderAlerts(){
 $("alList").addEventListener("click",e=>{
   const b=e.target.closest(".al");if(!b)return;
   const a=alerts[+b.dataset.i];pauseRot();scheduleResume();
-  globe.pointOfView({lat:a.lat,lng:a.lng,altitude:.45},1200);
+  cameraAdapter.legacyFlight({lat:a.lat,lng:a.lng,altitude:.45},1200);
 });
 function setTab(v){
   tab=v;$("tabs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===v));
@@ -885,7 +894,7 @@ $("banner").addEventListener("click",()=>setTab("al"));
 // Vistas: "analisis" (globo) · "plan" (planisferio)
 let curView="analisis";
 function setView(v){
-  if(v===curView)return;
+  if(cameraAdapter.leased||v===curView)return;
   const sw=$("viewSw");sw.dataset.v=v;
   sw.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",b.dataset.v===v));
   const plan=v==="plan";curView=v;
@@ -895,7 +904,7 @@ function setView(v){
   if(plan){
     // el globo se aleja y se desvanece mientras aparece el planisferio; al terminar se pausa (no consume GPU)
     savedPov=globe.pointOfView();pauseRot();
-    globe.pointOfView({lat:12,lng:savedPov.lng,altitude:3.4},RM?0:650);
+    cameraAdapter.legacyFlight({lat:12,lng:savedPov.lng,altitude:3.4},RM?0:650);
     ensurePlanMap().then(m=>{m.invalidateSize();return drawPlanAlerts()}).catch(err=>{$("planInfo").textContent="No se pudo cargar el mapa: "+err.message});
     setTimeout(()=>{
       if(tok!==viewTok)return;
@@ -907,7 +916,7 @@ function setView(v){
     closePlanCard();
     globe.resumeAnimation();
     if(curLists){drawMode();renderAlerts();fit()}
-    if(savedPov)globe.pointOfView(savedPov,RM?0:900);
+    if(savedPov)cameraAdapter.legacyFlight(savedPov,RM?0:900);
     setTimeout(()=>{if(tok===viewTok){$("viewSw").removeAttribute("aria-busy");scheduleResume()}},RM?0:900);
   }
 }
@@ -1237,14 +1246,18 @@ for(let y=Y_MAX;y>=Y_MIN;y--){
   o.value=y;o.textContent=ok?String(y):`${y} (sin datos)`;o.disabled=!ok;ySel.appendChild(o);
 }
 ySel.value=st.year;
+let yearRequest=0;
 async function changeYear(y){
-  if(y===st.year||!YEARS.includes(y))return;
+  if(cameraAdapter.leased||!YEARS.includes(y))return;
+  const request=++yearRequest;
+  if(y===st.year){$("busy").hidden=true;return;}
   $("busy").hidden=false;
   try{
     const D=await loadYear(y);
+    if(request!==yearRequest)return;
     const doy=st.day!=null?st.day:st.end;useYear(y,D);calcDaily();
     st.end=Math.min(doy,ND-1);st.day=null;render();
-  }catch(err){alert(err.message)}
+  }catch(err){if(request!==yearRequest)return;alert(err.message)}
   ySel.value=st.year;
   $("busy").hidden=true;
 }
@@ -1254,14 +1267,15 @@ const tSel=$("fTerr");
 PROVINCIAS.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p.name;tSel.appendChild(o)});
 tSel.addEventListener("change",()=>setProv(+tSel.value));
 function setProv(i){
+  if(cameraAdapter.leased)return;
   st.prov=i;tSel.value=i;
   setPaths();
   calcDaily();render();
   pauseRot();scheduleResume();
-  if(i<0){globe.pointOfView({lat:-38,lng:-64,altitude:1.9},1200);return}
+  if(i<0){cameraAdapter.legacyFlight({lat:-38,lng:-64,altitude:1.9},1200);return}
   const [x0,y0,x1,y1]=PROVINCIAS[i].bbox;
   const span=Math.max(x1-x0,y1-y0);
-  globe.pointOfView({lat:(y0+y1)/2,lng:(x0+x1)/2,altitude:Math.min(1.9,Math.max(.12,span*.06))},1200);
+  cameraAdapter.legacyFlight({lat:(y0+y1)/2,lng:(x0+x1)/2,altitude:Math.min(1.9,Math.max(.12,span*.06))},1200);
 }
 
 // ---- Puntero: tooltip y clic sin raycasting (coordenadas → H3 / provincia) ----
@@ -1275,9 +1289,13 @@ function provAt(lat,lng){
   return -1;
 }
 const tip=$("tip");let mx=0,my=0,tipPending=false,hovering=false;
-function hideTip(){tip.hidden=true;if(hovering){hovering=false;scheduleResume()}}
+function hideTip(event){
+  if(event?.relatedTarget?.matches?.('[data-museum-anchor="tip"]'))return;
+  tip.hidden=true;if(hovering){hovering=false;scheduleResume()}
+}
 function updTip(){
   tipPending=false;
+  if(cameraAdapter.leased||curView!=="analisis")return;
   const g=globe.toGlobeCoords(mx,my);
   if(!g||!cur){hideTip();return}
   const id=HX[st.res].ids.get(h3.latLngToCell(g.lat,g.lng,st.res)),o=id!==undefined?cur.m.get(id):null;
@@ -1291,13 +1309,14 @@ function updTip(){
   const w=tip.offsetWidth,hh=tip.offsetHeight;
   tip.style.left=Math.min(innerWidth-w-8,mx+14)+"px";tip.style.top=Math.max(8,my-hh-10)+"px";
   if(!hovering){hovering=true;pauseRot()}
+  museumUI?.refresh();
 }
 el.addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;if(!tipPending&&!dragging){tipPending=true;requestAnimationFrame(updTip)}});
 el.addEventListener("pointerleave",hideTip);
 let downXY=null;
-el.addEventListener("pointerdown",e=>{downXY=[e.clientX,e.clientY];pauseRot()});
+el.addEventListener("pointerdown",e=>{if(cameraAdapter.leased)return;downXY=[e.clientX,e.clientY];pauseRot()});
 el.addEventListener("pointerup",e=>{
-  if(!downXY)return;const moved=Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1]);downXY=null;
+  if(cameraAdapter.leased||!downXY)return;const moved=Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1]);downXY=null;
   if(moved>5)return;
   const g=globe.toGlobeCoords(e.clientX,e.clientY);if(!g)return;
   const pv=provAt(g.lat,g.lng);if(pv>=0&&pv!==st.prov)setProv(pv);
@@ -1305,18 +1324,19 @@ el.addEventListener("pointerup",e=>{
 
 // ---- Rotación: pausa al interactuar, reanuda tras 6 s ----
 const rotChk=$("rot");
-let idleT=null,dragging=false;
-function pauseRot(){ctl.autoRotate=false;clearTimeout(idleT)}
+let idleT=null,rotationDeadline=null,dragging=false;
+function pauseRot(){ctl.autoRotate=false;clearTimeout(idleT);rotationDeadline=null}
 // Con algún filtro activo el planeta queda quieto (no se reanuda la rotación)
 const DEF_YEAR=YEARS[YEARS.length-1];
 function filtersActive(){
   return st.prov>=0||st.conf>0||st.dn!=="all"||st.scale!=="week"||st.day!=null||st.year!==DEF_YEAR||st.layers.some(v=>!v)||tab==="al";
 }
-const canRotate=()=>rotChk.checked&&!dragging&&!hovering&&!filtersActive();
-function scheduleResume(){
-  clearTimeout(idleT);
+const canRotate=()=>!cameraAdapter.leased&&curView==="analisis"&&rotChk.checked&&!dragging&&!hovering&&!filtersActive();
+function scheduleResume(delay=6000){
+  clearTimeout(idleT);rotationDeadline=null;
   if(!canRotate())return;
-  idleT=setTimeout(()=>{if(canRotate())ctl.autoRotate=true},6000);
+  rotationDeadline=performance.now()+delay;
+  idleT=setTimeout(()=>{rotationDeadline=null;if(canRotate())ctl.autoRotate=true},delay);
 }
 function syncRotation(){if(filtersActive())pauseRot();else if(!ctl.autoRotate)scheduleResume()}
 ctl.addEventListener("start",()=>{dragging=true;tip.hidden=true;pauseRot()});
@@ -1332,6 +1352,47 @@ if(DEBUG){
     const tris=meshes.reduce((s,m)=>s+(m.visible?m.geometry.drawRange.count/3:0),0);
     dbg.textContent=`${Math.round(fr*1000/(t-t0))} fps · modo ${st.mode} · H3 res ${st.res} · ${cur?fmt(cur.m.size):0} hex · ${fmt(tris)} triángulos · ${polysShown?globe.polygonsData().length:0} áreas · actualización ${lastMs.toFixed(1)} ms`;
     fr=0;t0=t}requestAnimationFrame(loop)})(t0);
+}
+
+// The museum borrows camera ownership; analysis controls and loaded data stay mounted.
+function museumLegacy(){
+  const panels=["hdr","left","right","tbar","bottom","banner","planMap","planPh","planCard","dbg"].map($);
+  return {
+    available:()=>globeReady&&curView==="analisis"&&$("busy").hidden&&!$("viewSw").hasAttribute("aria-busy"),
+    inAnalysis:()=>curView==="analisis",
+    dayLabel:lbl,
+    lock(){
+      const snapshot=Object.freeze({
+        filters:Object.freeze({...st,layers:Object.freeze(st.layers.slice())}),
+        dataset:Y, yearPayload:FOCOS[st.year],
+        gearOpen:!$("gearPop").hidden,
+        scroll:panels.concat($("cal")).map(node=>[node,node.scrollLeft,node.scrollTop]),
+        rotationRemaining:rotationDeadline===null?null:Math.max(0,rotationDeadline-performance.now()),
+      });
+      panels.forEach(panel=>panel.inert=true);
+      document.body.classList.add("museum-active");
+      tip.hidden=true;hovering=false;downXY=null;dragging=false;
+      pauseRot();
+      return snapshot;
+    },
+    unlock(snapshot,wasRotating){
+      const changed=Object.keys(st).some(key=>key==="layers"
+        ? st.layers.some((value,i)=>value!==snapshot.filters.layers[i]) : st[key]!==snapshot.filters[key]);
+      if(changed||Y!==snapshot.dataset){
+        const original=snapshot.yearPayload;
+        if(Y!==snapshot.dataset&&original)useYear(snapshot.filters.year,original);
+        Object.assign(st,snapshot.filters,{layers:snapshot.filters.layers.slice()});
+        calcDaily();render();
+      }
+      panels.forEach(panel=>panel.inert=false);
+      document.body.classList.remove("museum-active");
+      $("gearPop").hidden=!snapshot.gearOpen;
+      $("gearBtn").setAttribute("aria-expanded",snapshot.gearOpen);
+      for(const [node,x,y] of snapshot.scroll)node.scrollTo(x,y);
+      if(wasRotating&&canRotate())ctl.autoRotate=true;
+      else if(snapshot.rotationRemaining!==null)scheduleResume(snapshot.rotationRemaining);
+    },
+  };
 }
 
 // ---- Inicio: último año, día pico ----
@@ -1354,6 +1415,10 @@ loadYear(st.year).then(D=>{
   }
   // precarga del planisferio en segundo plano: el primer cambio de vista es instantáneo
   else (window.requestIdleCallback||(f=>setTimeout(f,1500)))(()=>ensurePlanMap().catch(()=>{}));
+  import("./museum/index.mjs").then(({mountMuseum})=>{
+    museumUI=mountMuseum({adapter:cameraAdapter,globe,controls:ctl,legacy:museumLegacy()});
+    fit();
+  }).catch(err=>console.error("Museum of Fires could not initialize",err));
   const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),500);
 }).catch(e=>{$("load").textContent=e.message;console.error(e)});
 </script>

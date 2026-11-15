@@ -27,3 +27,15 @@ The data contract between pipeline and web is in [../docs/contratos.md](../docs/
 ## Next.js 16
 
 This version of Next.js has breaking changes compared with earlier releases. Read `AGENTS.md` in this folder before writing code. The framework's own docs are in `node_modules/next/dist/docs`.
+
+## Museum of Fires prototype
+
+Run `npm ci` and `npm run dev` from this directory. Open
+[the Firespire home page](http://localhost:3000/) and choose **Open the fire globe**,
+or go directly to [the globe](http://localhost:3000/globe/index.html).
+The **Museum of Fires** controls in the globe footer open either fictional exhibit.
+The globe still uses its existing hosted libraries and textures.
+
+Run `npm run check:museum` for the standalone museum modules. See
+[the prototype handoff](../docs/museum-prototype.md) for controls, source boundaries,
+test results and limitations.

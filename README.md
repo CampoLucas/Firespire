@@ -2,6 +2,32 @@
 
 Firespire is a web app built for the NASA Space Apps Challenge 2026, "MODIS and VIIRS Hot Spots". It turns NASA FIRMS fire detections from MODIS (Terra, Aqua) and VIIRS (S-NPP, NOAA-20, NOAA-21) into one consistent fire history for Argentina, so the sensor that made a detection stops mattering. The guiding question is: "is this fire normal for this place and this time of year?"
 
+## Run the Museum of Fires prototype
+
+Install Node.js **22.12 or later**. From the extracted project folder:
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+Open [Firespire](http://localhost:3000/) and choose **Open the fire globe**.
+Select a fictional waypoint on the globe or use the **Riverside files** and
+**Hillside press** buttons in the bottom-right footer. The existing globe
+needs internet access for its original hosted libraries and basemap textures.
+The included datasets are ready to use. The prototype requires no API key,
+Python setup, or data download.
+
+Wait five seconds or press **Start investigation**. Select any pinned
+evidence item, use the arrows or swipe to move to another item, and choose
+**Whole board** to zoom out. **Back to globe** exits at any stage. Flip
+**Developer View** at bottom left for contextual data explanations.
+
+For a production-mode local run, use `npm run build` followed by
+`npm run start` inside `web/`. See [the prototype handoff](docs/museum-prototype.md)
+for the change summary, validation results and known limitations.
+
 ## Repository layout
 
 ```
