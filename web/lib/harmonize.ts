@@ -1,6 +1,14 @@
 // Cálculo en el navegador y en las rutas de API. No recalcula k: aplica calibration.json.
 // Firmas congeladas (docs/contratos.md); la implementación es del paquete C.
-import type { ArtifactSet, Calibration, Meta, Month, SeriesPoint, SeriesQuery } from "./artifact-types";
+import type {
+  ArtifactSet,
+  Calibration,
+  Meta,
+  Month,
+  RegimeCalibration,
+  SeriesPoint,
+  SeriesQuery,
+} from "./artifact-types";
 
 const MONTH_RE = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
@@ -29,21 +37,22 @@ export function monthAt(meta: Meta, index: number): Month {
   return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}`;
 }
 
-/** k del régimen al que pertenece `month`; null si no hay régimen o no tiene k. */
+/**
+ * k del régimen al que pertenece `month`; null si no hay régimen o no tiene k.
+ * Si el régimen trae k_by_month y el mes calendario tiene un valor finito, se usa ese;
+ * si no (artefactos viejos, entrada null), cae al k del régimen.
+ */
 export function kForMonth(calibration: Calibration, month: Month): number | null {
   const first = `${month}-01`;
-  let k: number | null = null;
-  let found = false;
+  let regime: RegimeCalibration | null = null;
   // Los regímenes vienen ordenados por start; igual se toma el de start máximo <= día 1.
-  let bestStart = "";
   for (const r of calibration.regimes) {
-    if (r.start <= first && (!found || r.start >= bestStart)) {
-      found = true;
-      bestStart = r.start;
-      k = r.k;
-    }
+    if (r.start <= first && (regime === null || r.start >= regime.start)) regime = r;
   }
-  return found ? k : null;
+  if (regime === null) return null;
+  const m = MONTH_RE.exec(month);
+  const seasonal = m ? regime.k_by_month?.[Number(m[2]) - 1] : undefined;
+  return typeof seasonal === "number" && Number.isFinite(seasonal) ? seasonal : regime.k;
 }
 
 /**

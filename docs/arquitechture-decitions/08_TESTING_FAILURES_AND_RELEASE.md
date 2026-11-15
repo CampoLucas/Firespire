@@ -51,19 +51,21 @@ Fill these after A5; they go in the method box, the slides and the submission pa
 
 | Number | Source | Value |
 |---|---|---|
-| k per regime | `calibration.json` | V1 0.474 (74 months), V2 0.316 (59), V3 0.257 (41), all `direct` on complete-constellation months; V4 0.300 (`drop_snpp`) |
-| Yearly harmonized / MODIS, 2012–2025 | computed from `monthly.bin` | 0.915 to 1.062; no step at 2018-04 or 2023-03 |
-| In-sample monthly MAPE per regime | computed from `monthly.bin` | V1 19.0 %, V2 21.4 %, V3 24.0 % (bias 0 by construction) |
-| Holdout, k per regime (train 2023-03..2025-07, test 2025-08..2026-07) | `validation.json::holdout` | monthly MAPE 35.8 %, total bias +6.9 %, k_train 0.262 |
+| k per regime (pooled) | `calibration.json` | V1 0.474 (74 months), V2 0.316 (59), V3 0.257 (41), all `direct` on complete-constellation months; V4 0.300 (`drop_snpp`) |
+| k per regime and calendar month (D-06, taken 2026-11-15) | `calibration.json::k_by_month` | V1 0.344 (Apr) to 0.612 (Jan); V2 0.246 (Jun) to 0.365 (Aug); V3 0.184 (May) to 0.318 (Sep); 3 to 7 years per value |
+| Yearly harmonized / MODIS, 2012–2025 | computed from `monthly.bin` | 0.898 to 1.088 with the monthly k (0.915 to 1.062 with a single k) |
+| In-sample monthly MAPE per regime | computed from `monthly.bin` | Monthly k: V1 8.8 %, V2 12.4 %, V3 10.0 %. Single k: 19.0 %, 21.4 %, 24.0 % |
+| Holdout, k per regime and calendar month (train 2023-03..2025-07, test 2025-08..2026-07) | `validation.json::holdout` | monthly MAPE 19.3 %, total bias +9.6 %. Same test with a single k per regime: MAPE 35.8 %, bias +6.9 % |
 | S-NPP drop test (test 2025-01..2026-11) | `validation.json::snpp_drop` | MAPE 26.2 % with k without S-NPP (0.300) vs 26.9 % with the V3 k; bias +7.7 % vs +6.9 % |
 | Months covered | `meta.json` | 2000-11 to 2026-11 (313 months, 12,144 cells); provisional from 2026-08 |
 | Museum events and verdicts | `museum.json` | [pending C4] |
 
 Artifact version `v2-full`, built 2026-11-15 from the full archive (7,093,918 detections). Known weaknesses behind these numbers, to state openly rather than hide:
 
-- **k is seasonal.** Within each regime the implied k (MODIS / VIIRS per calendar month) varies by a factor of 1.5–1.8: lowest in May–June, highest in August–September. A single k per regime is right per year and off by about ±20–25 % per month. Fix under decision D-06: k per regime and calendar month.
-- **2026 runs above MODIS.** January–July 2026 harmonized is 1.41× MODIS; single low-season months reach 2.5×. Most of the holdout MAPE comes from May–July 2026.
-- **November 2026** is partial and provisional, and is assigned to V3 although S-NPP stopped on 2026-11-02: 0.66× MODIS (0.76× with the V4 k).
+- **k is seasonal, now modeled.** Within each regime the implied k varies by a factor of 1.5–1.8 across calendar months (lowest May–June, highest August–September). The app uses k per regime and calendar month; a calendar month with fewer than 2 calibration months falls back to the regime k. V3 values rest on only 3–4 years each.
+- **2026 still runs above MODIS.** January–July 2026 harmonized is 1.18× MODIS with the monthly k (1.41× with a single k); in the holdout May, June and July 2026 are 1.35×, 2.01× and 1.34×. Cause not established.
+- **Provisional months are worse.** August, September and October 2026 (NRT VIIRS, without the `type` filter) are 1.67×, 1.30× and 1.28× MODIS. They are flagged provisional in the app.
+- **November 2026** is partial and provisional, and is assigned to V3 although S-NPP stopped on 2026-11-02: 0.67× MODIS.
 - **k is national.** Per province the ratio ranges from 0.84 (Salta, Santiago del Estero) to 1.37 (Misiones).
 - **Terra-only period.** 2000-11 to 2002-06 has one MODIS satellite: 2001 has about 40 % of the cell-days of 2003–2004 (D-09, declared, not corrected).
 

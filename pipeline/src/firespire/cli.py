@@ -54,15 +54,22 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--out", type=Path, default=config.DEFAULT_OUT)
     from firespire import fetch
 
-    f = sub.add_parser("fetch", help="bajar datos NRT recientes de la API de FIRMS")
-    f.add_argument("--days", type=int, default=30, help="días hacia atrás desde --end")
+    f = sub.add_parser("fetch", help="bajar datos NRT o SP de la API de FIRMS")
+    f.add_argument("--days", type=int, default=None,
+                   help="días hacia atrás desde --end (default: 30)")
     f.add_argument("--start", type=date.fromisoformat, default=None,
                    help="primer día YYYY-MM-DD (reemplaza a --days; usar día 1 para meses completos)")
     f.add_argument("--end", type=date.fromisoformat, default=None,
                    help="último día YYYY-MM-DD (default: el último disponible)")
-    f.add_argument("--out", type=Path, default=fetch.DEFAULT_OUT)
-    f.add_argument("--sources", default=",".join(fetch.SOURCES),
-                   help="fuentes FIRMS separadas por coma")
+    f.add_argument("--product", choices=["nrt", "sp"], default="nrt",
+                   help="nrt (tiempo casi real) o sp (procesamiento estándar); default: nrt")
+    f.add_argument("--after-sp", action="store_true",
+                   help="solo con --product nrt: arranca el día siguiente al corte del SP "
+                        "(cada fuente desde el corte de su SP + 1 día; excluyente con --start y --days)")
+    f.add_argument("--out", type=Path, default=None,
+                   help="carpeta de salida (default: fuentes/nrt o fuentes/sp según el producto)")
+    f.add_argument("--sources", default=None,
+                   help="fuentes FIRMS separadas por coma (default: las cuatro del producto)")
     g = sub.add_parser("globe", help="generar web/public/globe/data/data-YYYY.js para el globo")
     g.add_argument("folders", nargs="+", type=Path, metavar="csv_folder")
     g.add_argument("--years", type=lambda s: [int(y) for y in s.split(",")], default=None,
@@ -75,11 +82,19 @@ def main(argv: list[str] | None = None) -> None:
 
         globe.run(args.folders, only=args.years)
     else:
-        sources = [s.strip() for s in args.sources.split(",") if s.strip()]
-        unknown = set(sources) - set(fetch.SOURCES)
+        available = fetch.sources_for(args.product)
+        raw = args.sources if args.sources is not None else ",".join(available)
+        sources = [s.strip() for s in raw.split(",") if s.strip()]
+        unknown = set(sources) - set(available)
         if unknown:
             parser.error(f"fuentes desconocidas: {sorted(unknown)}")
-        fetch.run(args.days, args.end, args.out, sources, start=args.start)
+        if args.after_sp and args.product != "nrt":
+            parser.error("--after-sp solo vale con --product nrt")
+        if args.after_sp and (args.start is not None or args.days is not None):
+            parser.error("--after-sp es excluyente con --start y --days")
+        out = args.out or (fetch.DEFAULT_OUT_SP if args.product == "sp" else fetch.DEFAULT_OUT)
+        fetch.run(args.days or 30, args.end, out, sources, start=args.start,
+                  product=args.product, after_sp=args.after_sp)
 
 
 if __name__ == "__main__":

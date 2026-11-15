@@ -190,7 +190,10 @@ function Loaded({ artifacts }: { artifacts: ArtifactSet }) {
           <strong>
             {regimesWithK.length ? regimesWithK.map((r) => (r.k as number).toFixed(2)).join(" · ") : "n/a"}
           </strong>
-          <small>{regimesWithK.map((r) => r.id).join(" · ") || "no regime has k"}</small>
+          <small>
+            {regimesWithK.map((r) => r.id).join(" · ") || "no regime has k"}
+            {calibration.k_granularity === "regime_month" ? " · varies by calendar month, see Method" : ""}
+          </small>
         </div>
       </section>
 

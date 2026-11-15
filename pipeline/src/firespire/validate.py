@@ -4,6 +4,7 @@ from __future__ import annotations
 from firespire import calibrate, config
 
 HOLDOUT_TEST_MONTHS = 12
+HOLDOUT_MIN_TRAIN_MONTHS = 12
 SNPP_DROP_FROM = "2025-01"
 
 
@@ -21,31 +22,88 @@ def _metrics(series: list[dict]) -> tuple[float | None, float | None]:
 
 
 def holdout(mo: calibrate.Monthly) -> dict:
-    """k con todos los meses SP salvo los últimos 12, aplicado a esos 12.
+    """k por régimen VIIRS (y mes calendario) sin los meses de test, aplicado a los últimos 12.
 
-    Simplificación: un único k para todos los regímenes (no uno por régimen).
+    Valida el método que se usa de verdad: por mes de test se usa el k de ese mes calendario
+    estimado con los meses de entrenamiento del régimen (si hay el mínimo; si no, el k del
+    régimen). `mape_monthly_single_k` / `bias_total_single_k` repiten el test con el k único por
+    régimen (comportamiento anterior). Los regímenes con menos de
+    HOLDOUT_MIN_TRAIN_MONTHS meses de entrenamiento restantes quedan fuera del test.
     """
-    sp = [m for m in mo.sp_months() if mo.modis.get(m, 0) > 0 and mo.viirs.get(m, 0) > 0]
-    if len(sp) < 2 * HOLDOUT_TEST_MONTHS:
+    cal = sorted(
+        m for m in calibrate.calibration_months(mo)
+        if mo.modis.get(m, 0) > 0 and mo.viirs.get(m, 0) > 0
+    )
+    if len(cal) < 2 * HOLDOUT_TEST_MONTHS:
         return {
             "status": "skipped",
-            "reason": f"Fewer than {2 * HOLDOUT_TEST_MONTHS} standard-product months with both "
-            f"MODIS and VIIRS data ({len(sp)} found); a single k is used across regimes.",
+            "reason": f"Fewer than {2 * HOLDOUT_TEST_MONTHS} calibration months with both "
+            f"MODIS and VIIRS data ({len(cal)} found).",
         }
-    train, test = sp[:-HOLDOUT_TEST_MONTHS], sp[-HOLDOUT_TEST_MONTHS:]
-    k, _, _ = calibrate.direct_k(mo, train)
-    if k is None:
-        return {"status": "skipped", "reason": "No VIIRS cell-days in the training months."}
-    series = [_point(m, mo.modis[m], mo.viirs[m], k * mo.viirs[m]) for m in test]
+    test_all = cal[-HOLDOUT_TEST_MONTHS:]
+    test_set = set(test_all)
+    used_by_regime = calibrate.regime_calibration_months(mo)
+    test_regimes = {r.id for m in test_all if (r := config.regime_for_month(m))}
+    k_by_regime: dict[str, float] = {}
+    train_by_regime: dict[str, list[str]] = {}
+    seasonal_by_regime: dict[str, list[float | None]] = {}
+    excluded: list[str] = []
+    for r in config.REGIMES:
+        if r.id not in test_regimes:
+            continue
+        train_r = [m for m in used_by_regime[r.id] if m not in test_set]
+        k_r, _, _ = calibrate.direct_k(mo, train_r) if train_r else (None, 0, 0)
+        if len(train_r) < HOLDOUT_MIN_TRAIN_MONTHS or k_r is None:
+            excluded.append(r.id)
+            continue
+        k_by_regime[r.id] = k_r
+        seasonal_by_regime[r.id] = calibrate.seasonal_k(mo, train_r)[0]
+        train_by_regime[r.id] = train_r
+    test = [m for m in test_all if (r := config.regime_for_month(m)) and r.id in k_by_regime]
+    if not test:
+        return {
+            "status": "skipped",
+            "reason": f"Fewer than {HOLDOUT_MIN_TRAIN_MONTHS} training months outside the test "
+            f"period for regime(s) {', '.join(excluded)}.",
+        }
+    series = []
+    single = []
+    for m in test:
+        rid = config.regime_for_month(m).id
+        entry = {"k": k_by_regime[rid], "k_by_month": seasonal_by_regime[rid]}
+        k_m = calibrate.k_for(entry, m)
+        series.append(_point(m, mo.modis[m], mo.viirs[m], k_m * mo.viirs[m]))
+        single.append(_point(m, mo.modis[m], mo.viirs[m], k_by_regime[rid] * mo.viirs[m]))
     mape, bias = _metrics(series)
+    mape_single, bias_single = _metrics(single)
+    seasonal = config.CALIBRATION_K_BY_CALENDAR_MONTH
+    reason = (
+        "k is estimated per VIIRS regime and calendar month without the test months and "
+        "applied to them (regime k where a calendar month has too few training months)."
+        if seasonal
+        else "k is estimated per VIIRS regime without the test months and applied to them."
+    )
+    if excluded:
+        reason += (
+            f" Regime(s) {', '.join(excluded)} excluded: fewer than "
+            f"{HOLDOUT_MIN_TRAIN_MONTHS} training months."
+        )
+    train_all = sorted({m for ms in train_by_regime.values() for m in ms})
     return {
         "status": "ok",
-        "reason": "A single k across all VIIRS regimes is used for the holdout.",
-        "train": {"from": train[0], "to": train[-1]},
+        "reason": reason,
+        "train": {"from": train_all[0], "to": train_all[-1]},
         "test": {"from": test[0], "to": test[-1]},
-        "k_train": k,
+        # Compatibilidad: k del régimen del último mes de test.
+        "k_train": k_by_regime[config.regime_for_month(test[-1]).id],
+        "k_train_by_regime": k_by_regime,
+        "train_months_by_regime": {rid: len(ms) for rid, ms in train_by_regime.items()},
         "mape_monthly": mape,
         "bias_total": bias,
+        "k_granularity": "regime_month" if seasonal else "regime",
+        "mape_monthly_single_k": mape_single,
+        "bias_total_single_k": bias_single,
+        "k_train_by_regime_month": seasonal_by_regime,
         "series": series,
     }
 
@@ -66,7 +124,13 @@ def snpp_drop(mo: calibrate.Monthly) -> dict:
         None,
     )
     base_sp = (
-        [m for m in by_regime[base.id] if m in sp_set and mo.viirs.get(m, 0) > 0] if base else []
+        [
+            m for m in by_regime[base.id]
+            if m in sp_set and mo.viirs.get(m, 0) > 0
+            and "SNPP" in mo.satellites.get(m, {}).get(config.VIIRS, set())
+        ]
+        if base
+        else []
     )
     if not base_sp:
         return {"status": "skipped", "reason": "No standard-product months with S-NPP to train on."}

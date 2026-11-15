@@ -1,4 +1,4 @@
-"""Calibración MODIS/VIIRS: k por régimen VIIRS (contrato: docs/contratos.md, Método).
+"""Calibración MODIS/VIIRS: k por régimen VIIRS y mes calendario (contrato: docs/contratos.md, Método).
 
 Los helpers `load_monthly` y `month_range` los reutilizan validate.py y export.py.
 """
@@ -104,33 +104,130 @@ def drop_snpp_k(mo: Monthly, months: list[str]) -> tuple[float | None, int, int]
     return (cm / cv if cv > 0 and cm > 0 else None), cm, cv
 
 
+def seasonal_k(
+    mo: Monthly, months: list[str], viirs: dict[str, int] | None = None
+) -> tuple[list[float | None], list[int]]:
+    """k por mes calendario (índice 0 = enero) sobre `months`: (k_by_month, k_by_month_n).
+
+    Para cada mes calendario c: si hay al menos CALIBRATION_MIN_MONTHS_PER_CALENDAR_MONTH meses
+    de `months` con ese mes del año y las sumas de VIIRS y MODIS son > 0, k = Σ MODIS / Σ VIIRS;
+    si no, null (n = 0) y quien lo use cae al k del régimen. `viirs` permite usar otra serie
+    (p. ej. VIIRS sin SNPP). Con CALIBRATION_K_BY_CALENDAR_MONTH False todo queda null.
+    """
+    ks: list[float | None] = [None] * 12
+    ns = [0] * 12
+    if not config.CALIBRATION_K_BY_CALENDAR_MONTH:
+        return ks, ns
+    v = mo.viirs if viirs is None else viirs
+    for c in range(12):
+        ms = [m for m in months if int(m[5:7]) == c + 1]
+        if len(ms) < config.CALIBRATION_MIN_MONTHS_PER_CALENDAR_MONTH:
+            continue
+        cm = sum(mo.modis.get(m, 0) for m in ms)
+        cv = sum(v.get(m, 0) for m in ms)
+        if cm > 0 and cv > 0:
+            ks[c] = cm / cv
+            ns[c] = len(ms)
+    return ks, ns
+
+
+def k_for(regime_entry: dict, month: str) -> float | None:
+    """k a aplicar a `month` ('YYYY-MM'): el de su mes calendario si existe; si no, el del régimen."""
+    by_month = regime_entry.get("k_by_month")
+    if by_month:
+        k_m = by_month[int(month[5:7]) - 1]
+        if k_m is not None:
+            return k_m
+    return regime_entry.get("k")
+
+
+def _paired_sp(mo: Monthly, months: list[str], sp_set: set[str]) -> list[str]:
+    """Meses SP del régimen con celda-días de MODIS y de VIIRS (un solo lado sesgaría k)."""
+    return [
+        m for m in months if m in sp_set and mo.modis.get(m, 0) > 0 and mo.viirs.get(m, 0) > 0
+    ]
+
+
+def _split_complete(
+    mo: Monthly, paired: list[str], expected: tuple[str, ...]
+) -> tuple[list[str], list[str]]:
+    """(completos, incompletos): completo = VIIRS observó todos los satélites esperados."""
+    need = set(expected)
+    complete = [m for m in paired if need <= mo.satellites.get(m, {}).get(config.VIIRS, set())]
+    done = set(complete)
+    return complete, [m for m in paired if m not in done]
+
+
+def _regime_plan(mo: Monthly) -> list[dict]:
+    """Por régimen: meses emparejados, completos/incompletos y los usados para k directo."""
+    by_regime = regime_months(mo)
+    sp_set = set(mo.sp_months())
+    plan = []
+    for r in config.REGIMES:
+        paired = _paired_sp(mo, by_regime[r.id], sp_set)
+        complete, incomplete = _split_complete(mo, paired, r.satellites)
+        if not config.CALIBRATION_REQUIRE_ALL_SATELLITES:
+            used, method = paired, "direct"
+        elif complete:
+            used, method = complete, "direct"
+        elif incomplete:
+            used, method = incomplete, "direct_incomplete"
+        else:
+            used, method = [], "none"
+        plan.append(
+            {"months": by_regime[r.id], "complete": complete, "incomplete": incomplete,
+             "used": used, "method": method}
+        )
+    return plan
+
+
+def calibration_months(mo: Monthly) -> list[str]:
+    """Meses (ordenados, sin repetir) que alimentan algún k directo o directo incompleto."""
+    return sorted({m for p in _regime_plan(mo) for m in p["used"]})
+
+
+def regime_calibration_months(mo: Monthly) -> dict[str, list[str]]:
+    """Meses que alimentan el k directo de cada régimen (id -> meses ordenados)."""
+    return {r.id: sorted(p["used"]) for r, p in zip(config.REGIMES, _regime_plan(mo))}
+
+
 def compute(con) -> dict:
     """Contenido de calibration.json."""
     mo = load_monthly(con)
-    by_regime = regime_months(mo)
-    sp_set = set(mo.sp_months())
+    plan = _regime_plan(mo)
     regimes: list[dict] = []
     for i, r in enumerate(config.REGIMES):
-        months = by_regime[r.id]
-        sp = [m for m in months if m in sp_set]
+        p = plan[i]
+        months, used = p["months"], p["used"]
         observed = sorted(
             {s for m in months for s in mo.satellites.get(m, {}).get(config.VIIRS, set())}
         )
+        observed_sp = sorted(
+            {s for m in used for s in mo.satellites.get(m, {}).get(config.VIIRS, set())}
+        )
         k: float | None = None
         method = "none"
-        cm = sum(mo.modis.get(m, 0) for m in sp)
-        cv = sum(mo.viirs.get(m, 0) for m in sp)
-        if sp:
-            k, cm, cv = direct_k(mo, sp)
-            method = "direct" if k is not None else "none"
+        cm = sum(mo.modis.get(m, 0) for m in used)
+        cv = sum(mo.viirs.get(m, 0) for m in used)
+        n_used = len(used)
+        k_by_month: list[float | None] = [None] * 12
+        k_by_month_n = [0] * 12
+        if used:
+            k, cm, cv = direct_k(mo, used)
+            method = p["method"] if k is not None else "none"
+            if k is not None:
+                k_by_month, k_by_month_n = seasonal_k(mo, used)
         elif i > 0 and "SNPP" not in r.satellites:
             # Sin meses SP propios: se estima desde el régimen anterior sin SNPP.
             prev = config.REGIMES[i - 1]
-            prev_sp = [m for m in by_regime[prev.id] if m in sp_set]
+            prev_p = plan[i - 1]
+            prev_sp = prev_p["complete"] or prev_p["incomplete"]
             if "SNPP" in prev.satellites and prev_sp:
                 # celldays_* reportan los usados para estimar k (los del régimen anterior).
                 k, cm, cv = drop_snpp_k(mo, prev_sp)
                 method = "drop_snpp" if k is not None else "none"
+                if k is not None:
+                    k_by_month, k_by_month_n = seasonal_k(mo, prev_sp, mo.viirs_no_snpp)
         regimes.append(
             {
                 "id": r.id,
@@ -140,10 +237,19 @@ def compute(con) -> dict:
                 "satellites_expected": list(r.satellites),
                 "satellites_observed": observed,
                 "k": k,
+                "k_by_month": k_by_month,
+                "k_by_month_n": k_by_month_n,
                 "method": method,
-                "sp_months": len(sp),
+                "sp_months": n_used,
+                "sp_months_incomplete": sorted(p["incomplete"]),
+                "satellites_observed_sp": observed_sp,
                 "celldays_modis": cm,
                 "celldays_viirs": cv,
             }
         )
-    return {"scale": "MODIS", "harmonized_start": config.HARMONIZED_START, "regimes": regimes}
+    return {
+        "scale": "MODIS",
+        "harmonized_start": config.HARMONIZED_START,
+        "k_granularity": "regime_month" if config.CALIBRATION_K_BY_CALENDAR_MONTH else "regime",
+        "regimes": regimes,
+    }

@@ -40,7 +40,7 @@ B1–B4 and C1–C3 can start now on the 2023–2024 data already in the repo; t
 
 ## Track A: data and harmonization
 
-**Status 2026-11-15 15:00: A1–A5 done.** The archive arrived complete with the expected names and a per-source SP/NRT cutoff already applied, so no API backfill was needed. Artifacts `v2-full` are built and `latest.json` points to them. Results and open weaknesses are in [08](08_TESTING_FAILURES_AND_RELEASE.md#numbers-to-publish). Open: D-06 (k per calendar month), compression of `monthly.bin` (22.8 MB raw, 1.7 MB gzipped), A6 (globe years).
+**Status 2026-11-15 15:00: A1–A5 done.** The archive arrived complete with the expected names and a per-source SP/NRT cutoff already applied, so no API backfill was needed. Artifacts `v2-full` are built and `latest.json` points to them. Results and open weaknesses are in [08](08_TESTING_FAILURES_AND_RELEASE.md#numbers-to-publish). D-06 is taken and implemented (k per regime and calendar month, `calibration.json::k_by_month`). Open: compression of `monthly.bin` (22.8 MB raw, 1.7 MB gzipped), A6 (globe years).
 
 | Step | Work | Files | Estimate | Check |
 |---|---|---|---|---|

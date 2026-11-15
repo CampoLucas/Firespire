@@ -45,6 +45,17 @@ SATELLITE_ALIASES = {
 # --- Armonización ---
 # Escala MODIS: MODIS hasta ene-2012 inclusive; k × VIIRS desde este mes.
 HARMONIZED_START = "2012-02"
+# k de un régimen se calcula solo con meses SP donde VIIRS observó todos los satélites que el
+# régimen espera (si no, k queda sesgado hacia la constelación parcial). Si ningún mes cumple,
+# se usan los incompletos y el método queda marcado como "direct_incomplete". False = todos.
+CALIBRATION_REQUIRE_ALL_SATELLITES = True
+# D-06: k por régimen Y por mes calendario. El cociente MODIS/VIIRS varía 1,5-1,8x entre meses
+# del año dentro de un mismo régimen (mínimo may-jun, máximo ago-sep); un k único deja ~20-25 %
+# de error mensual. False = un solo k por régimen (calibration.json: k_granularity "regime").
+CALIBRATION_K_BY_CALENDAR_MONTH = True
+# Mínimo de meses de calibración del mismo mes calendario para fiarse de su k propio; con menos
+# queda null y se usa el k del régimen.
+CALIBRATION_MIN_MONTHS_PER_CALENDAR_MONTH = 2
 
 
 @dataclass(frozen=True)
