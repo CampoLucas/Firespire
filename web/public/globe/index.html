@@ -566,6 +566,19 @@ const globe=Globe()(el)
 globe.pointOfView({lat:-38,lng:-64,altitude:1.9},0);
 globe.renderer().setPixelRatio(Math.min(devicePixelRatio,2));
 const ctl=globe.controls();ctl.autoRotate=true;ctl.autoRotateSpeed=.35;ctl.enableDamping=true;
+// Precarga de la textura base: los focos no se muestran hasta que el planeta tiene su mapa
+// (antes el overlay #load se retiraba al llegar los datos y los hexágonos flotaban sobre un globo negro)
+function preloadImg(url,ms){
+  return new Promise(ok=>{
+    const im=new Image(),t=setTimeout(()=>ok(false),ms||12000);
+    im.crossOrigin="anonymous";
+    im.onload=()=>{clearTimeout(t);ok(true)};im.onerror=()=>{clearTimeout(t);ok(false)};
+    im.src=url;
+  });
+}
+const RMQ=matchMedia("(prefers-reduced-motion: reduce)");
+const raf2=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+const texReady=preloadImg(TEX+"earth-blue-marble.jpg").then(raf2);   // 2 frames: three ya subió la textura a la GPU
 function setPaths(){globe.pathsData(provPaths)}
 setPaths();
 
@@ -701,6 +714,24 @@ const heatMesh=(()=>{
   m.renderOrder=9;m.frustumCulled=false;m.visible=false;
   globe.scene().add(m);return m;
 })();
+// Opacidad global de las capas de focos (hex + calor): arranca en 0 y se revela con fade-in cuando hay textura
+let dataA=0,fadeRaf=0;
+const MESH_OP=.85;
+function setDataA(a){
+  dataA=a;
+  meshes.forEach(m=>m.material.opacity=MESH_OP*a);
+  heatMesh.material.opacity=a;
+}
+function fadeData(to,ms){
+  cancelAnimationFrame(fadeRaf);
+  if(RMQ.matches||!ms){setDataA(to);return}
+  const a0=dataA,t0=performance.now();
+  (function step(t){
+    const u=Math.min(1,(t-t0)/ms);setDataA(a0+(to-a0)*u*u*(3-2*u));
+    if(u<1)fadeRaf=requestAnimationFrame(step);
+  })(t0);
+}
+setDataA(0);
 function drawHeat(lists){
   hden.fill(0);
   const D=HX[st.res],edgeKm=h3.getHexagonEdgeLengthAvg(st.res,"km"),rKm=edgeKm*1.6;
@@ -1332,16 +1363,35 @@ $("fRes").addEventListener("input",e=>{
   const r=+e.target.value;if(r===st.res)return;
   st.res=r;updResLbl();if(C)render();
 });
+function closeGear(){$("gearPop").hidden=true;$("gearBtn").setAttribute("aria-expanded","false")}
 $("gearBtn").addEventListener("click",()=>{
   const p=$("gearPop"),open=p.hidden;p.hidden=!open;$("gearBtn").setAttribute("aria-expanded",open);
 });
 document.addEventListener("click",e=>{
-  if(!$("gearPop").hidden&&!e.target.closest(".gear")){$("gearPop").hidden=true;$("gearBtn").setAttribute("aria-expanded","false")}
+  if(!$("gearPop").hidden&&!e.target.closest(".gear"))closeGear();
+});
+// Esc (vista Análisis): una cosa por pulsación → primero el popover ⚙, después la provincia seleccionada
+addEventListener("keydown",e=>{
+  if(e.key!=="Escape"||e.defaultPrevented||document.body.classList.contains("plan"))return;
+  if(!$("gearPop").hidden){closeGear();$("gearBtn").focus();return}
+  if(st.prov>=0){setProv(-1);if(document.activeElement===tSel)tSel.blur()}
 });
 $("fBase").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  pressed($("fBase"),b);globe.globeImageUrl(TEX+b.dataset.v);
+  if(b.getAttribute("aria-pressed")==="true")return;
+  pressed($("fBase"),b);
+  // se precarga el mapa nuevo; mientras tanto queda el anterior y los focos se atenúan (nunca sobre un globo vacío)
+  const url=TEX+b.dataset.v,tok=++baseTok,bz=$("busy"),old=bz.textContent;
+  bz.textContent="Cargando mapa…";bz.hidden=false;fadeData(.25,200);
+  preloadImg(url).then(raf2).then(()=>{
+    if(tok!==baseTok)return;
+    globe.globeImageUrl(url);return raf2();
+  }).then(()=>{
+    if(tok!==baseTok)return;
+    bz.hidden=true;bz.textContent=old;fadeData(1,500);
+  });
 });
+let baseTok=0;
 
 // Año: 2000–2026; los años sin archivo en data/ quedan deshabilitados
 const Y_MIN=2000,Y_MAX=2026,ySel=$("fYear");
@@ -1371,10 +1421,11 @@ function setProv(i){
   setPaths();
   calcDaily();render();
   pauseRot();scheduleResume();
-  if(i<0){globe.pointOfView({lat:-38,lng:-64,altitude:1.9},1200);return}
+  const dur=RMQ.matches?0:1200;
+  if(i<0){globe.pointOfView({lat:-38,lng:-64,altitude:1.9},dur);return}
   const [x0,y0,x1,y1]=PROVINCIAS[i].bbox;
   const span=Math.max(x1-x0,y1-y0);
-  globe.pointOfView({lat:(y0+y1)/2,lng:(x0+x1)/2,altitude:Math.min(1.9,Math.max(.12,span*.06))},1200);
+  globe.pointOfView({lat:(y0+y1)/2,lng:(x0+x1)/2,altitude:Math.min(1.9,Math.max(.12,span*.06))},dur);
 }
 
 // ---- Puntero: tooltip y clic sin raycasting (coordenadas → H3 / provincia) ----
@@ -1411,9 +1462,12 @@ let downXY=null;
 el.addEventListener("pointerdown",e=>{downXY=[e.clientX,e.clientY];pauseRot()});
 el.addEventListener("pointerup",e=>{
   if(!downXY)return;const moved=Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1]);downXY=null;
-  if(moved>5)return;
-  const g=globe.toGlobeCoords(e.clientX,e.clientY);if(!g)return;
-  const pv=provAt(g.lat,g.lng);if(pv>=0&&pv!==st.prov)setProv(pv);
+  if(moved>5||e.button>0||document.body.classList.contains("plan"))return;   // arrastre = rotación, no clic
+  if(!$("gearPop").hidden)return;                                              // este clic solo cierra el popover ⚙
+  const g=globe.toGlobeCoords(e.clientX,e.clientY);          // null = espacio/fondo fuera del planeta
+  const pv=g?provAt(g.lat,g.lng):-1;
+  // otra provincia → la cambia; fuera de toda provincia (fondo, océano, otro país) → limpia la selección
+  if(pv>=0){if(pv!==st.prov)setProv(pv)}else if(st.prov>=0)setProv(-1);
 });
 
 // ---- Rotación: pausa al interactuar, reanuda tras 6 s ----
@@ -1470,7 +1524,11 @@ loadYear(st.year).then(D=>{
   }
   // precarga del planisferio en segundo plano: el primer cambio de vista es instantáneo
   else (window.requestIdleCallback||(f=>setTimeout(f,1500)))(()=>ensurePlanMap().catch(()=>{}));
-  const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),500);
+  // el overlay se retira recién cuando el planeta tiene su textura; luego los focos entran con fade-in
+  texReady.then(()=>{
+    const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),RMQ.matches?0:500);
+    setTimeout(()=>fadeData(1,700),RMQ.matches?0:250);
+  });
 }).catch(e=>{$("load").textContent=e.message;console.error(e)});
 </script>
 </body>
