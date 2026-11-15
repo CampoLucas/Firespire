@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "DRAFT 2026-11-15: sources found and read with Tavily (search + extract) by andy/claude-code. Pending human review before publication: open every URL, check dates and quotes, and confirm the El Bolson coordinates on a map.",
+  "note": "DRAFT 2026-11-15 (update 18:30: 3 events from January 2026 added, Chubut and La Pampa): sources found and read with Tavily (search + extract) by andy/claude-code. Pending human review before publication: open every URL, check dates and quotes, and confirm the El Bolson coordinates on a map.",
   "events": [
     {
       "id": "ev-la-pampa-2000-2001",
@@ -14,7 +14,11 @@
       "start": "2000-12-01",
       "end": "2001-01-31",
       "date_precision": "month",
-      "cause": { "text": null, "category": "unknown", "source_id": null },
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
       "summary": "Between late 2000 and early 2001 fires burned millions of hectares of rangeland in La Pampa, one of the largest fire seasons recorded in the province.",
       "sources": [
         {
@@ -38,7 +42,11 @@
           "language": "es"
         }
       ],
-      "curated": { "by": "andy/claude-code", "at": "2026-11-15T16:40:00-03:00", "tool": "tavily-mcp" }
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
     },
     {
       "id": "ev-delta-parana-2008",
@@ -52,7 +60,10 @@
       "start": "2008-04-01",
       "end": "2008-04-30",
       "date_precision": "month",
-      "area_burned_ha": { "value": 70000, "source_id": "src-wikipedia-es-delta-2008" },
+      "area_burned_ha": {
+        "value": 70000,
+        "source_id": "src-wikipedia-es-delta-2008"
+      },
       "cause": {
         "text": "Intentional burning of wetlands to convert them to cattle grazing, made uncontrollable by drought.",
         "category": "reported",
@@ -81,7 +92,11 @@
           "language": "es"
         }
       ],
-      "curated": { "by": "andy/claude-code", "at": "2026-11-15T16:40:00-03:00", "tool": "tavily-mcp" }
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
     },
     {
       "id": "ev-rio-negro-2016",
@@ -95,8 +110,15 @@
       "start": "2016-12-21",
       "end": "2017-01-01",
       "date_precision": "day",
-      "area_burned_ha": { "value": 540000, "source_id": "src-infocampo-inta-rionegro-2016" },
-      "cause": { "text": null, "category": "unknown", "source_id": null },
+      "area_burned_ha": {
+        "value": 540000,
+        "source_id": "src-infocampo-inta-rionegro-2016"
+      },
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
       "summary": "Between 21 December 2016 and 1 January 2017 wind-driven fires swept across the rangelands of northeastern Río Negro and crossed into Buenos Aires and La Pampa.",
       "sources": [
         {
@@ -120,7 +142,11 @@
           "language": "es"
         }
       ],
-      "curated": { "by": "andy/claude-code", "at": "2026-11-15T16:40:00-03:00", "tool": "tavily-mcp" }
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
     },
     {
       "id": "ev-corrientes-2022",
@@ -134,7 +160,10 @@
       "start": "2022-01-01",
       "end": "2022-02-28",
       "date_precision": "month",
-      "area_burned_ha": { "value": 934238, "source_id": "src-natgeo-2022-corrientes" },
+      "area_burned_ha": {
+        "value": 934238,
+        "source_id": "src-natgeo-2022-corrientes"
+      },
       "cause": {
         "text": "High temperatures, water stress and low humidity, together with intentional or negligent ignitions.",
         "category": "reported",
@@ -163,7 +192,11 @@
           "language": "es"
         }
       ],
-      "curated": { "by": "andy/claude-code", "at": "2026-11-15T16:40:00-03:00", "tool": "tavily-mcp" }
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
     },
     {
       "id": "ev-el-bolson-2025",
@@ -177,7 +210,11 @@
       "start": "2025-02-01",
       "end": "2025-02-28",
       "date_precision": "month",
-      "cause": { "text": null, "category": "unknown", "source_id": null },
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
       "summary": "In early February 2025 a forest fire in Mallín Ahogado, on the outskirts of El Bolsón, burned thousands of hectares and destroyed or damaged 221 homes.",
       "sources": [
         {
@@ -201,7 +238,161 @@
           "language": "es"
         }
       ],
-      "curated": { "by": "andy/claude-code", "at": "2026-11-15T16:40:00-03:00", "tool": "tavily-mcp" }
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T16:40:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-chubut-puerto-patriada-2026",
+      "title": "Puerto Patriada and Epuyén fires, January 2026",
+      "province": "Chubut",
+      "place": "Puerto Patriada (El Hoyo) to Epuyén, Cushamen department",
+      "lat": -42.05,
+      "lon": -71.52,
+      "location_basis": "named_place",
+      "radius_km": 25,
+      "start": "2026-01-05",
+      "end": "2026-01-31",
+      "date_precision": "day",
+      "area_burned_ha": {
+        "value": 22300,
+        "source_id": "src-dw-emergencia-2026"
+      },
+      "cause": {
+        "text": "The provincial prosecutor said the fire started with an accelerant (petrol), and the governor described it as intentional. No suspect is identified.",
+        "category": "reported",
+        "source_id": "src-dw-evacuados-2026"
+      },
+      "summary": "A fire that started on 5 January 2026 at Puerto Patriada spread through the Andean forest and forced the evacuation of more than 3,000 tourists and residents.",
+      "sources": [
+        {
+          "id": "src-dw-evacuados-2026",
+          "kind": "article",
+          "title": "Miles de turistas evacuados por incendios en la Patagonia",
+          "publisher": "DW Español",
+          "published": "2026-01-07",
+          "url": "https://www.dw.com/es/miles-de-turistas-evacuados-por-incendios-en-la-patagonia/a-75427575",
+          "quote": "se inició con un acelerante o nafta, que es lo que determina que efectivamente alguien quiso prender ese fuego",
+          "language": "es"
+        },
+        {
+          "id": "src-dw-emergencia-2026",
+          "kind": "article",
+          "title": "Argentina declara emergencia por incendios en la Patagonia",
+          "publisher": "DW Español",
+          "published": "2026-01-30",
+          "url": "https://www.dw.com/es/argentina-declara-emergencia-por-incendios-en-la-patagonia/a-75720964",
+          "quote": "el otro incendio forestal que azota a la provincia abarca casi 22.300 hectáreas entre el paraje de Puerto Patriada y la localidad de Epuyén",
+          "language": "es"
+        },
+        {
+          "id": "src-wiki-incendios-2026",
+          "kind": "article",
+          "title": "Incendios forestales en Argentina de 2026",
+          "publisher": "Wikipedia (es)",
+          "published": null,
+          "url": "https://es.wikipedia.org/wiki/Incendios_forestales_en_Argentina_de_2026",
+          "quote": "El desastre consumió 1800 hectáreas en tan solo 48 horas, cifra que aumento a 12 mil hectáreas para el 11 de enero de 2026",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T18:30:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-los-alerces-2026",
+      "title": "Los Alerces National Park fire, January 2026",
+      "province": "Chubut",
+      "place": "Parque Nacional Los Alerces",
+      "lat": -42.85,
+      "lon": -71.85,
+      "location_basis": "named_place",
+      "radius_km": 25,
+      "start": "2026-01-01",
+      "end": "2026-01-31",
+      "date_precision": "month",
+      "area_burned_ha": {
+        "value": 20000,
+        "source_id": "src-dw-emergencia-2026"
+      },
+      "cause": {
+        "text": null,
+        "category": "unknown",
+        "source_id": null
+      },
+      "summary": "The most affected area of the Patagonian fire season of early 2026 was the Los Alerces National Park, where about 20,000 hectares of forest burned.",
+      "sources": [
+        {
+          "id": "src-dw-emergencia-2026",
+          "kind": "article",
+          "title": "Argentina declara emergencia por incendios en la Patagonia",
+          "publisher": "DW Español",
+          "published": "2026-01-30",
+          "url": "https://www.dw.com/es/argentina-declara-emergencia-por-incendios-en-la-patagonia/a-75720964",
+          "quote": "La zona más afectada es el Parque Nacional Los Alerces, en la provincia de Chubut, con 20.000 hectáreas de bosque quemadas.",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T18:30:00-03:00",
+        "tool": "tavily-mcp"
+      }
+    },
+    {
+      "id": "ev-la-pampa-2026",
+      "title": "La Pampa rangeland fires, January 2026",
+      "province": "La Pampa",
+      "place": "West and south of La Pampa province",
+      "lat": -35.78,
+      "lon": -65.16,
+      "location_basis": "satellite_centroid",
+      "radius_km": 60,
+      "start": "2026-01-01",
+      "end": "2026-01-31",
+      "date_precision": "month",
+      "area_burned_ha": {
+        "value": 168000,
+        "source_id": "src-infobae-lapampa-2026"
+      },
+      "cause": {
+        "text": "The provincial security minister said that during a lightning storm 21 simultaneous fires started. Other causes are not stated.",
+        "category": "reported",
+        "source_id": "src-perfil-lapampa-2026"
+      },
+      "summary": "In January 2026 rural fires burned about 168,000 hectares in La Pampa; on one night a lightning storm started 21 active fires at once.",
+      "sources": [
+        {
+          "id": "src-infobae-lapampa-2026",
+          "kind": "article",
+          "title": "Los incendios en La Pampa ya consumieron casi 170 mil hectáreas",
+          "publisher": "Infobae",
+          "published": "2026-01-23",
+          "url": "https://www.infobae.com/sociedad/2026/01/23/los-incendios-en-la-pampa-ya-consumieron-casi-170-mil-hectareas",
+          "quote": "un total de 168.000 hectáreas se vieron perjudicadas, desde el inicio del fuego",
+          "language": "es"
+        },
+        {
+          "id": "src-perfil-lapampa-2026",
+          "kind": "article",
+          "title": "La Pampa registró 170.000 hectáreas quemadas: \"Ya venimos con los recursos al límite\"",
+          "publisher": "Canal E (Perfil)",
+          "published": null,
+          "url": "https://www.perfil.com/noticias/canal-e/la-pampa-registro-170000-hectareas-quemadas-ya-venimos-con-los-recursos-al-limite-recursos-humanos-fundamentalmente.phtml",
+          "quote": "en una noche, en el lapso de dos horas, tuvimos 21 fuegos activos simultáneos",
+          "language": "es"
+        }
+      ],
+      "curated": {
+        "by": "andy/claude-code",
+        "at": "2026-11-15T18:30:00-03:00",
+        "tool": "tavily-mcp"
+      }
     }
   ]
 }
