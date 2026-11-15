@@ -11,7 +11,7 @@ import sys, os, re, json, glob
 import numpy as np, pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "data")
+OUT = os.path.join(HERE, "web", "public", "globe", "data")
 os.makedirs(OUT, exist_ok=True)
 STEP = 0.1
 
