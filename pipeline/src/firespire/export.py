@@ -50,6 +50,20 @@ def _assign_provinces(
     return prov.tolist(), names, []
 
 
+def _ranges(months: list[str]) -> str:
+    """'2025-01 to 2026-09, 2027-03' a partir de una lista ordenada de meses."""
+    def ordinal(m: str) -> int:
+        return int(m[:4]) * 12 + int(m[5:7])
+
+    spans: list[list[str]] = []
+    for m in months:
+        if spans and ordinal(m) == ordinal(spans[-1][1]) + 1:
+            spans[-1][1] = m
+        else:
+            spans.append([m, m])
+    return ", ".join(a if a == b else f"{a} to {b}" for a, b in spans)
+
+
 def _table_exists(con, name: str) -> bool:
     return (
         con.execute(
@@ -128,6 +142,14 @@ def write(
     prov, provinces, prov_warnings = _assign_provinces(cells, geojson_path)
     satellites = {fam: sorted({s for m in months for s in mo.satellites.get(m, {}).get(fam, ())})
                   for fam in (config.MODIS, config.VIIRS)}
+    # Meses sin ninguna fila de la familia: hueco de cobertura, no "cero fuego".
+    missing = {fam: [m for m in months if not mo.satellites.get(m, {}).get(fam)]
+               for fam in (config.MODIS, config.VIIRS)}
+    gap_warnings = [
+        f"No {fam} data for {len(ms)} of {n_months} months ({_ranges(ms)}); "
+        "they are shown as no data, not as zero fire."
+        for fam, ms in missing.items() if ms and len(ms) < n_months
+    ]
     masked = (
         con.execute("SELECT count(*) FROM masked_cells").fetchone()[0]
         if _table_exists(con, "masked_cells")
@@ -154,7 +176,8 @@ def write(
             },
         },
         "satellites": satellites,
-        "warnings": prov_warnings + _coverage_warnings(calibration, satellites),
+        "months_without_data": missing,
+        "warnings": prov_warnings + _coverage_warnings(calibration, satellites) + gap_warnings,
         "monthly": {"file": "monthly.bin", "layout": "cell-major", "blocks": blocks},
     }
 

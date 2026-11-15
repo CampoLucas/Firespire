@@ -52,14 +52,21 @@ CLI: `uv run firespire build <carpeta_csv>... [--version v0] [--out web/public/a
 | `product` | VARCHAR | `NRT` si `version` termina en `NRT`; si no, `SP` |
 
 ## Filtros (`detections_filtered`, mismas columnas)
-- MODIS: `type = 0` y confianza numérica ≥ `MODIS_MIN_CONFIDENCE`.
+- MODIS: confianza numérica ≥ `MODIS_MIN_CONFIDENCE`, y `type = 0` cuando `type` no es NULL.
 - VIIRS: confianza fuera de `VIIRS_DROP_CONFIDENCE`, y `type = 0` cuando `type` no es NULL.
+- Los CSV NRT de la API no traen `type` (verificado el 2026-11-14 con `/api/area`); en esos datos las fuentes estáticas solo las saca la máscara de persistentes.
+
+## Descarga NRT
+- `uv run firespire fetch [--days 30 | --start YYYY-MM-DD] [--end YYYY-MM-DD]` baja `MODIS_NRT`, `VIIRS_SNPP_NRT`, `VIIRS_NOAA20_NRT` y `VIIRS_NOAA21_NRT` a `fuentes/nrt/` con los nombres de arriba.
+- Usa `/api/area` con el recuadro `-74,-56,-53,-21` en pedidos de hasta 5 días y recorta con `provincias.geojson` (margen de 0,05°). El endpoint `/api/country` responde "Invalid API call" (verificado el 2026-11-14).
+- Todas las fuentes usan una ventana común (si no, un mes tendría días de un sensor sin el otro); cada una se recorta a lo que informa `/api/data_availability`. Para meses comparables, empezar el día 1 con `--start`. La MAP_KEY sale de `FIRMS_MAP_KEY` o de `web/.env.local`.
 
 ## Tabla `det_cells`
 `detections_filtered` más la columna `h3` (VARCHAR, celda de resolución `H3_RES` calculada con `h3.latlng_to_cell`).
 
 ## Tabla `masked_cells`
-- Columna `h3`. Celdas con detección (de cualquier familia) en más de `MASK_FRACTION` de los días del rango de datos, si ese rango tiene al menos `MASK_MIN_DAYS` días. El rango va de la primera a la última `acq_date` de `det_cells`.
+- Columna `h3`. Celdas con detección (de cualquier familia) en más de `MASK_FRACTION` de los días con datos, si hay al menos `MASK_MIN_DAYS` días con datos.
+- Días con datos = fechas distintas con al menos una fila en `det_cells`. Así los huecos de cobertura (años sin CSV) no diluyen la fracción.
 
 ## Tabla `cell_days`
 Una fila por celda × día × satélite × producto, sin las celdas enmascaradas.

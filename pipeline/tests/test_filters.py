@@ -30,9 +30,10 @@ def test_modis_rules():
         ("MODIS", "30", 0, "ok_edge"),
         ("MODIS", "29", 0, "low"),
         ("MODIS", "85", 2, "static"),
-        ("MODIS", "85", None, "no_type"),
+        ("MODIS", "85", None, "no_type"),  # NRT de la API: sin columna type
+        ("MODIS", "20", None, "low_no_type"),
     ])
-    assert kept(con) == {"ok_hi", "ok_edge"}
+    assert kept(con) == {"ok_hi", "ok_edge", "no_type"}
 
 
 def test_viirs_rules():

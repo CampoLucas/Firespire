@@ -9,9 +9,10 @@ from . import config
 
 
 def build(con: duckdb.DuckDBPyConnection) -> None:
-    """Celdas con detección (cualquier familia) en más de MASK_FRACTION de los días del rango.
+    """Celdas con detección (cualquier familia) en más de MASK_FRACTION de los días con datos.
 
-    Solo se evalúa si el rango (primera a última acq_date) tiene al menos MASK_MIN_DAYS días.
+    Días con datos = fechas con al menos una detección en det_cells: los huecos de cobertura
+    (años sin CSV) no diluyen la fracción. Se evalúa solo con al menos MASK_MIN_DAYS días.
     """
     src = "det_cells"
     if config.MASK_RES != config.H3_RES:
@@ -26,7 +27,7 @@ def build(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(
         f"""CREATE TABLE masked_cells AS
         WITH rng AS (
-            SELECT date_diff('day', min(acq_date), max(acq_date)) + 1 AS n_days FROM det_cells
+            SELECT count(DISTINCT acq_date) AS n_days FROM det_cells
         )
         SELECT h3 FROM {src}, rng
         WHERE rng.n_days >= {config.MASK_MIN_DAYS}

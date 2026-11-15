@@ -77,12 +77,18 @@ export function monthlySeries(artifacts: ArtifactSet, query: SeriesQuery): Serie
 
   const points: SeriesPoint[] = new Array(len);
   const firstProv = meta.first_provisional_month;
+  const missingModis = new Set(meta.months_without_data?.MODIS ?? []);
+  const missingViirs = new Set(meta.months_without_data?.VIIRS ?? []);
   for (let j = 0; j < len; j++) {
     const month = monthAt(meta, from + j);
+    // Familia que usa la fuente en este mes: el armonizado es MODIS antes de harmonized_start.
+    const useModis =
+      query.source === "modis" || (query.source === "harmonized" && month < calibration.harmonized_start);
+    const noData = useModis ? missingModis.has(month) : missingViirs.has(month);
     let value: number | null;
-    if (query.source === "modis") value = cm[j];
+    if (noData) value = null;
+    else if (useModis) value = cm[j];
     else if (query.source === "viirs") value = cv[j];
-    else if (month < calibration.harmonized_start) value = cm[j];
     else {
       const k = kForMonth(calibration, month);
       value = k === null ? null : k * cv[j];
@@ -90,6 +96,7 @@ export function monthlySeries(artifacts: ArtifactSet, query: SeriesQuery): Serie
     points[j] = {
       month,
       value,
+      no_data: noData,
       celldays_modis: cm[j],
       celldays_viirs: cv[j],
       hotspots_modis: hm[j],

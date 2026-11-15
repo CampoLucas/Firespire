@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 from pathlib import Path
 
 import duckdb
@@ -51,8 +52,26 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("folders", nargs="+", type=Path, metavar="csv_folder")
     b.add_argument("--version", default="v0")
     b.add_argument("--out", type=Path, default=config.DEFAULT_OUT)
+    from firespire import fetch
+
+    f = sub.add_parser("fetch", help="bajar datos NRT recientes de la API de FIRMS")
+    f.add_argument("--days", type=int, default=30, help="días hacia atrás desde --end")
+    f.add_argument("--start", type=date.fromisoformat, default=None,
+                   help="primer día YYYY-MM-DD (reemplaza a --days; usar día 1 para meses completos)")
+    f.add_argument("--end", type=date.fromisoformat, default=None,
+                   help="último día YYYY-MM-DD (default: el último disponible)")
+    f.add_argument("--out", type=Path, default=fetch.DEFAULT_OUT)
+    f.add_argument("--sources", default=",".join(fetch.SOURCES),
+                   help="fuentes FIRMS separadas por coma")
     args = parser.parse_args(argv)
-    build(args.folders, args.version, args.out)
+    if args.cmd == "build":
+        build(args.folders, args.version, args.out)
+    else:
+        sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+        unknown = set(sources) - set(fetch.SOURCES)
+        if unknown:
+            parser.error(f"fuentes desconocidas: {sorted(unknown)}")
+        fetch.run(args.days, args.end, args.out, sources, start=args.start)
 
 
 if __name__ == "__main__":

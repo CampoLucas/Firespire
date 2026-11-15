@@ -13,7 +13,8 @@ def apply(con: duckdb.DuckDBPyConnection) -> None:
         f"""CREATE TABLE detections_filtered AS
         SELECT * FROM detections
         WHERE CASE family
-            WHEN '{config.MODIS}' THEN type = {config.VEGETATION_TYPE}
+            -- los CSV NRT de la API no traen `type`: se acepta NULL en ambas familias
+            WHEN '{config.MODIS}' THEN (type IS NULL OR type = {config.VEGETATION_TYPE})
                 AND TRY_CAST(confidence_raw AS INTEGER) >= {config.MODIS_MIN_CONFIDENCE}
             WHEN '{config.VIIRS}' THEN confidence_raw NOT IN ({drop})
                 AND (type IS NULL OR type = {config.VEGETATION_TYPE})

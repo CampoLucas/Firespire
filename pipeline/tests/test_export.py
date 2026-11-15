@@ -105,6 +105,12 @@ def test_meta_and_monthly_roundtrip(tmp_path):
     assert meta["filters"]["mask"]["masked_cells"] == 2
     assert meta["satellites"] == {"MODIS": ["Aqua", "Terra"], "VIIRS": ["N20", "SNPP"]}
     assert meta["generated_at"][-6] in "+-"  # offset explicito
+    # febrero no tiene filas de ninguna familia: hueco de cobertura
+    assert meta["months_without_data"] == {"MODIS": ["2019-02"], "VIIRS": ["2019-02"]}
+    assert any("No MODIS data for 1 of 3 months (2019-02)" in w for w in meta["warnings"])
+    assert export._ranges(["2025-01", "2025-02", "2025-03", "2025-07"]) == (
+        "2025-01 to 2025-03, 2025-07"
+    )
     assert (vdir / "monthly.bin").stat().st_size == 3 * 3 * 6
     names = [b["name"] for b in meta["monthly"]["blocks"]]
     assert names == ["celldays_modis", "celldays_viirs", "hotspots_modis", "hotspots_viirs"]

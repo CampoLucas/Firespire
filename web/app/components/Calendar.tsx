@@ -14,7 +14,7 @@ interface Props {
 }
 
 function describe(p: SeriesPoint, v: number | null, unit: string): string {
-  const val = v === null ? "no value (missing k)" : `${fmtInt(v)} ${unit}`;
+  const val = v !== null ? `${fmtInt(v)} ${unit}` : p.no_data ? "no data (coverage gap)" : "no value (missing k)";
   return [
     fmtMonth(p.month),
     val,
@@ -56,7 +56,7 @@ export default function Calendar({ rows, edges, valueOf, unit }: Props) {
         ))}
         <span className={styles.legendItem}>
           <i className={styles.nullSw} />
-          no value
+          no data / no value
         </span>
         <span className={styles.legendItem}>
           <i className={styles.hatchSw} />

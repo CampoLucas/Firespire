@@ -45,3 +45,6 @@ __pycache__/
 .ruff_cache/
 *.duckdb
 *.duckdb.wal
+
+# datos NRT bajados de la API de FIRMS (se regeneran con `firespire fetch`)
+fuentes/nrt/

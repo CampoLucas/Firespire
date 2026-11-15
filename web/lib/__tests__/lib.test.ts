@@ -144,6 +144,20 @@ describe("monthlySeries", () => {
     expect(monthlySeries(a, { source: "modis" }).some((p) => p.provisional)).toBe(false);
   });
 
+  it("marks coverage gaps as no data instead of zero", () => {
+    const a = structuredClone(artifacts);
+    a.meta.months_without_data = { MODIS: ["2024-12"], VIIRS: ["2025-01"] };
+    const m = monthlySeries(a, { source: "modis" });
+    expect(m.map((p) => p.value)).toEqual([11, null, 8]);
+    expect(m.map((p) => p.no_data)).toEqual([false, true, false]);
+    // armonizado: MODIS antes de harmonized_start (2024-12) y VIIRS desde ahí
+    const h = monthlySeries(a, { source: "harmonized" });
+    expect(h.map((p) => p.value)).toEqual([11, 26, null]);
+    expect(h.map((p) => p.no_data)).toEqual([false, false, true]);
+    // artefactos v0 sin el campo: nada se marca
+    expect(monthlySeries(artifacts, { source: "modis" }).some((p) => p.no_data)).toBe(false);
+  });
+
   it("throws on a range outside the data", () => {
     expect(() => monthlySeries(artifacts, { source: "modis", from: "2020-01" })).toThrow();
   });

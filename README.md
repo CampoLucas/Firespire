@@ -49,13 +49,23 @@ Input files come from NASA FIRMS yearly country CSVs, placed in `fuentes/`:
 
 Today only 2023 and 2024 are in `fuentes/`, with MODIS and VIIRS NOAA-20 data. Because the calibration runs on incomplete data, the calibration factors are provisional.
 
+Recent near-real-time (NRT) data comes from the FIRMS API (`/api/area`, clipped to Argentina):
+
+```bash
+cd pipeline
+uv run firespire fetch --start 2026-09-01          # writes ../fuentes/nrt/ (not versioned)
+uv run firespire build ../fuentes ../fuentes/nrt --version v1-nrt
+```
+
+NRT months are flagged as provisional and excluded from calibration. Months with no data for a sensor family are shown as "no data", not as zero fire.
+
 ## Method in one paragraph
 
 The unit of analysis is the cell-day: an H3 cell (resolution 5) with at least one detection from a sensor family on a UTC day, counted once even if two satellites detected it that day. Persistent sources (cells with detections on more than half of the days in the range) are masked out. VIIRS constellation changes are handled with regimes (V1 to V4, defined in `pipeline/src/firespire/config.py`). For each regime, the factor k is the sum of MODIS cell-days divided by the sum of VIIRS cell-days over its non-provisional months. The harmonized series uses MODIS cell-days before 2012-02 and k times VIIRS cell-days from that month on. A holdout check (last 12 non-provisional months, with k estimated on the rest) reports the error of the harmonized series.
 
 ## Environment variables
 
-- `FIRMS_MAP_KEY`: API key for NASA FIRMS. Server-side only, never exposed to the browser. Not needed yet. See `web/.env.example`.
+- `FIRMS_MAP_KEY`: API key for NASA FIRMS. Server-side only, never exposed to the browser. Required by `firespire fetch`, which reads it from the environment or from `web/.env.local`. Get a free key at https://firms.modaps.eosdis.nasa.gov/api/map_key. See `web/.env.example`.
 
 ## Documentation
 

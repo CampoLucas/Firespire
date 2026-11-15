@@ -27,7 +27,7 @@ export function fmtDateTime(iso: string): string {
 
 /** Valor a pintar según la métrica. Hotspots armonizados = crudos (MODIS antes de harmonized_start, VIIRS después). */
 export function pointValue(p: SeriesPoint, metric: Metric, source: Source, calibration: Calibration): number | null {
-  if (metric === "celldays") return p.value;
+  if (metric === "celldays" || p.no_data) return p.value;
   if (source === "modis") return p.hotspots_modis;
   if (source === "viirs") return p.hotspots_viirs;
   return p.month < calibration.harmonized_start ? p.hotspots_modis : p.hotspots_viirs;

@@ -38,6 +38,11 @@ export interface Meta {
   };
   /** Satélites con datos en esta corrida. */
   satellites: { MODIS: string[]; VIIRS: string[] };
+  /**
+   * Meses del rango sin ninguna fila de la familia (hueco de cobertura, no "cero fuego").
+   * Opcional para leer artefactos v0, que no lo traen.
+   */
+  months_without_data?: { MODIS: Month[]; VIIRS: Month[] };
   /** Avisos legibles (en inglés) sobre cobertura incompleta; la UI los muestra. */
   warnings: string[];
   monthly: {
@@ -141,8 +146,10 @@ export interface SeriesQuery {
 
 export interface SeriesPoint {
   month: Month;
-  /** Celda-días según `source`; null si falta k para ese mes. */
+  /** Celda-días según `source`; null si falta k o si no hay datos de la familia que usa. */
   value: number | null;
+  /** La familia que usa `source` en este mes no tiene datos (meta.months_without_data). */
+  no_data: boolean;
   celldays_modis: number;
   celldays_viirs: number;
   hotspots_modis: number;
