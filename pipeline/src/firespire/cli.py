@@ -63,9 +63,17 @@ def main(argv: list[str] | None = None) -> None:
     f.add_argument("--out", type=Path, default=fetch.DEFAULT_OUT)
     f.add_argument("--sources", default=",".join(fetch.SOURCES),
                    help="fuentes FIRMS separadas por coma")
+    g = sub.add_parser("globe", help="generar web/public/globe/data/data-YYYY.js para el globo")
+    g.add_argument("folders", nargs="+", type=Path, metavar="csv_folder")
+    g.add_argument("--years", type=lambda s: [int(y) for y in s.split(",")], default=None,
+                   help="solo estos años, separados por coma (default: todos los encontrados)")
     args = parser.parse_args(argv)
     if args.cmd == "build":
         build(args.folders, args.version, args.out)
+    elif args.cmd == "globe":
+        from firespire import globe
+
+        globe.run(args.folders, only=args.years)
     else:
         sources = [s.strip() for s in args.sources.split(",") if s.strip()]
         unknown = set(sources) - set(fetch.SOURCES)

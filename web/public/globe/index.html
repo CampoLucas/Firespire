@@ -340,7 +340,6 @@ button,select,input{font-family:var(--font)}
 <section class="panel" id="planPh" aria-label="Zonas prioritarias">
   <div class="pp-h"><h2>Zonas prioritarias</h2><span class="pp-n" id="priN">0</span></div>
   <p id="planInfo" class="pp-info"></p>
-  <span class="sim-badge" id="planSim" hidden>⚠ Datos simulados para prueba</span>
   <ul class="pri-list" id="priList"></ul>
   <p class="pp-empty" id="priEmpty">Todavía no marcaste zonas. Elegí una alerta en el mapa y tocá <b>“Marcar como prioritaria”</b> en la card.</p>
   <button class="pp-clear" id="priClear" hidden>Vaciar lista</button>
@@ -349,14 +348,13 @@ button,select,input{font-family:var(--font)}
   <div class="pc-h"><span class="pc-chip" id="pcChip"></span><button id="pcClose" aria-label="Cerrar">✕</button></div>
   <div><h3 id="pcTitle"></h3><div class="pc-sub" id="pcSub"></div></div>
   <div class="pc-kpis">
-    <div><b id="pcMax"></b><span>nivel máximo previsto</span></div>
-    <div><b id="pcPeak"></b><span>día de mayor riesgo</span></div>
+    <div><b id="pcMax"></b><span>focos en 7 días</span></div>
+    <div><b id="pcPeak"></b><span>día con más focos</span></div>
   </div>
-  <div><div class="l" style="margin-bottom:6px">Pronóstico · próximos 7 días</div><div class="pc-days" id="pcDays"></div>
+  <div><div class="l" style="margin-bottom:6px">Focos por día · últimos 7 días</div><div class="pc-days" id="pcDays"></div>
     <div class="pc-sub" id="pcHigh" style="margin-top:6px"></div></div>
   <div class="pc-sub" id="pcWhy"></div>
-  <button class="pc-pri" id="pcPri" aria-pressed="false"></button>
-  <div class="trk" id="pcTrack"></div></section>
+  <button class="pc-pri" id="pcPri" aria-pressed="false"></button></section>
 
 <section class="panel" id="right">
   <div class="seg" id="tabs"><button data-v="sum" aria-pressed="true">Resumen</button><button data-v="al" aria-pressed="false">⚠ Alertas <span id="alN"></span></button></div>
@@ -368,12 +366,12 @@ button,select,input{font-family:var(--font)}
   </div>
   <div class="view" id="vAl" hidden>
     <div>
-      <div class="l">Peligro de incendio · próximos 7 días</div>
+      <div class="l">Actividad de fuego · últimos 7 días</div>
       <div class="n" id="alFrom" style="font-size:var(--fs-sm);color:var(--ink-2)"></div>
     </div>
     <div class="lvkey" id="lvKey"></div>
     <div class="alist" id="alList"></div>
-    <div class="demo">Demostración visual: riesgo estimado por persistencia de focos recientes. Falta sumar el pronóstico meteorológico (FWI).</div>
+    <p class="note">Focos observados por NASA FIRMS en cada zona (un hexágono H3 de ~1.770 km² y sus 6 vecinos) durante los 7 días que terminan en la fecha elegida. Nivel por cantidad de focos: ≥5, 15, 40 y 100. No es un pronóstico.</p>
   </div>
 </section>
 
@@ -838,14 +836,18 @@ function drawAreas(lists){
   globe.polygonsData(res.out);polysShown=true;
 }
 
-// ---- Alertas: próximos 7 días (demo por persistencia), hexágonos res 4 ----
+// ---- Alertas: actividad OBSERVADA en los 7 días que terminan en la fecha elegida (hexágonos res 4) ----
+// Todo sale de los focos de NASA FIRMS: no hay pronóstico ni datos inventados.
+// Nivel de la zona (celda + vecinas) por cantidad de focos en los 7 días: ≥5, 15, 40, 100.
 const LV=[{n:"Bajo",c:"#4caf7a"},{n:"Moderado",c:"#f2c94c"},{n:"Alto",c:"#f2994a"},{n:"Muy alto",c:"#eb5757"},{n:"Extremo",c:"#c13cff"}];
 const level=n=>n>=100?4:n>=40?3:n>=15?2:n>=5?1:0;
 const hexRgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
 let tab="sum",alerts=[];
 $("lvKey").innerHTML=LV.map(l=>`<span><i style="background:${l.c}"></i>${l.n}</span>`).join("");
+// color de un día de la tira: proporcional a los focos del día respecto del día máximo de la zona
+const dayInk=(v,mx)=>v>0?ramp(Math.sqrt(v/mx)):"rgba(255,255,255,.06)";
 
-// ctx: datos del año + día "hoy" + filtros. Por defecto: lo elegido en Análisis
+// ctx: datos del año + último día de la ventana + filtros. Por defecto: lo elegido en Análisis
 function computeAlerts(ctx){
   const X=ctx||{C,start,rows:Y.rows,to:range()[1],conf:st.conf,prov:st.prov};
   const C_=X.C,to=X.to,from=Math.max(0,to-6),rows=X.rows[4],D=HX[4],m=new Map();
@@ -853,45 +855,49 @@ function computeAlerts(ctx){
     if(C_.conf[i]<X.conf)continue;
     if(X.prov>=0&&C_.prov[i]!==X.prov)continue;
     const C=C_;   // el resto del cuerpo usa C
-    const id=rows[i];let o=m.get(id);if(!o){o={id,n:0,f:0,pc:{}};m.set(id,o)}
+    const id=rows[i];let o=m.get(id);if(!o){o={id,n:0,f:0,pc:{},d:new Float64Array(7)};m.set(id,o)}
     o.n+=C.n[i];o.f+=C.f[i];o.pc[C.prov[i]]=(o.pc[C.prov[i]]||0)+C.n[i];
+    o.d[C.day[i]-(to-6)]+=C.n[i];   // focos por día; índice 0 = 6 días antes del último
   }
   const out=[];
   for(const o of m.values()){
-    let s=0,sf=0,peak=true;
+    let s=0,sf=0,peak=true;const days=new Array(7).fill(0);
     for(const nb of h3.gridDisk(D.str[o.id],1)){
       const q=m.get(D.ids.get(nb));if(!q)continue;
-      s+=q.n;sf+=q.f;
+      s+=q.n;sf+=q.f;for(let k=0;k<7;k++)days[k]+=q.d[k];
       if(q.id!==o.id&&(q.n>o.n||(q.n===o.n&&q.id>o.id)))peak=false; // una alerta por foco de actividad
     }
     if(!peak)continue;
-    const days=[];for(let k=0;k<7;k++)days.push(level(s*Math.pow(.85,k)));
-    if(days[0]<2)continue;
+    const lvl=level(s);
+    if(lvl<2)continue;
     const p=+Object.entries(o.pc).sort((a,b)=>b[1]-a[1])[0][0];
     const [lat,lng]=h3.cellToLatLng(D.str[o.id]);
-    out.push({lat,lng,s,f:sf,lvl:days[0],days,p,h:D.str[o.id]});
+    out.push({lat,lng,s,f:sf,lvl,days,p,h:D.str[o.id]});
   }
   return out.sort((a,b)=>b.s-a.s);
+}
+function dayStrip(a,label){
+  const mx=Math.max(...a.days);
+  return a.days.map((v,k)=>`<i style="background:${dayInk(v,mx)}" title="${label(k)}: ${fmt(v)} focos"></i>`).join("");
 }
 function renderAlerts(){
   alerts=computeAlerts();
   $("alN").textContent=alerts.length?`(${alerts.length})`:"";
   const T=range()[1];
-  $("alFrom").textContent=`desde ${lbl(T+1)} hasta ${lbl(T+7)}`;
+  $("alFrom").textContent=`del ${lbl(Math.max(0,T-6))} al ${lbl(T)}`;
   const hi=alerts.filter(a=>a.lvl>=3).length;
   const B=$("banner");
   B.hidden=!(hi>0&&tab!=="al");
-  B.textContent=`⚠ ${hi} ${hi===1?"zona":"zonas"} con peligro muy alto o extremo · próximos 7 días`;
+  B.textContent=`⚠ ${hi} ${hi===1?"zona":"zonas"} con actividad muy alta o extrema · últimos 7 días`;
   globe.ringsData(tab==="al"?alerts:[]);
   const L=$("alList");
-  if(!alerts.length){L.innerHTML=`<div class="note">Sin zonas en peligro alto para esta fecha y territorio.</div>`;fit();return}
+  if(!alerts.length){L.innerHTML=`<div class="note">Sin zonas con actividad alta en estos 7 días y territorio.</div>`;fit();return}
   L.innerHTML=alerts.slice(0,6).map((a,i)=>{
     const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe";
-    const strip=a.days.map((l,k)=>`<i style="background:${LV[l].c}" title="${lbl(T+1+k)}: ${LV[l].n}"></i>`).join("");
     return `<button class="al" data-i="${i}"><span class="lv" style="background:${lv.c}"></span>
       <span class="t"><span>${name}</span><em style="background:${lv.c}">${lv.n}</em></span>
       <span class="s">${fmt(a.s)} focos en 7 días · ${a.lat.toFixed(1)}°, ${a.lng.toFixed(1)}°</span>
-      <span class="strip">${strip}</span><span class="strip-l"><span>+1</span><span>+7 días</span></span></button>`;
+      <span class="strip">${dayStrip(a,k=>lbl(T-6+k))}</span><span class="strip-l"><span>−6 días</span><span>${lbl(T).replace(/ \d{4}$/,"")}</span></span></button>`;
   }).join("")+(alerts.length>6?`<div class="note">y ${alerts.length-6} zonas más en el globo</div>`:"");
 }
 $("alList").addEventListener("click",e=>{
@@ -938,57 +944,42 @@ function setView(v){
 }
 let viewTok=0,savedPov=null;
 
-// ---- Planificación: alertas sutiles y cliqueables sobre el planisferio ----
-// Solo alertas FUTURAS: los 7 días siguientes a la fecha real de hoy (o ?hoy=AAAA-MM-DD para simular).
-// Independientes de los filtros de Análisis.
+// ---- Planificación: zonas con actividad alta en los últimos 7 días con datos, sobre el planisferio ----
+// Usa solo focos reales de NASA FIRMS: la ventana termina hoy (o ?hoy=AAAA-MM-DD) o, si todavía no hay
+// datos de ese día, en el último día con datos. Independiente de los filtros de Análisis.
 let alertLayer=null,zoneLayer=null,planSel=null,planAlerts=[],flyTok=0,planBase=null;
 const fdate=d=>`${d.getUTCDate()} ${MES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+const fshort=d=>fdate(d).replace(/ \d{4}$/,"");
 function planToday(){
   const q=new URLSearchParams(location.search).get("hoy");
   const m=q&&/^(\d{4})-(\d{2})-(\d{2})$/.exec(q);
   const n=new Date();
   return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
 }
-// PRNG con semilla (mismo día → misma simulación)
-function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-// Datos SIMULADOS (solo en memoria, solo para Planificación): toma la misma semana del último año
-// con datos y le aplica variaciones aleatorias. Devuelve un ctx compatible con computeAlerts.
-async function simulateRecent(today){
-  const ay=Math.max(...YEARS),A=prepYear(ay,await loadYear(ay));
-  const doy=Math.round((today-Date.UTC(today.getUTCFullYear(),0,1))/864e5);
-  const to=Math.min(Math.max(doy,6),A.ND-1),from=to-6;
-  const rnd=mulberry32(today.getUTCFullYear()*1000+doy),g=()=>{let u=0;for(let k=0;k<6;k++)u+=rnd();return u-3}; // ~normal
-  const level=.8+rnd()*.5;                             // actividad general de la semana
-  const idx=[];for(let i=A.start[from];i<A.start[to+1];i++)if(rnd()>.15)idx.push(i);   // ~15% de focos que "no ocurren"
-  const n=idx.length,cols={conf:new Int8Array(n),prov:new Int16Array(n),n:new Float64Array(n),f:new Float64Array(n),day:new Int16Array(n)};
-  const r4=new Int32Array(n),start=new Int32Array(8);
-  idx.forEach((i,k)=>{
-    const fac=level*Math.exp(g()*.35);
-    cols.conf[k]=A.C.conf[i];cols.prov[k]=A.C.prov[i];cols.day[k]=A.C.day[i]-from;
-    cols.n[k]=Math.max(1,Math.round(A.C.n[i]*fac));cols.f[k]=A.C.f[i]*fac;r4[k]=A.rows[4][i];
-  });
-  for(let d=0,k=0;d<=7;d++){while(k<n&&cols.day[k]<d)k++;start[d]=k}
-  return {C:cols,start,rows:{4:r4},to:6,conf:0,prov:-1,analog:ay};
+// Último año con datos y último día con focos que no pase de `today`; null si no hay ninguno.
+async function lastDataDay(today){
+  for(const y of YEARS.filter(y=>y<=today.getUTCFullYear()).sort((a,b)=>b-a)){
+    const P=prepYear(y,await loadYear(y));
+    const cap=y===today.getUTCFullYear()?Math.round((today-Date.UTC(y,0,1))/864e5):P.ND-1;
+    for(let d=Math.min(cap,P.ND-1);d>=0;d--)if(P.start[d+1]>P.start[d])return {y,P,to:d};
+  }
+  return null;
 }
 async function drawPlanAlerts(){
   if(!planMap)return;
-  const today=planToday(),y=today.getUTCFullYear(),doy=Math.round((today-Date.UTC(y,0,1))/864e5);
-  const fut=k=>new Date(Date.UTC(y,0,1+doy+k));        // k = 1..7 → días futuros
+  const today=planToday();
   planAlerts=[];planBase=null;
-  let ctx=null,sim=null;
-  if(YEARS.includes(y)){
-    const P=prepYear(y,await loadYear(y)),to=Math.min(doy,P.ND-1);
-    if(P.start[to+1]-P.start[Math.max(0,to-6)]>0)ctx={C:P.C,start:P.start,rows:P.rows,to,conf:0,prov:-1};
-  }
-  if(!ctx){ctx=await simulateRecent(today);sim=ctx.analog}   // sin datos recientes reales → simulación
-  planAlerts=computeAlerts(ctx);
-  planBase={fut,sim};
-  const rango=`entre el ${fdate(fut(1))} y el ${fdate(fut(7))}`;
-  $("planInfo").textContent=planAlerts.length
-    ?`${planAlerts.length} alertas futuras ${rango}.`
-    :`Sin alertas futuras ${rango}.`;
-  $("planSim").hidden=!sim;
-  $("planSim").title=sim?`Focos recientes inventados a partir de la misma semana de ${sim}, con variaciones al azar (no hay datos reales de ${y}).`:"";
+  const last=await lastDataDay(today);
+  if(!last){$("planInfo").textContent="No hay datos de FIRMS para mostrar.";renderPlanMarkers();return}
+  const {y,P,to}=last,day=k=>new Date(Date.UTC(y,0,1+to-6+k));   // k = 0..6 → días de la ventana
+  planAlerts=computeAlerts({C:P.C,start:P.start,rows:P.rows,to,conf:0,prov:-1});
+  planBase={day};
+  const rango=`entre el ${fdate(day(0))} y el ${fdate(day(6))}`;
+  const atraso=Math.round((today-day(6))/864e5);
+  $("planInfo").textContent=(planAlerts.length
+    ?`${planAlerts.length} zonas con actividad alta ${rango}`
+    :`Sin zonas con actividad alta ${rango}`)+
+    ` · NASA FIRMS${atraso>0?` · últimos datos: hace ${atraso} ${atraso===1?"día":"días"}`:""}.`;
   renderPlanMarkers();
 }
 function renderPlanMarkers(){
@@ -1000,8 +991,8 @@ function renderPlanMarkers(){
     const icon=L.divIcon({className:"pa-icon",iconSize:[sz,sz],
       html:`<span class="pa${planSel===i?" sel":""}${isPri(a.h)?" pri":""}" style="--c:${LV[a.lvl].c}"></span>`});
     const name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe";
-    L.marker([a.lat,a.lng],{icon,keyboard:true,title:`${name}: peligro ${LV[a.lvl].n}`,riseOnHover:true,zIndexOffset:a.lvl*100})
-      .bindTooltip(`<b>${name}</b><br>Peligro previsto: ${LV[a.lvl].n.toLowerCase()}`,{className:"pa-tip",direction:"top",offset:[0,-sz/2-2]})
+    L.marker([a.lat,a.lng],{icon,keyboard:true,title:`${name}: nivel ${LV[a.lvl].n}`,riseOnHover:true,zIndexOffset:a.lvl*100})
+      .bindTooltip(`<b>${name}</b><br>Nivel ${LV[a.lvl].n.toLowerCase()} · ${fmt(a.s)} focos en 7 días`,{className:"pa-tip",direction:"top",offset:[0,-sz/2-2]})
       .on("click",()=>selectPlanAlert(i))
       .addTo(alertLayer);
   });
@@ -1024,20 +1015,19 @@ function selectPlanAlert(i){
     // respaldo: si la animación no llegó (p. ej. pestaña en segundo plano), se ubica directo
     setTimeout(()=>{if(tok===flyTok&&Math.abs(planMap.getZoom()-target)>.5)planMap.fitBounds(B,{...pad,animate:false})},dur*1000+500);
   }
-  // card centrada en el pronóstico
-  const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",fut=planBase.fut;
-  const mx=Math.max(...a.days),kMax=a.days.indexOf(mx),altos=a.days.filter(l=>l>=2).length;
-  $("pcChip").textContent=`Peligro ${lv.n.toLowerCase()}`;$("pcChip").style.background=lv.c;
+  // card con la actividad observada en la zona
+  const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",day=planBase.day;
+  const mx=Math.max(...a.days),kMax=a.days.indexOf(mx),conFocos=a.days.filter(v=>v>0).length;
+  $("pcChip").textContent=`Nivel ${lv.n.toLowerCase()}`;$("pcChip").style.background=lv.c;
   $("pcTitle").textContent=name;
   $("pcSub").textContent=`${a.lat.toFixed(2)}°, ${a.lng.toFixed(2)}° · zona de ~${fmt(AREA_AVG[4]*7)} km²`;
-  $("pcMax").textContent=LV[mx].n;$("pcMax").style.color=LV[mx].c;
-  $("pcPeak").textContent=fdate(fut(kMax+1)).replace(/ \d{4}$/,"");
-  $("pcHigh").textContent=`${altos} de 7 días con peligro alto o mayor`;
-  $("pcDays").innerHTML=a.days.map((l,k)=>{const d=fut(k+1);
-    return `<div title="${fdate(d)}: ${LV[l].n}"><i style="background:${LV[l].c}"></i>${d.getUTCDate()}/${d.getUTCMonth()+1}</div>`}).join("");
-  $("pcWhy").textContent=`Motivo: ${fmt(a.s)} focos (${fmt(a.f)} MW) en la zona durante los últimos 7 días`+
-    (planBase.sim?" (focos simulados para prueba).":".");
-  updPriBtn();renderTrack(a.h);
+  $("pcMax").textContent=fmt(a.s);$("pcMax").style.color=lv.c;
+  $("pcPeak").textContent=`${fshort(day(kMax))} · ${fmt(mx)}`;
+  $("pcHigh").textContent=`${conFocos} de 7 días con focos`;
+  $("pcDays").innerHTML=a.days.map((v,k)=>{const d=day(k);
+    return `<div title="${fdate(d)}: ${fmt(v)} focos"><i style="background:${dayInk(v,mx)}"></i>${d.getUTCDate()}/${d.getUTCMonth()+1}</div>`}).join("");
+  $("pcWhy").textContent=`${fmt(a.s)} focos y ${fmt(a.f)} MW de FRP en la zona (celda H3 y vecinas) entre el ${fshort(day(0))} y el ${fshort(day(6))}. Fuente: NASA FIRMS, MODIS y VIIRS.`;
+  updPriBtn();
   $("planCard").classList.remove("off");
   $("planCard").scrollTop=0;
   renderPriList();
@@ -1058,12 +1048,11 @@ const isPri=h=>pri.some(z=>z.h===h);
 function togglePri(a){
   if(isPri(a.h))pri=pri.filter(z=>z.h!==a.h);
   else{
-    const mx=Math.max(...a.days),k=a.days.indexOf(mx);
-    pri.unshift({h:a.h,name:a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",lvl:mx,lat:a.lat,lng:a.lng,
-      peak:fdate(planBase.fut(k+1)),peakTs:planBase.fut(k+1).getTime(),endTs:planBase.fut(7).getTime(),
-      sim:!!planBase.sim,added:Date.now()});
+    const k=a.days.indexOf(Math.max(...a.days));
+    pri.unshift({h:a.h,name:a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",lvl:a.lvl,lat:a.lat,lng:a.lng,
+      n:a.s,peak:fdate(planBase.day(k)),added:Date.now()});
   }
-  savePri();renderPriList();renderPlanMarkers();updPriBtn();renderTrack(a.h);
+  savePri();renderPriList();renderPlanMarkers();updPriBtn();
 }
 function updPriBtn(){
   const a=planAlerts[planSel],b=$("pcPri");if(!a)return;
@@ -1079,27 +1068,12 @@ function renderPriList(){
   L.innerHTML=list.map(z=>`<li class="pri-item${z.h===cur?" cur":""}">
       <button class="pri-go" data-h="${z.h}" title="Ver en el mapa"><span class="pri-dot" style="background:${LV[z.lvl].c}"></span>
       <span class="pri-name">${z.name}</span>
-      <span class="pri-meta">${LV[z.lvl].n} · pico ${z.peak.replace(/ \d{4}$/,"")}${z.sim?" · simulado":""}</span></button>
-      <button class="pri-del" data-del="${z.h}" aria-label="Quitar ${z.name} de prioritarias">✕</button>
-      <div class="pri-rep">${repBlock(z)}</div></li>`).join("");
+      <span class="pri-meta">${LV[z.lvl].n}${z.n!=null?` · ${fmt(z.n)} focos`:""} · más focos el ${z.peak.replace(/ \d{4}$/,"")}</span></button>
+      <button class="pri-del" data-del="${z.h}" aria-label="Quitar ${z.name} de prioritarias">✕</button></li>`).join("");
   $("priN").textContent=pri.length;
   $("priEmpty").hidden=pri.length>0;$("priClear").hidden=pri.length<2;
 }
-// Bloque de reporte de cada zona prioritaria: botón → confirmación → estado del envío
-let repAsk=null;   // zona con la confirmación abierta
-function repBlock(z){
-  const r=repOf(z.h);
-  if(r){const res=exampleTrack(r).res,stn=stationById(r.st);
-    return `<div class="rep-state"><span class="st-pill st-${res.pill}" title="Resultado del seguimiento (ejemplo)">${res.n}</span>Reportada a ${stn?stn.name:"cuartel"} · ${fmtTime(r.sentAt)}</div>`}
-  if(repAsk===z.h){const {s,d}=nearestStation(z.lat,z.lng);
-    return `<div class="rep-confirm"><span>Enviar alerta a <b>${s.name}</b>, el cuartel más cercano (a ${fmt(d)} km).</span>
-      <div class="row"><button class="rep-btn go" data-send="${z.h}">Enviar alerta</button><button class="rep-btn" data-cancel="1">Cancelar</button></div></div>`}
-  return `<button class="rep-btn" data-ask="${z.h}"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-1px;margin-right:5px"><path d="M2 13h12M3 13V8h7v5M10 10h3l1 3M5 5h3M6.5 3.5v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Reportar a bomberos</button>`;
-}
 $("priList").addEventListener("click",e=>{
-  const ask=e.target.closest("[data-ask]");if(ask){repAsk=ask.dataset.ask;renderPriList();return}
-  if(e.target.closest("[data-cancel]")){repAsk=null;renderPriList();return}
-  const send=e.target.closest("[data-send]");if(send){sendReport(send.dataset.send);return}
   const del=e.target.closest("[data-del]");
   if(del){pri=pri.filter(z=>z.h!==del.dataset.del);savePri();renderPriList();renderPlanMarkers();updPriBtn();return}
   const go=e.target.closest("[data-h]");if(!go)return;
@@ -1115,93 +1089,6 @@ $("priList").addEventListener("click",e=>{
 });
 $("priClear").addEventListener("click",()=>{if(confirm("¿Vaciar la lista de zonas prioritarias?")){pri=[];savePri();renderPriList();renderPlanMarkers();updPriBtn()}});
 
-// ---- Cuarteles de bomberos SIMULADOS (inventados para la prueba, siempre los mismos) ----
-let STATIONS=null;
-function stations(){
-  if(STATIONS)return STATIONS;
-  const rnd=mulberry32(20261114);STATIONS=[];
-  PROVINCIAS.forEach((p,i)=>{
-    const [x0,y0,x1,y1]=p.bbox,area=(x1-x0)*(y1-y0),cnt=Math.max(3,Math.min(8,Math.round(Math.sqrt(area)*1.2)));
-    for(let k=1,tries=0;k<=cnt&&tries<600;tries++){
-      const lat=y0+(y1-y0)*rnd(),lng=x0+(x1-x0)*rnd();
-      if(provAt(lat,lng)!==i)continue;
-      if(lng>-62&&lat<-50)continue;                  // sin cuarteles inventados en las islas del Atlántico Sur
-      STATIONS.push({id:`${i}-${k}`,name:`Cuartel de Bomberos N° ${k} · ${p.name}`,prov:i,lat,lng});k++;
-    }
-  });
-  return STATIONS;
-}
-const stationById=id=>stations().find(s=>s.id===id);
-function kmBetween(a1,o1,a2,o2){const R=6371,r=Math.PI/180,da=(a2-a1)*r,dn=(o2-o1)*r,x=Math.sin(da/2)**2+Math.cos(a1*r)*Math.cos(a2*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
-function nearestStation(lat,lng){let best=null,d=1e9;for(const s of stations()){const k=kmBetween(lat,lng,s.lat,s.lng);if(k<d){d=k;best=s}}return {s:best,d}}
-
-// ---- Reportes enviados (simulados, guardados en este navegador) ----
-const REP_KEY="globo-quemas:reportes";
-// estados posibles de un reporte (por ahora todos quedan en "nueva" = Enviada)
-const STAT={nueva:{n:"Enviada"},recibida:{n:"Recibida"},encurso:{n:"En curso"},resuelta:{n:"Resuelta"}};
-let reps=[];
-try{reps=JSON.parse(localStorage.getItem(REP_KEY)||"[]");if(!Array.isArray(reps))reps=[]}catch{reps=[]}
-const saveReps=()=>{try{localStorage.setItem(REP_KEY,JSON.stringify(reps))}catch{}};
-const repOf=h=>reps.find(r=>r.h===h);
-const fmtTime=t=>{const d=new Date(t);return `${d.getDate()} ${MES[d.getMonth()]} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`};
-function sendReport(h){
-  const z=pri.find(z=>z.h===h);if(!z||repOf(h))return;
-  const {s,d}=nearestStation(z.lat,z.lng);
-  reps.push({id:"r"+Date.now(),h,name:z.name,lvl:z.lvl,peak:z.peak,peakTs:z.peakTs,endTs:z.endTs,sim:z.sim,lat:z.lat,lng:z.lng,st:s.id,dist:Math.round(d),sentAt:Date.now(),status:"nueva",log:[{s:"nueva",t:Date.now()}]});
-  saveReps();repAsk=null;renderPriList();
-  if(planAlerts[planSel]?.h===h)renderTrack(h);
-}
-
-// ---- Seguimiento con bomberos: historial de EJEMPLO (inventado, siempre igual para cada zona) ----
-const strHash=s=>{let x=2166136261;for(const c of s)x=Math.imul(x^c.charCodeAt(0),16777619);return x>>>0};
-const OUTCOME={
-  evitado:{n:"Incendio evitado",cls:"ok",ic:"✓",pill:"resuelta"},
-  contenido:{n:"Foco contenido a tiempo",cls:"warn",ic:"!",pill:"encurso"},
-  curso:{n:"Seguimiento en curso",cls:"run",ic:"…",pill:"recibida"}};
-function exampleTrack(r){
-  const rnd=mulberry32(strHash(r.h)),H=36e5,D=24*H,t0=r.sentAt;
-  const peak=r.peakTs||t0+D,end=r.endTs||peak+6*D,stn=stationById(r.st);
-  const pick=a=>a[Math.floor(rnd()*a.length)];
-  const kind=["evitado","contenido","curso"][strHash(r.h+"#")%3];
-  const dot=pick([3,4,5,6]),km=(1.5+rnd()*4).toFixed(1).replace(".",","),prod=6+Math.floor(rnd()*14);
-  const ev=[
-    {t:t0,who:"app",tt:"Alerta enviada",dd:`Peligro ${LV[r.lvl].n.toLowerCase()} previsto · pico ${r.peak.replace(/ \d{4}$/,"")} · zona a ${fmt(r.dist)} km del cuartel.`},
-    {t:t0+(8+rnd()*20)*6e4,who:"bomb",tt:"Alerta recibida",dd:`${stn?stn.name:"El cuartel"} confirmó la recepción.`},
-    {t:t0+(2+rnd()*3)*H,who:"bomb",tt:"Recorrida de evaluación",dd:`Dotación de ${dot} bomberos recorrió la zona: ${pick(["pastizales secos y viento del norte","banquinas con vegetación seca","rastrojos acumulados cerca de caminos rurales"])}.`},
-    {t:t0+(18+rnd()*10)*H,who:"bomb",tt:"Medidas preventivas",dd:`Línea cortafuego de ${km} km · aviso a ${prod} productores rurales · prohibición de quemas en la zona.`},
-    {t:t0+(40+rnd()*10)*H,who:"app",tt:"Actualización del pronóstico",dd:`El peligro sigue ${r.lvl>=4?"en nivel extremo":"alto"} para el día de pico; se recomienda guardia preventiva.`},
-    {t:peak+8*H,who:"bomb",tt:"Guardia preventiva",dd:`Guardia rotativa en la zona durante el día de mayor riesgo (${r.peak.replace(/ \d{4}$/,"")}).`}];
-  let res;
-  if(kind==="evitado"){
-    ev.push({t:end+20*H,who:"app",tt:"Cierre de la alerta",dd:"No se registraron focos en la zona durante el período previsto.",ok:true});
-    res={...OUTCOME.evitado,txt:`No hubo focos en la zona entre el ${fdate(new Date(peak)).replace(/ \d{4}$/,"")} y el ${fdate(new Date(end)).replace(/ \d{4}$/,"")}. Las medidas preventivas se mantuvieron hasta el cierre.`};
-  }else if(kind==="contenido"){
-    const ha=2+Math.floor(rnd()*6),min=25+Math.floor(rnd()*35);
-    ev.push({t:peak+(13+rnd()*4)*H,who:"bomb",tt:"Foco detectado y extinguido",dd:`Foco de ${ha} ha detectado por la guardia; extinguido en ${min} minutos, sin propagación.`});
-    ev.push({t:end+20*H,who:"app",tt:"Cierre de la alerta",dd:"Sin nuevos focos hasta el fin del período.",ok:true});
-    res={...OUTCOME.contenido,txt:`Hubo un foco de ${ha} ha el día de mayor riesgo, pero la dotación en guardia lo extinguió en ${min} minutos.`};
-  }else{
-    ev.push({t:null,who:"pend",tt:"Cierre de la alerta",dd:`Pendiente: la ventana de riesgo termina el ${fdate(new Date(end)).replace(/ \d{4}$/,"")}.`});
-    res={...OUTCOME.curso,txt:"Las medidas preventivas están activas y la guardia sigue en la zona."};
-  }
-  return {ev,res};
-}
-const fmtWhen=t=>t==null?"pendiente":fmtTime(t);
-function renderTrack(h){
-  const box=$("pcTrack"),r=repOf(h);
-  if(!r){
-    box.innerHTML=isPri(h)
-      ?`<div class="trk-hint">Reportá esta zona a bomberos desde la lista de zonas prioritarias para ver el seguimiento.</div>`
-      :"";
-    return;
-  }
-  const {ev,res}=exampleTrack(r);
-  box.innerHTML=`<div class="trk-h"><h4>Seguimiento con bomberos</h4><span class="trk-ex" title="Historial inventado para mostrar cómo se vería el seguimiento">EJEMPLO</span></div>
-    <div class="trk-res ${res.cls}"><span class="ic" style="background:${res.cls==="ok"?"#4caf7a":res.cls==="warn"?"#f2994a":"#6fa7ee"}">${res.ic}</span><span><b>${res.n}</b>${res.txt}</span></div>
-    <ol class="tl">${ev.map(e=>`<li><span class="dot ${e.ok?"ok":e.who}"></span>
-      <div class="who">${e.who==="app"?"App":e.who==="bomb"?"Bomberos":"Próximo paso"} · <span class="when">${fmtWhen(e.t)}</span></div>
-      <div class="tt">${e.tt}</div><div class="dd">${e.dd}</div></li>`).join("")}</ol>`;
-}
 renderPriList();
 addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("plan"))closePlanCard()});
 
@@ -1516,9 +1403,6 @@ loadYear(st.year).then(D=>{
     if(P.has("alert"))ensurePlanMap().then(()=>drawPlanAlerts()).then(()=>{
       // ?mark=0,3,5 marca esas alertas como prioritarias (para probar la lista)
       (P.get("mark")||"").split(",").filter(Boolean).forEach(k=>{const a=planAlerts[+k];if(a&&!isPri(a.h)){planSel=+k;togglePri(a)}});
-      // ?send=1 reporta a bomberos las zonas marcadas; ?ask=0 abre la confirmación de la alerta 0
-      if(P.has("send"))pri.forEach(z=>sendReport(z.h));
-      if(P.has("ask")){repAsk=planAlerts[+P.get("ask")]?.h;renderPriList()}
       selectPlanAlert(+P.get("alert"));
     });
   }
