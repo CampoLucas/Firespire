@@ -2,19 +2,48 @@
 // Firmas congeladas (docs/contratos.md); la implementación es del paquete C.
 import type { ArtifactSet, Calibration, Meta, Month, SeriesPoint, SeriesQuery } from "./artifact-types";
 
+const MONTH_RE = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+/** Número absoluto de mes (año*12 + mes0) o null si el formato es inválido. */
+function monthOrdinal(month: Month): number | null {
+  const m = MONTH_RE.exec(month);
+  return m ? Number(m[1]) * 12 + (Number(m[2]) - 1) : null;
+}
+
 /** Índice 0-based de `month` respecto de meta.first_month; -1 si queda fuera de rango. */
 export function monthIndex(meta: Meta, month: Month): number {
-  throw new Error("not implemented");
+  const a = monthOrdinal(month);
+  const b = monthOrdinal(meta.first_month);
+  if (a === null || b === null) return -1;
+  const i = a - b;
+  return i >= 0 && i < meta.n_months ? i : -1;
 }
 
 /** Inversa de monthIndex. */
 export function monthAt(meta: Meta, index: number): Month {
-  throw new Error("not implemented");
+  const b = monthOrdinal(meta.first_month);
+  if (b === null) throw new Error(`Invalid first_month: ${meta.first_month}`);
+  const o = b + index;
+  const y = Math.floor(o / 12);
+  const m = o - y * 12 + 1;
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}`;
 }
 
 /** k del régimen al que pertenece `month`; null si no hay régimen o no tiene k. */
 export function kForMonth(calibration: Calibration, month: Month): number | null {
-  throw new Error("not implemented");
+  const first = `${month}-01`;
+  let k: number | null = null;
+  let found = false;
+  // Los regímenes vienen ordenados por start; igual se toma el de start máximo <= día 1.
+  let bestStart = "";
+  for (const r of calibration.regimes) {
+    if (r.start <= first && (!found || r.start >= bestStart)) {
+      found = true;
+      bestStart = r.start;
+      k = r.k;
+    }
+  }
+  return found ? k : null;
 }
 
 /**
@@ -22,5 +51,51 @@ export function kForMonth(calibration: Calibration, month: Month): number | null
  * harmonized: MODIS antes de calibration.harmonized_start; k × VIIRS desde ahí.
  */
 export function monthlySeries(artifacts: ArtifactSet, query: SeriesQuery): SeriesPoint[] {
-  throw new Error("not implemented");
+  const { meta, cells, calibration, monthly } = artifacts;
+  const nM = monthly.nMonths;
+  const from = query.from !== undefined ? monthIndex(meta, query.from) : 0;
+  const to = query.to !== undefined ? monthIndex(meta, query.to) : nM - 1;
+  if (from < 0 || to < 0) throw new Error("Month out of the published range");
+  if (from > to) throw new Error("'from' must not be after 'to'");
+  const len = to - from + 1;
+
+  const cm = new Float64Array(len);
+  const cv = new Float64Array(len);
+  const hm = new Float64Array(len);
+  const hv = new Float64Array(len);
+  const prov = query.province ?? null;
+  for (let c = 0; c < monthly.nCells; c++) {
+    if (prov !== null && cells.prov[c] !== prov) continue;
+    const base = c * nM + from;
+    for (let j = 0; j < len; j++) {
+      cm[j] += monthly.celldaysModis[base + j];
+      cv[j] += monthly.celldaysViirs[base + j];
+      hm[j] += monthly.hotspotsModis[base + j];
+      hv[j] += monthly.hotspotsViirs[base + j];
+    }
+  }
+
+  const points: SeriesPoint[] = new Array(len);
+  const firstProv = meta.first_provisional_month;
+  for (let j = 0; j < len; j++) {
+    const month = monthAt(meta, from + j);
+    let value: number | null;
+    if (query.source === "modis") value = cm[j];
+    else if (query.source === "viirs") value = cv[j];
+    else if (month < calibration.harmonized_start) value = cm[j];
+    else {
+      const k = kForMonth(calibration, month);
+      value = k === null ? null : k * cv[j];
+    }
+    points[j] = {
+      month,
+      value,
+      celldays_modis: cm[j],
+      celldays_viirs: cv[j],
+      hotspots_modis: hm[j],
+      hotspots_viirs: hv[j],
+      provisional: firstProv != null && month >= firstProv,
+    };
+  }
+  return points;
 }
