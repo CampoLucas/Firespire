@@ -1,18 +1,21 @@
-.scroller { overflow-x: auto; padding-bottom: 4px; }
+/* Mobile-first: celdas de 44 px (objetivo táctil); el escritorio las compacta con min-width: 700px. */
+.scroller { overflow-x: auto; padding-bottom: 4px; max-width: 100%; -webkit-overflow-scrolling: touch; }
 .grid {
   display: grid;
-  grid-template-columns: 44px repeat(12, minmax(34px, 1fr));
+  grid-template-columns: 44px repeat(12, minmax(44px, 1fr));
   gap: 3px;
-  min-width: 520px;
+  min-width: 600px;
 }
 .colHead, .rowHead { font-size: 12px; color: var(--ink-3); font-weight: 600; display: flex; align-items: center; }
 .colHead { justify-content: center; padding-bottom: 2px; }
+/* el año queda fijo a la izquierda mientras el calendario scrollea de costado */
+.rowHead { position: sticky; left: 0; z-index: 2; background: #12141a; }
 .cell {
-  height: 24px; border: 0; border-radius: 4px; padding: 0; cursor: default; position: relative;
+  height: 44px; border: 0; border-radius: 4px; padding: 0; cursor: default; position: relative;
 }
 .cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; z-index: 1; }
 .cell:hover { box-shadow: 0 0 0 1.5px var(--ink); }
-.blank { height: 24px; }
+.blank { height: 44px; }
 .nullCell { background: transparent; border: 1px dashed var(--ink-3); }
 .hatch::after {
   content: ""; position: absolute; inset: 0; border-radius: 4px; pointer-events: none;
@@ -24,3 +27,8 @@
 .legendItem i { width: 18px; height: 12px; border-radius: 3px; display: inline-block; }
 .nullSw { border: 1px dashed var(--ink-3); }
 .hatchSw { background: repeating-linear-gradient(135deg, #f07a1f 0 2px, rgba(5, 7, 13, 0.7) 2px 5px); }
+
+@media (min-width: 700px) {
+  .grid { grid-template-columns: 44px repeat(12, minmax(34px, 1fr)); min-width: 520px; }
+  .cell, .blank { height: 24px; }
+}

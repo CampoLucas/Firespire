@@ -67,7 +67,7 @@ describe("museum curated mapping", () => {
   it("method card names the location basis and the overlap-not-attribution rule", () => {
     const method = (i: number) => blocksText(exhibits[i].items.find((item: any) => item.kind === "method"));
     expect(method(0)).toContain("Location: satellite centroid; the sources name only the region");
-    expect(method(4)).toContain("Location: named place, placed by the curator");
+    expect(method(4)).toContain("Location: placed from the named place in the sources");
     expect(method(0)).toContain("Overlap is not attribution: detections inside this area and period are not proven to belong to this fire.");
     expect(method(0)).toContain(`at least ${museum.params.min_celldays}`);
   });
@@ -148,5 +148,23 @@ describe("museum curated loading", () => {
     const fetchImpl: any = async () => { throw new Error("offline"); };
     expect(await loadCuratedExhibits({ fetchImpl })).toBe(mockExhibits);
     warn.mockRestore();
+  });
+});
+
+describe("user-visible wording", () => {
+  const visible = (value: unknown): string[] =>
+    typeof value === "string" ? [value] : Array.isArray(value) ? value.flatMap(visible)
+      : value && typeof value === "object" ? Object.entries(value).filter(([key]) => !["verification", "curated"].includes(key)).flatMap(([, v]) => visible(v)) : [];
+
+  it("never says 'curated' to the user", () => {
+    for (const text of visible(mapArtifact(museum))) expect(text).not.toMatch(/curat/i);
+  });
+
+  it("uses plain marker and dock wording in the museum UI", () => {
+    const index = readFileSync(new URL("../../public/globe/museum/index.mjs", import.meta.url), "utf8");
+    expect(index).toContain('"Open event"');
+    expect(index).toContain("Museum of Fire events");
+    expect(index).toContain("approximate location");
+    expect(index).not.toMatch(/Curated event|Open curated|curated events"/);
   });
 });

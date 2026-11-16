@@ -1,417 +1,131 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Globo de quemas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Museum of Fire</title>
+<meta name="theme-color" content="#faf6f2">
+<link rel="icon" href="/globe/design/flame.png">
+<link rel="stylesheet" href="/globe/design/fonts.css">
+<link rel="stylesheet" href="/globe/design/icons.css">
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link rel="preload" as="image" href="/globe/textures/earth-bmng-8k.jpg">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#05070d; --surface:rgba(20,22,28,.82); --surface-solid:#16181d; --surface-2:rgba(255,255,255,.06); --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#a2a198;
-  --border:rgba(255,255,255,.12); --axis:#383835; --focus:#3987e5; --pill:#f0efec; --pill-ink:#0d0d0d;
-  --series-2:#d95926;
-  --fs-xs:13px; --fs-sm:14px; --fs-md:15px; --fs-lg:18px; --fs-xl:20px; --fs-2xl:26px;
-  --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:var(--fs-md)/1.45 var(--font);overflow:hidden}
-#globe{position:fixed;inset:0}
-.panel{position:fixed;background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
-.eyebrow{font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:0}
-h1{font-size:var(--fs-xl);line-height:1.1;margin:2px 0 4px;letter-spacing:-.01em}
-.sub{color:var(--ink-2);font-size:var(--fs-sm);margin:0}
-/* header flotante */
-#hdr{position:fixed;top:16px;left:16px;right:16px;height:56px;z-index:4;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 10px 0 14px;
-  background:var(--surface);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:var(--fs-lg);letter-spacing:-.01em;color:var(--ink);text-decoration:none;min-width:0}
-.logo small{display:block;font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.logo svg{flex:none}
-/* switch Análisis / Planificación */
-#viewSw{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:99px;background:rgba(255,255,255,.05);border:1px solid var(--border);min-width:300px}
-#viewSw .thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:99px;background:var(--pill);transition:transform .25s cubic-bezier(.3,.7,.2,1)}
-#viewSw[data-v=plan] .thumb{transform:translateX(100%)}
-#viewSw button{position:relative;z-index:1;border-radius:99px;padding:6px 18px;color:var(--ink-2);font-weight:600;display:inline-flex;gap:7px;align-items:center;justify-content:center;transition:color .2s}
-#viewSw button:hover{background:transparent;color:var(--ink)}
-#viewSw button[aria-checked=true]{color:var(--pill-ink)}
-@media (prefers-reduced-motion:reduce){#viewSw .thumb{transition:none}}
-/* seguimiento con bomberos (línea de tiempo de ejemplo) */
-.trk{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:12px}
-.trk:empty{display:none}
-.trk-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.trk-h h4{margin:0;font-size:var(--fs-md)}
-.trk-ex{font-size:var(--fs-xs);font-weight:800;padding:2px 7px;border-radius:5px;background:#fab219;color:#0d0d0d}
-.trk-res{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;font-size:var(--fs-xs);line-height:1.35}
-.trk-res b{display:block;font-size:var(--fs-md)}
-.trk-res.ok{background:rgba(76,175,122,.16);border:1px solid rgba(76,175,122,.45)}
-.trk-res.warn{background:rgba(242,153,74,.14);border:1px solid rgba(242,153,74,.45)}
-.trk-res.run{background:rgba(111,167,238,.14);border:1px solid rgba(111,167,238,.45)}
-.trk-res .ic{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:var(--fs-xs);font-weight:900;color:#0d0d0d}
-.tl{list-style:none;margin:0;padding:0;position:relative}
-.tl::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--axis)}
-.tl li{position:relative;padding:0 0 12px 30px}
-.tl li:last-child{padding-bottom:0}
-.tl .dot{position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;border:2px solid var(--surface-solid);box-shadow:0 0 0 1.5px var(--c)}
-.tl .dot.app{--c:#6fa7ee;background:#6fa7ee}
-.tl .dot.bomb{--c:#eb5757;background:#eb5757}
-.tl .dot.ok{--c:#4caf7a;background:#4caf7a}
-.tl .dot.pend{background:var(--surface-solid);--c:var(--ink-3);border-style:dashed}
-.tl .who{font-size:var(--fs-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.tl .tt{font-weight:700;font-size:var(--fs-sm)}
-.tl .dd{font-size:var(--fs-xs);color:var(--ink-2);line-height:1.35}
-.tl .when{font-size:var(--fs-xs);color:var(--ink-3);font-variant-numeric:tabular-nums}
-.trk-hint{font-size:var(--fs-xs);color:var(--ink-3);border:1px dashed var(--axis);border-radius:8px;padding:10px}
-/* reporte desde la lista de prioritarias */
-.pri-rep{flex-basis:100%;padding:0 6px 6px 28px;font-size:var(--fs-xs)}
-.pri-item{flex-wrap:wrap}
-.rep-btn{min-height:28px;padding:4px 10px;border-radius:6px;border:1px solid var(--axis);font-size:var(--fs-sm);font-weight:650;flex:none}
-.rep-btn.go{background:#eb5757;border-color:#eb5757;color:#fff}
-.rep-btn.go:hover{background:#d84848}
-.rep-confirm{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:6px;background:rgba(0,0,0,.25)}
-.rep-confirm .row{gap:6px}
-.rep-state{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;color:var(--ink-2)}
-.st-pill{font-size:var(--fs-xs);font-weight:800;padding:1px 7px;border-radius:99px;color:#0d0d0d}
-.st-nueva{background:#f2c94c}.st-recibida{background:#6fa7ee}.st-encurso{background:#f2994a}.st-resuelta{background:#4caf7a}
-/* transición Análisis ⇄ Planificación: fundido cruzado + paneles que se deslizan */
-#left,#right,#bottom,#tbar,#banner,#planPh{transition:opacity .35s ease,transform .45s cubic-bezier(.2,.7,.2,1),visibility 0s linear 0s}
-body.plan #left,body.plan #right,body.plan #bottom,body.plan #tbar,body.plan #banner,
-body:not(.plan) #planPh{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,transform .35s ease,visibility 0s linear .35s}
-body.plan #left{transform:translateX(-24px)}
-body.plan #right{transform:translateX(24px)}
-body.plan #bottom{transform:translateY(24px)}
-body.plan #tbar,body.plan #banner{transform:translate(-50%,-16px)}
-body:not(.plan) #planPh{transform:translateX(-24px)}
-body.plan #tip{display:none!important}
-#globe{transition:opacity .5s ease}
-body.plan #globe{opacity:0}
-@media (prefers-reduced-motion:reduce){
-  #left,#right,#bottom,#tbar,#banner,#planPh,#globe,#planMap{transition:none!important}
-}
-#planPh{top:88px;left:16px;width:272px;display:flex;flex-direction:column;gap:4px;z-index:3}
-#planPh h2{margin:0;font-size:var(--fs-lg)}
-#planPh p{margin:0;color:var(--ink-2);font-size:var(--fs-sm)}
-.sim-badge{align-self:flex-start;background:#fab219;color:#0d0d0d;font-size:var(--fs-xs);font-weight:700;padding:3px 8px;border-radius:6px;margin:2px 0 4px}
-/* Planificación: planisferio plano (Leaflet) en lugar del globo */
-#planMap{position:fixed;inset:0;z-index:1;background:#b4d0e8;opacity:0;visibility:hidden;pointer-events:none;transform:scale(1.04);
-  transition:opacity .5s ease,transform .7s cubic-bezier(.2,.7,.2,1),visibility 0s linear .5s}
-body.plan #planMap{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .5s ease .1s,transform .7s cubic-bezier(.2,.7,.2,1),visibility 0s}
-/* alertas en el planisferio: puntos sutiles y cliqueables */
-.pa-icon{background:none;border:0}
-.pa{position:relative;display:block;width:100%;height:100%;border-radius:50%;background:var(--c);opacity:.9;
-  box-shadow:0 0 0 2px rgba(255,255,255,.9),0 1px 4px rgba(0,0,0,.3);transition:transform .15s ease,opacity .15s ease;cursor:pointer}
-.pa-icon:hover .pa,.pa-icon:focus-visible .pa{transform:scale(1.25);opacity:1}
-.pa-icon:focus-visible{outline:none}
-.pa-icon:focus-visible .pa{box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px var(--focus)}
-.pa.sel{transform:scale(1.35);opacity:1;box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(13,13,13,.7)}
-@media (prefers-reduced-motion:no-preference){
-  .pa.sel::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--c);animation:paPulse 2.2s ease-out infinite}
-}
-@keyframes paPulse{0%{transform:scale(.8);opacity:.6}100%{transform:scale(2.2);opacity:0}}
-#planMap .leaflet-tooltip.pa-tip{background:var(--surface-solid);color:var(--ink);border:1px solid var(--border);border-radius:6px;font:var(--fs-sm)/1.35 var(--font);padding:5px 8px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
-#planMap .leaflet-tooltip.pa-tip::before{display:none}
-/* card de la alerta seleccionada */
-#planCard{top:88px;right:16px;width:340px;max-height:calc(100vh - 120px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;z-index:3;
-  transition:opacity .25s ease,transform .3s cubic-bezier(.2,.7,.2,1),visibility 0s linear 0s}
-#planCard.off{opacity:0;transform:translateX(24px);visibility:hidden;pointer-events:none;transition:opacity .2s ease,transform .25s ease,visibility 0s linear .25s}
-body:not(.plan) #planCard{display:none}
-.pc-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.pc-chip{font-size:var(--fs-xs);font-weight:700;padding:2px 8px;border-radius:99px;color:#0d0d0d}
-#pcClose{flex:none;width:30px;height:30px;min-height:30px;padding:0;border-radius:6px;border:1px solid var(--axis);font-size:var(--fs-lg)}
-#planCard h3{margin:0;font-size:var(--fs-lg);line-height:1.2}
-.pc-sub{font-size:var(--fs-sm);color:var(--ink-3)}
-.pc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pc-kpis div{background:var(--surface-2);border-radius:8px;padding:8px 10px}
-.pc-kpis b{display:block;font-size:var(--fs-xl);font-variant-numeric:tabular-nums}
-.pc-kpis span{font-size:var(--fs-xs);color:var(--ink-3)}
-.pc-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.pc-days div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:var(--fs-xs);color:var(--ink-3)}
-.pc-days i{display:block;width:100%;height:10px;border-radius:3px}
-/* botón de la card: marcar / quitar prioridad */
-.pc-pri{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border-radius:8px;font-weight:700;
-  background:#f0efec;color:#0d0d0d;border:1px solid transparent;transition:background .15s ease}
-.pc-pri:hover{background:#fff}
-.pc-pri[aria-pressed=true]{background:transparent;color:var(--ink);border-color:var(--axis)}
-.pc-pri[aria-pressed=true]:hover{background:var(--surface-2)}
-/* panel izquierdo: lista de zonas prioritarias */
-#planPh{width:310px;max-height:calc(100vh - 120px);gap:8px}
-.pp-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.pp-n{min-width:26px;height:22px;padding:0 7px;border-radius:99px;background:var(--pill);color:var(--pill-ink);font-size:var(--fs-sm);font-weight:800;display:grid;place-items:center;font-variant-numeric:tabular-nums}
-.pp-info{font-size:var(--fs-sm)!important;color:var(--ink-3)!important}
-.pri-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0;scrollbar-width:thin}
-.pri-item{display:flex;align-items:center;gap:4px;padding:2px 4px 2px 2px;border-radius:8px;background:var(--surface-2);border:1px solid transparent;animation:priIn .3s ease}
-.pri-item.cur{border-color:var(--ink-3)}
-.pri-go{flex:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;align-items:center;padding:6px 8px;border-radius:6px;text-align:left;white-space:normal}
-.pri-go:hover{background:rgba(255,255,255,.05)}
-.pri-dot{width:10px;height:10px;border-radius:50%;grid-row:span 2}
-.pri-name{font-weight:700;font-size:var(--fs-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pri-meta{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
-.pri-del{flex:none;width:26px;height:26px;min-height:26px;padding:0;border-radius:6px;color:var(--ink-3)}
-.pri-del:hover{color:var(--ink);background:rgba(255,255,255,.08)}
-.pp-empty{font-size:var(--fs-sm)!important;color:var(--ink-3)!important;border:1px dashed var(--axis);border-radius:8px;padding:10px}
-.pp-clear{align-self:flex-start;flex:none;font-size:var(--fs-sm);color:var(--ink-3);padding:4px 8px;min-height:26px;border-radius:6px}
-.pp-clear:hover{color:var(--ink)}
-@keyframes priIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.pri-item{animation:none}}
-/* marcador de zona prioritaria: anillo oscuro */
-.pa.pri{opacity:1;box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px #0d0d0d}
-#planMap .leaflet-control-attribution{font:var(--fs-xs) var(--font);background:rgba(255,255,255,.7)}
-#planMap .leaflet-control-zoom{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:0 16px 16px 0}
-#planMap .leaflet-control-zoom a{background:var(--surface-solid);color:var(--ink);border-color:var(--axis)}
-#planMap .leaflet-control-zoom a:hover{background:#23252b}
-.user{justify-self:end;display:flex;align-items:center;gap:10px;flex:none;width:auto;padding:4px 6px 4px 12px;border-radius:99px;border:1px solid var(--border)}
-.user .nm{font-size:var(--fs-md);font-weight:600;text-align:right;line-height:1.15}
-.user .nm small{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-3)}
-.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#f07a1f,#7a1f0c);color:#fff}
-@media (max-width:900px){#hdr{grid-template-columns:auto 1fr auto}.logo .txt,.user .nm{display:none}#viewSw{min-width:0;justify-self:center}#viewSw button{padding:6px 10px}}
-#left{top:88px;left:16px;width:304px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
-#left.compact{gap:8px}
-#left.compact .note,#left.compact .sub,#left.compact .sim{display:none}
-.f{display:flex;flex-direction:column;gap:5px;min-width:0}
-.l{font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
-.seg{display:flex;border:1px solid var(--axis);border-radius:6px;overflow:hidden}
-button{font:inherit;color:var(--ink);background:transparent;border:0;padding:6px 10px;min-height:32px;cursor:pointer;flex:1;white-space:nowrap}
-.seg button{border-right:1px solid var(--axis)}.seg button:last-child{border-right:0}
-button:hover{background:var(--surface-2)}
-.seg button[aria-pressed=true]{background:var(--pill);color:var(--pill-ink);font-weight:600}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-select{font:inherit;color:var(--ink);background:var(--surface-solid);border:1px solid var(--axis);border-radius:6px;padding:6px 10px;min-height:34px;min-width:0;width:100%;cursor:pointer}
-.chk{display:flex;gap:8px;align-items:center;color:var(--ink-2);font-size:var(--fs-md);cursor:pointer}
-.note{font-size:var(--fs-sm);color:var(--ink-3);margin:4px 0 0}
-.sim{display:inline-flex;gap:6px;align-items:center;background:#1c6b4a;color:#fff;font-weight:650;font-size:var(--fs-xs);padding:4px 8px;border-radius:6px;align-self:flex-start}
-/* leyenda por capas */
-#legend{display:flex;flex-direction:column;gap:2px}
-.lyr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 6px;min-height:28px;border-radius:6px;text-align:left;font-size:var(--fs-sm)}
-.lyr .sw{width:18px;height:16px;clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}
-.lyr .mw{color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
-.lyr .ct{color:var(--ink-3);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;white-space:nowrap}
-.lyr[aria-pressed=false]{opacity:.38}
-.lyr[aria-pressed=false] .mw{text-decoration:line-through}
-#right{top:88px;right:16px;width:290px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.25) transparent}
-#right #tabs{position:sticky;top:-14px;z-index:1;background:var(--surface-solid);flex:none}
-.view{display:flex;flex-direction:column;gap:12px}
-.alist{display:flex;flex-direction:column;gap:6px}
-.al{display:grid;grid-template-columns:auto minmax(0,1fr);gap:1px 8px;padding:8px 10px;border-radius:8px;background:var(--surface-2);border:1px solid transparent;text-align:left;white-space:normal}
-.al:hover{border-color:var(--axis);background:var(--surface-2)}
-.lv{width:10px;height:10px;border-radius:50%;margin-top:5px;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
-.al .t{font-weight:650;font-size:var(--fs-md);display:flex;justify-content:space-between;gap:8px}
-.al .t em{font-style:normal;font-size:var(--fs-xs);font-weight:650;padding:0 6px;border-radius:99px;color:#0d0d0d;align-self:center}
-.al .s{grid-column:2;font-size:var(--fs-xs);color:var(--ink-3)}
-.strip{grid-column:2;display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:5px}
-.strip i{height:8px;border-radius:2px;display:block}
-.strip-l{grid-column:2;display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--ink-3)}
-.lvkey{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:var(--fs-xs);color:var(--ink-2)}
-.lvkey span{display:inline-flex;align-items:center;gap:5px}
-.lvkey i{width:8px;height:8px;border-radius:50%;display:inline-block}
-.demo{font-size:var(--fs-xs);color:#0d0d0d;background:#fab219;border-radius:6px;padding:4px 8px;font-weight:600}
-#banner{position:fixed;top:148px;left:50%;transform:translateX(-50%);z-index:5;background:#8e1b2c;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:7px 16px;font-weight:650;font-size:var(--fs-md);flex:none;box-shadow:0 6px 24px rgba(0,0,0,.35)}
-#banner:hover{background:#a52236}
-@media (prefers-reduced-motion:no-preference){#banner{animation:pulse 2s ease-in-out infinite}}
-@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(235,87,87,.25),0 6px 24px rgba(0,0,0,.35)}}
-.kpi .v{font-size:var(--fs-2xl);font-weight:650;letter-spacing:-.01em;line-height:1.1;font-variant-numeric:tabular-nums}
-.kpi .n{font-size:var(--fs-sm);color:var(--ink-2)}
-#terrName{font-size:var(--fs-md);font-weight:650;color:var(--ink)}
-#bottom{left:16px;right:16px;bottom:16px;display:grid;grid-template-columns:minmax(300px,400px) minmax(0,1fr);gap:10px 24px;align-items:start;padding:12px 16px}
-.ctrls{display:flex;flex-direction:column;gap:10px;min-width:0}
-.ystep{display:flex;gap:6px;align-items:stretch;min-width:0}
-.ystep select{flex:1;font-weight:650;font-variant-numeric:tabular-nums}
-option:disabled{color:#6f6d68}
-.filters{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(160px,1fr);gap:6px 16px;align-items:end}
-.filters>.f:nth-child(n+3){grid-column:1/-1}   /* Provincia y Momento a todo el ancho */
-@media (max-width:1240px){#bottom{grid-template-columns:minmax(0,1fr)}}
-.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.row .grow{flex:1;min-width:140px}
-#play{flex:none;width:40px;height:34px;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg);padding:0}
-#fecha{font-weight:650;font-variant-numeric:tabular-nums;min-width:200px}
-input[type=range]{width:100%;accent-color:var(--series-2)}
-/* historial: escala Semana / Mes / Año, alternativas A y B */
-.hist{display:flex;flex-direction:column;gap:8px;min-width:0}
-.hist-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
-.hist-h .seg button{min-height:30px;padding:4px 12px;font-size:var(--fs-md)}
-.per{display:flex;align-items:center;gap:4px;font-weight:650;font-variant-numeric:tabular-nums}
-.per button{flex:none;width:28px;min-height:28px;padding:0;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg);line-height:1}
-.per button:disabled{opacity:.3;cursor:default}
-#perLbl{min-width:190px;text-align:center;font-size:var(--fs-md)}
-#dayChip{flex:none;font-size:var(--fs-sm);font-weight:650;padding:3px 10px;min-height:26px;border-radius:99px;background:var(--pill);color:var(--pill-ink)}
-#cal{overflow-x:auto;overflow-y:hidden;height:124px}
-#cal [data-d]{cursor:pointer}
-.mt-b{font-size:var(--fs-xs);font-weight:700}
-/* semana A: tarjetas */
-.wk-cards{display:grid;grid-template-columns:repeat(7,minmax(84px,1fr));gap:6px;height:100%}
-.wk-card{display:flex;flex-direction:column;justify-content:space-between;text-align:left;border-radius:8px;padding:6px 8px;border:1px solid var(--border);border-left-width:4px;white-space:normal;min-height:0}
-.wk-card .dn{font-size:var(--fs-xs);color:var(--ink-3);font-weight:600}
-.wk-card .v{font-size:var(--fs-xl);font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.wk-card .s{font-size:var(--fs-xs);color:var(--ink-2);font-variant-numeric:tabular-nums}
-.split{display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.08)}
-.split i:first-child{background:#f8b13a}.split i:last-child{background:#6f7fe0}
-.wk-card[aria-pressed=true]{outline:2px solid var(--ink);outline-offset:1px}
-.dnkey{display:inline-flex;gap:10px;font-size:var(--fs-xs);color:var(--ink-3)}
-.dnkey i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
-#cal svg{display:block}
-#cal rect.d{cursor:pointer}
-#cal rect.d:hover{stroke:var(--ink);stroke-width:1}
-.mt{font-size:var(--fs-xs);fill:var(--ink-3);font-family:var(--font)}
-button,select,input{font-family:var(--font)}
-#tip{position:fixed;z-index:6;pointer-events:none;background:var(--surface-solid);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:var(--fs-sm)/1.4 var(--font);color:var(--ink);max-width:260px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
-#tip b{font-variant-numeric:tabular-nums}
-#tip .mut{color:var(--ink-3)}
-#dbg{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:7;background:#000;color:#7CFC9A;font:13px/1.3 ui-monospace,monospace;padding:4px 8px;border-radius:4px;pointer-events:none}
-#load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);color:var(--ink-2);z-index:10;transition:opacity .4s}
-/* barra flotante de visualización */
-#tbar{top:88px;left:50%;transform:translateX(-50%);z-index:4;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;padding:8px 10px;max-width:calc(100vw - 664px);min-width:min(560px,calc(100vw - 32px))}
-#tbar .seg button{min-height:30px;padding:4px 10px;font-size:var(--fs-md)}
-#tbar .gs{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-2)}
-#tbar .gs input{width:80px}
-#resLbl{font-variant-numeric:tabular-nums;white-space:nowrap}
-.gear{position:relative}
-#gearBtn{flex:none;width:34px;height:32px;padding:0;border:1px solid var(--axis);border-radius:6px;font-size:var(--fs-lg)}
-#gearPop{position:absolute;right:0;top:calc(100% + 10px);width:260px;display:flex;flex-direction:column;gap:12px;z-index:8}
-@media (max-width:1240px){#tbar{top:auto;bottom:calc(var(--bottom-h,260px) + 28px);max-width:calc(100vw - 32px)}}
-#busy{position:fixed;top:148px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:6px 14px;font-size:var(--fs-sm);color:var(--ink-2)}
-@media (max-width:900px){
-  .filters{grid-template-columns:1fr 1fr}
-  #right{top:auto;bottom:330px;right:16px;left:16px;width:auto;flex-direction:row}
-  #right>*{flex:1}
-  #left{width:auto;right:16px;max-height:30vh}
-}
-</style>
-<link rel="stylesheet" href="./museum/museum.css">
+<link rel="preload" as="image" href="/globe/textures/earth-bmng-8k.jpg" crossorigin>
+<link rel="stylesheet" href="/globe/controls.css">
+<link rel="stylesheet" href="/globe/museum/museum.css">
+<link rel="stylesheet" href="/globe/presentation.css">
 </head>
-<body>
-<div id="load">Cargando focos de calor…</div>
-<div id="busy" hidden>Cargando año…</div>
+<body data-experience="hero">
+<div id="busy" role="status" hidden>Loading year…</div>
 <div id="globe"></div>
 <div id="tip" hidden></div>
 <div id="dbg" hidden></div>
 
 <header id="hdr">
-  <a class="logo" href="#" aria-label="Globo de quemas, inicio">
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
-      <circle cx="17" cy="17" r="15" fill="none" stroke="#6fa7ee" stroke-width="1.6" opacity=".9"/>
-      <ellipse cx="17" cy="17" rx="15" ry="6" fill="none" stroke="#6fa7ee" stroke-width="1.2" opacity=".55" transform="rotate(-20 17 17)"/>
-      <path d="M17 7c1.4 3.2 5.6 5.6 5.6 10.4a5.6 5.6 0 0 1-11.2 0c0-2.6 1.4-4 2.6-5.4.2 1.8 1 2.8 2.1 3.2C15.6 12.6 16 9.6 17 7Z" fill="#f07a1f"/>
-      <path d="M17 15.4c.8 1.5 2.4 2.5 2.4 4.4a2.4 2.4 0 0 1-4.8 0c0-1.2.6-2 1.3-2.7.1.7.4 1.1.8 1.3-.1-1.1 0-2.1.3-3Z" fill="#fde68a"/>
-    </svg>
-    <span class="txt">Globo de quemas<small>NASA Space Apps 2026</small></span>
-  </a>
-  <div id="viewSw" role="radiogroup" aria-label="Vista" data-v="analisis">
-    <span class="thumb" aria-hidden="true"></span>
-    <button role="radio" data-v="analisis" aria-checked="true">
-      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14h12M4 11V8M8 11V4M12 11V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Análisis</button>
-    <button role="radio" data-v="plan" aria-checked="false">
-      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4l4-2 4 2 4-2v10l-4 2-4-2-4 2Z M6 2v10M10 4v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Planificación</button>
-  </div>
-  <button class="user" aria-label="Cuenta de usuario">
-    <span class="nm">Usuario<small>Analista</small></span>
-    <span class="avatar"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.5" r="3" fill="currentColor"/><path d="M2.5 14.5c.6-3 2.9-4.5 5.5-4.5s4.9 1.5 5.5 4.5Z" fill="currentColor"/></svg></span>
-  </button>
+  <a class="logo" href="#" aria-label="Museum of Fire, explore the globe"><img src="/globe/design/flame.png" alt="" width="23" height="32"><strong>Museum of Fire</strong></a>
+  <nav id="world-nav" aria-label="Explore the museum">
+    <button type="button" data-hud="explore" aria-current="page"><i data-icon="locate-fixed" aria-hidden="true"></i><span>Explore</span></button>
+    <button type="button" data-hud="summary" aria-controls="right" aria-expanded="false"><i data-icon="chart-no-axes-column" aria-hidden="true"></i><span>Summary</span></button>
+    <button type="button" data-hud="calendar" aria-controls="bottom" aria-expanded="false"><i data-icon="calendar-days" aria-hidden="true"></i><span>Calendar</span></button>
+    <button type="button" data-hud="filters" aria-controls="left" aria-expanded="false"><i data-icon="funnel" aria-hidden="true"></i><span>Filters</span></button>
+  </nav>
 </header>
+<section id="hero" aria-labelledby="hero-title">
+  <div class="hero-copy"><h1 id="hero-title">Museum of Fire</h1><div class="red-rule" aria-hidden="true"></div><p class="hero-description">A digital museum of wildfires,<br> evidence and environmental impact.</p><button type="button" id="hero-entry" class="loading-entry" disabled><span class="loading-ring" aria-hidden="true"></span><span><span id="hero-status" role="status" aria-live="polite">Loading Experience</span><small id="hero-detail">Preparing the globe and real fire activity</small></span></button></div>
+  <button type="button" id="hero-retry" class="cta" hidden>Retry loading</button>
+  <button type="button" id="continue" class="cta continue" disabled>Tap to continue <i data-icon="arrow-right" aria-hidden="true"></i></button>
+</section>
+<div class="globe-tools" id="globe-tools" aria-label="Globe controls"><button type="button" id="zoom-in" aria-label="Zoom in"><i data-icon="plus" aria-hidden="true"></i></button><button type="button" id="zoom-out" aria-label="Zoom out"><i data-icon="minus" aria-hidden="true"></i></button><button type="button" id="recenter" aria-label="Recenter on Argentina"><i data-icon="locate-fixed" aria-hidden="true"></i></button></div>
+<button type="button" class="activity-key" data-hud="filters" aria-controls="left" aria-expanded="false"><strong>Fire activity</strong><span class="gradient-key" aria-hidden="true"></span><span class="sr-only">Open activity layers</span></button>
+<p class="data-credit">NASA FIRMS · MODIS + VIIRS <span>Map: Natural Earth · NASA Blue Marble option</span></p>
 
-<section class="panel" id="left">
-  <p class="sub">Focos de calor en Argentina</p>
-  <span class="sim">● Datos reales NASA FIRMS · MODIS + VIIRS cruzados</span>
-  <div class="f"><span class="l">Confianza mínima</span>
-    <div class="seg" id="fConf"><button data-v="0" aria-pressed="true">Baja</button><button data-v="1" aria-pressed="false">Nominal</button><button data-v="2" aria-pressed="false">Alta</button></div></div>
-  <div class="f"><span class="l">Intensidad · capas (FRP)</span>
+
+<section class="panel" id="left" hidden>
+  <p class="sub">Fire hotspots in Argentina</p>
+  <span class="sim">● Real NASA FIRMS data · MODIS + VIIRS combined</span>
+  <div class="f"><span class="l">Minimum confidence</span>
+    <div class="seg" id="fConf"><button data-v="0" aria-pressed="true">Low</button><button data-v="1" aria-pressed="false">Nominal</button><button data-v="2" aria-pressed="false">High</button></div></div>
+  <div class="f"><span class="l">Intensity · layers (FRP)</span>
     <div id="legend"></div>
     <p class="note" id="legNote"></p></div>
 </section>
 
-<div class="panel" id="tbar" role="toolbar" aria-label="Visualización de áreas afectadas">
-  <div class="seg" id="fMode" title="Modo de visualización">
-    <button data-v="hex" aria-pressed="true">⬡ Hexágonos</button><button data-v="heat" aria-pressed="false">Mapa de calor</button><button data-v="area" aria-pressed="false">Áreas</button></div>
-  <div class="seg" id="fShape" title="Forma de las áreas" hidden>
-    <button data-v="hexb" aria-pressed="true">Borde hex.</button><button data-v="cent" aria-pressed="false">Centros</button><button data-v="smooth" aria-pressed="false">Suave</button><button data-v="hull" aria-pressed="false">Convexa</button></div>
-  <label class="gs"><span class="l">Grilla</span><input type="range" id="fRes" min="2" max="5" step="1" value="4" aria-label="Tamaño de la grilla hexagonal"><span id="resLbl"></span></label>
+<div class="panel" id="tbar" hidden role="toolbar" aria-label="Affected-area display">
+  <div class="seg" id="fMode" title="Display mode">
+    <button data-v="hex" aria-pressed="false">⬡ Hexagons</button><button data-v="heat" aria-pressed="true">Heat map</button><button data-v="area" aria-pressed="false">Areas</button></div>
+  <div class="seg" id="fShape" title="Area shape" hidden>
+    <button data-v="hexb" aria-pressed="true">Hex edge</button><button data-v="cent" aria-pressed="false">Centers</button><button data-v="smooth" aria-pressed="false">Smooth</button><button data-v="hull" aria-pressed="false">Convex</button></div>
+  <label class="gs"><span class="l">Grid</span><input type="range" id="fRes" min="2" max="5" step="1" value="5" aria-label="Hexagonal grid size"><span id="resLbl"></span></label>
   <div class="gear">
-    <button id="gearBtn" aria-expanded="false" aria-controls="gearPop" aria-label="Ajustes del mapa">⚙</button>
+    <button id="gearBtn" aria-expanded="false" aria-controls="gearPop" aria-label="Map settings">⚙</button>
     <div class="panel" id="gearPop" hidden>
-      <div class="f"><span class="l">Mapa base</span>
-        <div class="seg" id="fBase"><button data-v="/globe/textures/earth-bmng-8k.jpg" aria-pressed="true">Satélite</button><button data-v="earth-dark.jpg" aria-pressed="false">Oscuro</button><button data-v="earth-night.jpg" aria-pressed="false">Nocturno</button></div></div>
-      <label class="chk"><input type="checkbox" id="rot" checked> Rotación automática</label>
-      <p class="note" style="margin:0">Se detiene mientras haya un filtro activo.</p>
+      <div class="f"><span class="l">Base map</span>
+        <div class="seg" id="fBase"><button data-v="stylized" aria-pressed="true">Illustrated</button><button data-v="/globe/textures/earth-bmng-8k.jpg" aria-pressed="false">Satellite</button><button data-v="earth-dark.jpg" aria-pressed="false">Dark</button><button data-v="earth-night.jpg" aria-pressed="false">Night</button></div></div>
     </div>
   </div>
 </div>
 
-<button id="banner" hidden></button>
-
-<div id="planMap" aria-label="Planisferio físico"></div>
-<section class="panel" id="planPh" aria-label="Zonas prioritarias">
-  <div class="pp-h"><h2>Zonas prioritarias</h2><span class="pp-n" id="priN">0</span></div>
-  <p id="planInfo" class="pp-info"></p>
-  <ul class="pri-list" id="priList"></ul>
-  <p class="pp-empty" id="priEmpty">Todavía no marcaste zonas. Elegí una alerta en el mapa y tocá <b>“Marcar como prioritaria”</b> en la card.</p>
-  <button class="pp-clear" id="priClear" hidden>Vaciar lista</button>
-</section>
-<section class="panel off" id="planCard" aria-live="polite" aria-label="Alerta seleccionada">
-  <div class="pc-h"><span class="pc-chip" id="pcChip"></span><button id="pcClose" aria-label="Cerrar">✕</button></div>
-  <div><h3 id="pcTitle"></h3><div class="pc-sub" id="pcSub"></div></div>
-  <div class="pc-kpis">
-    <div><b id="pcMax"></b><span>focos en 7 días</span></div>
-    <div><b id="pcPeak"></b><span>día con más focos</span></div>
-  </div>
-  <div><div class="l" style="margin-bottom:6px">Focos por día · últimos 7 días</div><div class="pc-days" id="pcDays"></div>
-    <div class="pc-sub" id="pcHigh" style="margin-top:6px"></div></div>
-  <div class="pc-sub" id="pcWhy"></div>
-  <button class="pc-pri" id="pcPri" aria-pressed="false"></button></section>
-
-<section class="panel" id="right">
-  <div class="seg" id="tabs"><button data-v="sum" aria-pressed="true">Resumen</button><button data-v="al" aria-pressed="false">⚠ Alertas <span id="alN"></span></button></div>
+<section class="panel" id="right" hidden>
   <div class="view" id="vSum">
     <div id="terrName">Argentina</div>
-    <div class="kpi"><div class="l">Focos en la ventana</div><div class="v" id="kN">–</div><div class="n" id="kNn"></div></div>
-    <div class="kpi"><div class="l">FRP total</div><div class="v" id="kF">–</div><div class="n">megavatios</div></div>
-    <div class="kpi"><div class="l">Área con actividad</div><div class="v" id="kA">–</div><div class="n" id="kAn"></div></div>
-  </div>
-  <div class="view" id="vAl" hidden>
-    <div>
-      <div class="l">Actividad de fuego · últimos 7 días</div>
-      <div class="n" id="alFrom" style="font-size:var(--fs-sm);color:var(--ink-2)"></div>
-    </div>
-    <div class="lvkey" id="lvKey"></div>
-    <div class="alist" id="alList"></div>
-    <p class="note">Focos observados por NASA FIRMS en cada zona (un hexágono H3 de ~1.770 km² y sus 6 vecinos) durante los 7 días que terminan en la fecha elegida. Nivel por cantidad de focos: ≥5, 15, 40 y 100. No es un pronóstico.</p>
+    <div class="kpi"><div class="l">Hotspots in window</div><div class="v" id="kN">–</div><div class="n" id="kNn"></div></div>
+    <div class="kpi"><div class="l">Total FRP</div><div class="v" id="kF">–</div><div class="n">megawatts</div></div>
+    <div class="kpi"><div class="l">Area with activity</div><div class="v" id="kA">–</div><div class="n" id="kAn"></div></div>
+    <button type="button" id="dlCsv" class="dl" disabled>Download CSV</button>
+    <a class="dl" id="historyLink" href="/history">Harmonized history</a>
   </div>
 </section>
 
-<section class="panel" id="bottom">
+<section class="panel" id="bottom" hidden>
   <div class="ctrls">
     <div class="filters">
-      <div class="f"><label class="l" for="fYear">Año</label>
-        <div class="ystep"><select id="fYear" title="Años 2000–2026; los que no tienen archivo en data/ aparecen deshabilitados"></select></div></div>
-      <div class="f"><label class="l" for="fCountry">País</label><select id="fCountry" title="Por ahora la carpeta data/ solo tiene datos de Argentina"><option value="AR" selected>Argentina</option></select></div>
-      <div class="f"><label class="l" for="fTerr">Provincia</label><select id="fTerr"><option value="-1">Todas las provincias</option></select></div>
-      <div class="f"><span class="l">Momento</span>
-        <div class="seg" id="fDn"><button data-v="all" aria-pressed="true">Día y noche</button><button data-v="1" aria-pressed="false">☀ Día</button><button data-v="0" aria-pressed="false">☾ Noche</button></div></div>
+      <div class="f"><label class="l" for="fYear">Year</label>
+        <div class="ystep"><select id="fYear" title="Years 2000–2026; years without a file in data/ are disabled"></select></div>
+        <p class="note err" id="yearErr" role="alert" hidden></p></div>
+      <div class="f"><label class="l" for="fCountry">Country</label><select id="fCountry" title="For now the data/ folder only has Argentina"><option value="AR" selected>Argentina</option></select></div>
+      <div class="f"><label class="l" for="fTerr">Province</label><select id="fTerr"><option value="-1">All provinces</option></select></div>
+      <div class="f"><span class="l">Time of day</span>
+        <div class="seg" id="fDn"><button data-v="all" aria-pressed="true">Day and night</button><button data-v="1" aria-pressed="false">☀ Day</button><button data-v="0" aria-pressed="false">☾ Night</button></div></div>
     </div>
   </div>
   <div class="hist">
     <div class="hist-h">
-      <div class="seg" id="fScale" title="Escala del historial (define el período que muestra el globo)">
-        <button data-v="week" aria-pressed="true">Semana</button><button data-v="month" aria-pressed="false">Mes</button><button data-v="year" aria-pressed="false">Año</button></div>
-      <div class="per"><button id="pPrev" aria-label="Período anterior">‹</button><span id="perLbl"></span><button id="pNext" aria-label="Período siguiente">›</button></div>
-      <button id="dayChip" hidden title="Volver al período completo"></button>
+      <div class="seg" id="fScale" title="History scale (sets the period shown on the globe)">
+        <button data-v="week" aria-pressed="true">Week</button><button data-v="month" aria-pressed="false">Month</button><button data-v="year" aria-pressed="false">Year</button></div>
+      <div class="per"><button id="pPrev" aria-label="Previous period">‹</button><span id="perLbl"></span><button id="pNext" aria-label="Next period">›</button></div>
+      <button id="dayChip" hidden title="Back to the full period"></button>
       <span id="dnKeyBox"></span>
     </div>
-    <div id="cal" aria-label="Historial de focos"></div>
+    <div id="cal" aria-label="Hotspot history"></div>
   </div>
 </section>
 
 <!-- Librerías visuales (CDN). Los datos de focos se leen solo de la carpeta local data/ -->
-<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
-<script src="data/years.js"></script>
-<script src="data/provincias.js"></script>
+<script>
+window.addEventListener("error",event=>{
+  if(document.body.dataset.experience==="world")return;
+  if(!event.error&&!event.target?.matches?.("script[data-required]"))return;
+  document.getElementById("hero-status").textContent="Unable to load the experience";
+  document.getElementById("hero-detail").textContent="A required resource failed. Retry loading to restore the globe.";
+  document.getElementById("hero-retry").hidden=false;
+},true);
+document.getElementById("hero-retry").addEventListener("click",()=>location.reload());
+</script>
+<script data-required src="https://cdn.jsdelivr.net/npm/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
+<script data-required src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+<script src="/globe/data/years.js"></script>
+<script src="/globe/data/provincias.js"></script>
+<script data-required src="/globe/design/earth-texture.js"></script>
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.151.3/build/three.module.js";
 
-import { createGlobeAdapter } from "./museum/globe-adapter.mjs";
+import { createGlobeAdapter } from "/globe/museum/globe-adapter.mjs";
+import { mountHud } from "/globe/museum/hud.mjs";
+import { createReadiness } from "/globe/museum/readiness.mjs";
+import { createEarthView } from "/globe/museum/earth-view.mjs";
+import { stepPeriod } from "/globe/calendar-nav.mjs";
+const readiness=createReadiness(["globe","earth","activity","museum","fonts"]);
 
-const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const MES=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DEBUG=/[?&]debug=1/.test(location.search);
 // Rampa continua (solo para el calendario): más intenso = más oscuro
 const RAMP=["#fff7dc","#fde68a","#f8b13a","#f07a1f","#d8431a","#9c2a10","#5a1a0e"];
@@ -422,22 +136,22 @@ function ramp(t){
   return `rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*u)).join(",")})`;
 }
 // 5 capas discretas de intensidad (0 = baja … 4 = máxima); la 4 se dibuja arriba
-const LAYER_COL=["#fde68a","#f8b13a","#f07a1f","#d8431a","#7a1f0c"];
-const LAYER_LINE=["#b58a1c","#a8670f","#a8460c","#7d1c08","#ffffff"];
+const LAYER_COL=["#f9dd38","#f5b32e","#ed8325","#ef4b35","#c2222f"];
+const LAYER_LINE=["#158c62","#a1a023","#b36b19","#c43c3c","#ffffff"];
 const AREA_FILL=LAYER_COL.map(h=>{const [r,g,b]=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return `rgba(${r},${g},${b},.55)`});
-const fmt=n=>Math.round(n).toLocaleString("es-AR");
+const fmt=n=>Math.round(n).toLocaleString("en-US");
 const $=id=>document.getElementById(id);
 
 // end = día ancla del período; scale define el período (semana/mes/año); day = un día puntual elegido
 const st={year:YEARS[YEARS.length-1],conf:0,dn:"all",prov:-1,end:0,scale:"week",day:null,
-          res:4,layers:[true,true,true,true,true],mode:"hex",shape:"hexb"};
+          res:5,layers:[true,true,true,true,true],mode:"heat",shape:"hexb"};
 let C,N,ND,start,Y;
 
 const dateOf=d=>new Date(Date.UTC(st.year,0,1+d));
 const lbl=d=>{const x=dateOf(d);return x.getUTCDate()+" "+MES[x.getUTCMonth()]+" "+x.getUTCFullYear()};
 
 // ---- Diccionario de hexágonos H3 por resolución (compartido entre años) ----
-const RES=[2,3,4,5];   // grilla fija elegida con el slider (res 6 sería menor que las celdas de datos)
+const RES=[2,3,4,5];   // grilla fija elegida con el slider (res 6 sería menor que las celdas de datos); por defecto la más fina (5)
 const HX={};RES.forEach(r=>HX[r]={ids:new Map(),str:[],geo:[]});
 function hexId(r,s){const D=HX[r];let id=D.ids.get(s);if(id===undefined){id=D.str.length;D.ids.set(s,id);D.str.push(s)}return id}
 const AREA_AVG={};RES.forEach(r=>AREA_AVG[r]=h3.getHexagonAreaAvg(r,"km2"));
@@ -445,7 +159,7 @@ const ALT=.001;
 function hexGeo(r,id){
   const D=HX[r];let g=D.geo[id];if(g)return g;
   const s=D.str[id],b=h3.cellToBoundary(s),[clat,clng]=h3.cellToLatLng(s);
-  const c=globe.getCoords(clat,clng,ALT),pts=b.map(([la,ln])=>globe.getCoords(la,ln,ALT));
+  const c=globe.getCoords(clat,clng,ALT),pts=b.map(([la,ln])=>globe.getCoords(clat+(la-clat)*1.08,clng+(ln-clng)*1.08,ALT));
   const pos=new Float32Array(pts.length*9);
   for(let k=0;k<pts.length;k++){
     const p=pts[k],q=pts[(k+1)%pts.length],o=k*9;
@@ -460,8 +174,8 @@ const yearCache={};
 function loadYear(y){
   return new Promise((ok,fail)=>{
     if(window.FOCOS&&FOCOS[y])return ok(FOCOS[y]);
-    const s=document.createElement("script");s.src=`data/data-${y}.js`;
-    s.onload=()=>ok(FOCOS[y]);s.onerror=()=>fail(new Error("No se pudo cargar "+y));
+    const s=document.createElement("script");s.src=`/globe/data/data-${y}.js`;
+    s.onload=()=>FOCOS[y]?ok(FOCOS[y]):fail(new Error("Data for "+y+" is empty or malformed."));s.onerror=()=>{s.remove();fail(new Error("Could not load data for "+y+"."))};
     document.head.appendChild(s);
   });
 }
@@ -545,12 +259,11 @@ const TEX="https://unpkg.com/three-globe@2.27.2/example/img/";
 const provPaths=[];
 PROVINCIAS.forEach((p,i)=>p.geo.coordinates.forEach(poly=>poly.forEach(ring=>provPaths.push({kind:"p",i,pts:ring}))));
 let globeReady=false,museumUI=null;
-const globe=Globe()(el)
-  .onGlobeReady(()=>{globeReady=true;museumUI?.refresh()})
-  .globeImageUrl("/globe/textures/earth-bmng-8k.jpg") // NASA Blue Marble NG (ene-2004), 8192x4096
-  .bumpImageUrl(TEX+"earth-topology.png")
-  .backgroundImageUrl(TEX+"night-sky.png")
-  .atmosphereColor("#6fa7ee").atmosphereAltitude(.18)
+const globe=Globe({animateIn:false})(el)
+  .onGlobeReady(()=>{globeReady=true;readiness.complete("globe");museumUI?.refresh()})
+  .globeImageUrl(window.EARTH_MAP)
+  .backgroundColor("rgba(0,0,0,0)")
+  .atmosphereColor("#c0f3ed").atmosphereAltitude(.08)
   // líneas finas: contornos de provincias
   .pathPoints("pts").pathPointLat(p=>p[1]).pathPointLng(p=>p[0]).pathPointAlt(.0015)
   .pathColor(d=>d.i===st.prov?"rgba(240,239,236,.95)":"rgba(240,239,236,.22)")
@@ -561,18 +274,16 @@ const globe=Globe()(el)
   .polygonSideColor(()=>"rgba(0,0,0,0)")
   .polygonStrokeColor(d=>LAYER_LINE[d.L])
   .polygonAltitude(d=>.002+d.L*.0008)
-  .polygonsTransitionDuration(0)
-  // anillos pulsantes de alerta
-  .ringLat("lat").ringLng("lng").ringAltitude(.004)
-  .ringColor(d=>{const [r,g,b]=hexRgb(LV[d.lvl].c);return t=>`rgba(${r},${g},${b},${Math.sqrt(Math.max(0,1-t))})`})
-  .ringMaxRadius(d=>.8+d.lvl*.5)
-  .ringPropagationSpeed(1.4)
-  .ringRepeatPeriod(d=>1400-d.lvl*200);
+  .polygonsTransitionDuration(0);
 globe.pointOfView({lat:-38,lng:-64,altitude:1.9},0);
 globe.renderer().setPixelRatio(Math.min(devicePixelRatio,2));
-const ctl=globe.controls();ctl.autoRotate=true;ctl.autoRotateSpeed=.35;ctl.enableDamping=true;
+const ctl=globe.controls();ctl.autoRotate=false;ctl.enableDamping=true;
 const cameraAdapter=createGlobeAdapter(globe,ctl,THREE,el);
 ctl.addEventListener("start",()=>cameraAdapter.cancelFlight());
+const activityRoot=new THREE.Group();
+activityRoot.name="FIRMS geographic layers";
+globe.customThreeObject(()=>activityRoot).customThreeObjectUpdate(()=>{}).customLayerData([{}]);
+let earthView;
 function setPaths(){globe.pathsData(provPaths)}
 setPaths();
 
@@ -586,7 +297,7 @@ const meshes=LAYER_COL.map((col,L)=>{
     polygonOffset:true,polygonOffsetFactor:-1-L,polygonOffsetUnits:-1-L});
   const mesh=new THREE.Mesh(geo,mat);
   mesh.renderOrder=10+L;mesh.frustumCulled=false;
-  globe.scene().add(mesh);
+  activityRoot.add(mesh);
   return mesh;
 });
 function fillLayer(L,list){
@@ -605,16 +316,6 @@ function fillLayer(L,list){
 
 function fit(){
   document.documentElement.style.setProperty("--bottom-h",$("bottom").offsetHeight+"px");
-  // el aviso de alertas va justo debajo de la barra de visualización
-  const tb=$("tbar").getBoundingClientRect();
-  if(tb.top<innerHeight/2){$("banner").style.top=(tb.bottom+10)+"px";$("busy").style.top=(tb.bottom+10)+"px"}
-  // el panel derecho nunca pisa el de abajo: alto máximo + scroll interno
-  const R=$("right"),bTop=$("bottom").getBoundingClientRect().top;
-  if(getComputedStyle(R).top!=="auto")R.style.maxHeight=Math.max(160,bTop-R.getBoundingClientRect().top-16)+"px";
-  const L=$("left"),avail=bTop-L.getBoundingClientRect().top-16;
-  L.style.maxHeight=avail+"px";
-  L.classList.remove("compact");
-  if(L.scrollHeight>avail+1)L.classList.add("compact");
 }
 function resize(){globe.width(innerWidth).height(innerHeight);fit()}resize();addEventListener("resize",resize);
 
@@ -631,15 +332,14 @@ function render(){
   layerStats=lists.map(l=>({n:l.length,area:l.reduce((s,o)=>s+hexGeo(st.res,o.id).area,0)}));
   drawMode();
   drawLegend();
-  renderAlerts();
-  syncRotation();
   lastMs=performance.now()-t0;
   $("kN").textContent=fmt(r.tn);
   $("kNn").textContent="MODIS "+fmt(r.nM)+" · VIIRS "+fmt(r.nV);
+  syncCsvBtn();
   $("kF").textContent=fmt(r.tf);
   $("kA").textContent=fmt(area)+" km²";
-  $("kAn").textContent=fmt(r.m.size)+" hexágonos de ~"+fmt(AREA_AVG[st.res])+" km²";
-  const dnTxt=st.dn==="all"?"":st.dn==="1"?" · de día":" · de noche";
+  $("kAn").textContent=fmt(r.m.size)+" hexagons of ~"+fmt(AREA_AVG[st.res])+" km²";
+  const dnTxt=st.dn==="all"?"":st.dn==="1"?" · daytime only":" · nighttime only";
   $("terrName").textContent=(st.prov<0?"Argentina":PROVINCIAS[st.prov].name)+" · "+st.year+dnTxt;
   drawHistory();
 }
@@ -651,19 +351,19 @@ function drawLegend(){
   let h="";
   for(let L=4;L>=0;L--){
     const s=layerStats[L]||{n:0,area:0};
-    h+=`<button class="lyr" data-l="${L}" aria-pressed="${st.layers[L]}" title="Mostrar u ocultar esta capa">
+    h+=`<button class="lyr" data-l="${L}" aria-pressed="${st.layers[L]}" title="Show or hide this layer">
       <span class="sw" style="background:${LAYER_COL[L]}"></span><span class="mw">${rng[L]} MW</span><span class="ct">${fmt(s.n)} · ${fmt(s.area)} km²</span></button>`;
   }
   $("legend").innerHTML=h;
-  const MODE_TXT={hex:"Hexágonos",heat:"Mapa de calor",area:"Áreas"};
-  $("legNote").textContent=`${MODE_TXT[st.mode]} · grilla de ~${fmt(AREA_AVG[st.res])} km². FRP sumado en la ventana.`+
-    (st.mode==="area"&&isolated?` ${fmt(isolated)} celdas aisladas ocultas.`:"");
+  const MODE_TXT={hex:"Hexagons",heat:"Heat map",area:"Areas"};
+  $("legNote").textContent=`${MODE_TXT[st.mode]} · grid of ~${fmt(AREA_AVG[st.res])} km². FRP summed over the window.`+
+    (st.mode==="area"&&isolated?` ${fmt(isolated)} isolated cells hidden.`:"");
 }
 $("legend").addEventListener("click",e=>{
   const b=e.target.closest(".lyr");if(!b)return;
   const L=+b.dataset.l;st.layers[L]=!st.layers[L];
   b.setAttribute("aria-pressed",st.layers[L]);
-  syncRotation();
+  syncCsvBtn();
   if(!curLists)return;
   if(st.mode==="hex")meshes[L].visible=st.layers[L];  // solo visibilidad, sin recálculo
   else{drawMode();drawLegend()}
@@ -685,16 +385,19 @@ function drawMode(){
 }
 
 // ---- Mapa de calor (globe.gl 2.27 no trae capa de heatmap) ----
-const HB={x0:-76,x1:-52,y0:-56,y1:-21},HPX=.04;
+const HB={x0:-76,x1:-52,y0:-56,y1:-21},HPX=.02;   // grados por píxel del canvas (antes .04)
 const HW=Math.round((HB.x1-HB.x0)/HPX),HH=Math.round((HB.y1-HB.y0)/HPX);
 const hcv=document.createElement("canvas");hcv.width=HW;hcv.height=HH;
 const hctx=hcv.getContext("2d"),himg=hctx.createImageData(HW,HH),hden=new Float32Array(HW*HH);
 const LUT=new Uint8ClampedArray(256*3);
-for(let i=0;i<256;i++){const m=ramp(i/255).match(/\d+/g).map(Number);LUT.set(m,i*3)}
+for(let i=0;i<256;i++){const t=i/255,a=t<.5?[255,219,46]:[243,133,30],b=t<.5?[243,133,30]:[205,35,36],u=t<.5?t*2:(t-.5)*2;LUT.set(a.map((v,k)=>Math.round(v+(b[k]-v)*u)),i*3)}
 const heatTex=new THREE.CanvasTexture(hcv);
+// Filtrado explícito: mipmaps al alejar, bilineal al acercar, anisotropía para ver el globo en ángulo
+heatTex.generateMipmaps=true;heatTex.minFilter=THREE.LinearMipmapLinearFilter;heatTex.magFilter=THREE.LinearFilter;
+heatTex.anisotropy=globe.renderer().capabilities.getMaxAnisotropy();
 const heatMesh=(()=>{
   // parche de esfera construido con globe.getCoords → misma orientación que el globo
-  const SX=72,SY=105,pos=[],uv=[],idx=[];
+  const SX=96,SY=140,pos=[],uv=[],idx=[];
   for(let j=0;j<=SY;j++)for(let i=0;i<=SX;i++){
     const lng=HB.x0+(HB.x1-HB.x0)*i/SX,lat=HB.y0+(HB.y1-HB.y0)*j/SY,p=globe.getCoords(lat,lng,.0012);
     pos.push(p.x,p.y,p.z);uv.push(i/SX,j/SY);
@@ -706,12 +409,15 @@ const heatMesh=(()=>{
   g.setIndex(idx);
   const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:heatTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
   m.renderOrder=9;m.frustumCulled=false;m.visible=false;
-  globe.scene().add(m);return m;
+  activityRoot.add(m);return m;
 })();
 function drawHeat(lists){
+  const t0=performance.now();
   hden.fill(0);
-  const D=HX[st.res],edgeKm=h3.getHexagonEdgeLengthAvg(st.res,"km"),rKm=edgeKm*1.6;
-  const ry=Math.max(2,rKm/111/HPX),ref=Math.sqrt(Math.max(1,curBreaks[3]));
+  let peak=1;
+  const D=HX[st.res],edgeKm=h3.getHexagonEdgeLengthAvg(st.res,"km"),rKm=edgeKm*2.0;
+  // radio = 2 × el lado del hexágono: se lee a escala país sin fundir todo en una mancha; mínimo 4 px
+  const ry=Math.max(4,rKm/111/HPX),ref=Math.sqrt(Math.max(1,curBreaks[3]));
   for(let L=0;L<5;L++){
     if(!st.layers[L])continue;
     for(const o of lists[L]){
@@ -721,17 +427,21 @@ function drawHeat(lists){
       const x0=Math.max(0,Math.floor(cx-rx)),x1=Math.min(HW-1,Math.ceil(cx+rx)),y0=Math.max(0,Math.floor(cy-ry)),y1=Math.min(HH-1,Math.ceil(cy+ry));
       for(let y=y0;y<=y1;y++){
         const dy=(y-cy)/ry,dy2=dy*dy,row=y*HW;
-        for(let x=x0;x<=x1;x++){const dx=(x-cx)/rx,d2=dx*dx+dy2;if(d2<1)hden[row+x]+=w*(1-d2)*(1-d2)}
+        for(let x=x0;x<=x1;x++){const dx=(x-cx)/rx,d2=dx*dx+dy2;if(d2<1){const f=1-d2,v=hden[row+x]+w*f*f;hden[row+x]=v;if(v>peak)peak=v}}
       }
     }
   }
   const px=himg.data;
+  const cut=.0006*peak,inv=1/peak;   // t<.05 con t=(d/pico)^.4 ⇔ d<.0006·pico: se descarta sin calcular la potencia
   for(let i=0,n=HW*HH;i<n;i++){
-    const t=Math.min(1,Math.sqrt(hden[i]));
-    if(t<.03){px[i*4+3]=0;continue}
-    const k=(t*255|0)*3;px[i*4]=LUT[k];px[i*4+1]=LUT[k+1];px[i*4+2]=LUT[k+2];px[i*4+3]=Math.min(235,40+t*260);
+    const d=hden[i];
+    if(d<cut){px[i*4+3]=0;continue}
+    const t=Math.min(1,Math.pow(d*inv,.4));   // exponente .4 (antes raíz cuadrada): sube lo bajo sin velar el mapa
+    // alfa con piso: lo bajo se ve sin velar el país; lo alto llega casi opaco
+    const k=(t*255|0)*3;px[i*4]=LUT[k];px[i*4+1]=LUT[k+1];px[i*4+2]=LUT[k+2];px[i*4+3]=Math.round(130+125*t);
   }
   hctx.putImageData(himg,0,0);heatTex.needsUpdate=true;
+  if(DEBUG)console.log("drawHeat ms",(performance.now()-t0).toFixed(1));
 }
 
 // ---- Áreas: un polígono por grupo conectado de la misma capa ----
@@ -814,307 +524,18 @@ function drawAreas(lists){
   globe.polygonsData(res.out);polysShown=true;
 }
 
-// ---- Alertas: actividad OBSERVADA en los 7 días que terminan en la fecha elegida (hexágonos res 4) ----
-// Todo sale de los focos de NASA FIRMS: no hay pronóstico ni datos inventados.
-// Nivel de la zona (celda + vecinas) por cantidad de focos en los 7 días: ≥5, 15, 40, 100.
-const LV=[{n:"Bajo",c:"#4caf7a"},{n:"Moderado",c:"#f2c94c"},{n:"Alto",c:"#f2994a"},{n:"Muy alto",c:"#eb5757"},{n:"Extremo",c:"#c13cff"}];
-const level=n=>n>=100?4:n>=40?3:n>=15?2:n>=5?1:0;
-const hexRgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
-let tab="sum",alerts=[];
-$("lvKey").innerHTML=LV.map(l=>`<span><i style="background:${l.c}"></i>${l.n}</span>`).join("");
-// color de un día de la tira: proporcional a los focos del día respecto del día máximo de la zona
-const dayInk=(v,mx)=>v>0?ramp(Math.sqrt(v/mx)):"rgba(255,255,255,.06)";
-
-// ctx: datos del año + último día de la ventana + filtros. Por defecto: lo elegido en Análisis
-function computeAlerts(ctx){
-  const X=ctx||{C,start,rows:Y.rows,to:range()[1],conf:st.conf,prov:st.prov};
-  const C_=X.C,to=X.to,from=Math.max(0,to-6),rows=X.rows[4],D=HX[4],m=new Map();
-  for(let i=X.start[from];i<X.start[to+1];i++){
-    if(C_.conf[i]<X.conf)continue;
-    if(X.prov>=0&&C_.prov[i]!==X.prov)continue;
-    const C=C_;   // el resto del cuerpo usa C
-    const id=rows[i];let o=m.get(id);if(!o){o={id,n:0,f:0,pc:{},d:new Float64Array(7)};m.set(id,o)}
-    o.n+=C.n[i];o.f+=C.f[i];o.pc[C.prov[i]]=(o.pc[C.prov[i]]||0)+C.n[i];
-    o.d[C.day[i]-(to-6)]+=C.n[i];   // focos por día; índice 0 = 6 días antes del último
-  }
-  const out=[];
-  for(const o of m.values()){
-    let s=0,sf=0,peak=true;const days=new Array(7).fill(0);
-    for(const nb of h3.gridDisk(D.str[o.id],1)){
-      const q=m.get(D.ids.get(nb));if(!q)continue;
-      s+=q.n;sf+=q.f;for(let k=0;k<7;k++)days[k]+=q.d[k];
-      if(q.id!==o.id&&(q.n>o.n||(q.n===o.n&&q.id>o.id)))peak=false; // una alerta por foco de actividad
-    }
-    if(!peak)continue;
-    const lvl=level(s);
-    if(lvl<2)continue;
-    const p=+Object.entries(o.pc).sort((a,b)=>b[1]-a[1])[0][0];
-    const [lat,lng]=h3.cellToLatLng(D.str[o.id]);
-    out.push({lat,lng,s,f:sf,lvl,days,p,h:D.str[o.id]});
-  }
-  return out.sort((a,b)=>b.s-a.s);
-}
-function dayStrip(a,label){
-  const mx=Math.max(...a.days);
-  return a.days.map((v,k)=>`<i style="background:${dayInk(v,mx)}" title="${label(k)}: ${fmt(v)} focos"></i>`).join("");
-}
-function renderAlerts(){
-  alerts=computeAlerts();
-  $("alN").textContent=alerts.length?`(${alerts.length})`:"";
-  const T=range()[1];
-  $("alFrom").textContent=`del ${lbl(Math.max(0,T-6))} al ${lbl(T)}`;
-  const hi=alerts.filter(a=>a.lvl>=3).length;
-  const B=$("banner");
-  B.hidden=!(hi>0&&tab!=="al");
-  B.textContent=`⚠ ${hi} ${hi===1?"zona":"zonas"} con actividad muy alta o extrema · últimos 7 días`;
-  globe.ringsData(tab==="al"?alerts:[]);
-  const L=$("alList");
-  if(!alerts.length){L.innerHTML=`<div class="note">Sin zonas con actividad alta en estos 7 días y territorio.</div>`;fit();return}
-  L.innerHTML=alerts.slice(0,6).map((a,i)=>{
-    const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe";
-    return `<button class="al" data-i="${i}"><span class="lv" style="background:${lv.c}"></span>
-      <span class="t"><span>${name}</span><em style="background:${lv.c}">${lv.n}</em></span>
-      <span class="s">${fmt(a.s)} focos en 7 días · ${a.lat.toFixed(1)}°, ${a.lng.toFixed(1)}°</span>
-      <span class="strip">${dayStrip(a,k=>lbl(T-6+k))}</span><span class="strip-l"><span>−6 días</span><span>${lbl(T).replace(/ \d{4}$/,"")}</span></span></button>`;
-  }).join("")+(alerts.length>6?`<div class="note">y ${alerts.length-6} zonas más en el globo</div>`:"");
-}
-$("alList").addEventListener("click",e=>{
-  const b=e.target.closest(".al");if(!b)return;
-  const a=alerts[+b.dataset.i];pauseRot();scheduleResume();
-  cameraAdapter.legacyFlight({lat:a.lat,lng:a.lng,altitude:.45},1200);
-});
-function setTab(v){
-  tab=v;$("tabs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===v));
-  $("vSum").hidden=v!=="sum";$("vAl").hidden=v!=="al";renderAlerts();syncRotation();
-}
-$("tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setTab(b.dataset.v)});
-$("banner").addEventListener("click",()=>setTab("al"));
-
-// ---- Header: switch de vista Análisis / Planificación ----
-// Vistas: "analisis" (globo) · "plan" (planisferio)
-let curView="analisis";
-function setView(v){
-  if(cameraAdapter.leased||v===curView)return;
-  const sw=$("viewSw");sw.dataset.v=v;
-  sw.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",b.dataset.v===v));
-  const plan=v==="plan";curView=v;
-  document.body.classList.toggle("plan",plan);
-  const tok=++viewTok,RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  $("viewSw").setAttribute("aria-busy","true");
-  if(plan){
-    // el globo se aleja y se desvanece mientras aparece el planisferio; al terminar se pausa (no consume GPU)
-    savedPov=globe.pointOfView();pauseRot();
-    cameraAdapter.legacyFlight({lat:12,lng:savedPov.lng,altitude:3.4},RM?0:650);
-    ensurePlanMap().then(m=>{m.invalidateSize();return drawPlanAlerts()}).catch(err=>{$("planInfo").textContent="No se pudo cargar el mapa: "+err.message});
-    setTimeout(()=>{
-      if(tok!==viewTok)return;
-      meshes.forEach(m=>m.visible=false);heatMesh.visible=false;globe.polygonsData([]);polysShown=false;globe.ringsData([]);
-      globe.pauseAnimation();$("viewSw").removeAttribute("aria-busy");
-    },RM?0:700);
-  }else{
-    // el globo vuelve desde lejos a la vista donde estaba
-    closePlanCard();
-    globe.resumeAnimation();
-    if(curLists){drawMode();renderAlerts();fit()}
-    if(savedPov)cameraAdapter.legacyFlight(savedPov,RM?0:900);
-    setTimeout(()=>{if(tok===viewTok){$("viewSw").removeAttribute("aria-busy");scheduleResume()}},RM?0:900);
-  }
-}
-let viewTok=0,savedPov=null;
-
-// ---- Planificación: zonas con actividad alta en los últimos 7 días con datos, sobre el planisferio ----
-// Usa solo focos reales de NASA FIRMS: la ventana termina hoy (o ?hoy=AAAA-MM-DD) o, si todavía no hay
-// datos de ese día, en el último día con datos. Independiente de los filtros de Análisis.
-let alertLayer=null,zoneLayer=null,planSel=null,planAlerts=[],flyTok=0,planBase=null;
-const fdate=d=>`${d.getUTCDate()} ${MES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-const fshort=d=>fdate(d).replace(/ \d{4}$/,"");
-function planToday(){
-  const q=new URLSearchParams(location.search).get("hoy");
-  const m=q&&/^(\d{4})-(\d{2})-(\d{2})$/.exec(q);
-  const n=new Date();
-  return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
-}
-// Último año con datos y último día con focos que no pase de `today`; null si no hay ninguno.
-async function lastDataDay(today){
-  for(const y of YEARS.filter(y=>y<=today.getUTCFullYear()).sort((a,b)=>b-a)){
-    const P=prepYear(y,await loadYear(y));
-    const cap=y===today.getUTCFullYear()?Math.round((today-Date.UTC(y,0,1))/864e5):P.ND-1;
-    for(let d=Math.min(cap,P.ND-1);d>=0;d--)if(P.start[d+1]>P.start[d])return {y,P,to:d};
-  }
-  return null;
-}
-async function drawPlanAlerts(){
-  if(!planMap)return;
-  const today=planToday();
-  planAlerts=[];planBase=null;
-  const last=await lastDataDay(today);
-  if(!last){$("planInfo").textContent="No hay datos de FIRMS para mostrar.";renderPlanMarkers();return}
-  const {y,P,to}=last,day=k=>new Date(Date.UTC(y,0,1+to-6+k));   // k = 0..6 → días de la ventana
-  planAlerts=computeAlerts({C:P.C,start:P.start,rows:P.rows,to,conf:0,prov:-1});
-  planBase={day};
-  const rango=`entre el ${fdate(day(0))} y el ${fdate(day(6))}`;
-  const atraso=Math.round((today-day(6))/864e5);
-  $("planInfo").textContent=(planAlerts.length
-    ?`${planAlerts.length} zonas con actividad alta ${rango}`
-    :`Sin zonas con actividad alta ${rango}`)+
-    ` · NASA FIRMS${atraso>0?` · últimos datos: hace ${atraso} ${atraso===1?"día":"días"}`:""}.`;
-  renderPlanMarkers();
-}
-function renderPlanMarkers(){
-  if(!alertLayer)return;
-  alertLayer.clearLayers();
-  // de menor a mayor nivel: los más graves quedan arriba
-  planAlerts.map((a,i)=>({a,i})).sort((x,y)=>x.a.lvl-y.a.lvl||x.a.s-y.a.s).forEach(({a,i})=>{
-    const sz=10+a.lvl*2,L=window.L;        // 14–18 px según el nivel
-    const icon=L.divIcon({className:"pa-icon",iconSize:[sz,sz],
-      html:`<span class="pa${planSel===i?" sel":""}${isPri(a.h)?" pri":""}" style="--c:${LV[a.lvl].c}"></span>`});
-    const name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe";
-    L.marker([a.lat,a.lng],{icon,keyboard:true,title:`${name}: nivel ${LV[a.lvl].n}`,riseOnHover:true,zIndexOffset:a.lvl*100})
-      .bindTooltip(`<b>${name}</b><br>Nivel ${LV[a.lvl].n.toLowerCase()} · ${fmt(a.s)} focos en 7 días`,{className:"pa-tip",direction:"top",offset:[0,-sz/2-2]})
-      .on("click",()=>selectPlanAlert(i))
-      .addTo(alertLayer);
-  });
-}
-function selectPlanAlert(i){
-  const a=planAlerts[i],L=window.L;if(!a)return;
-  planSel=i;renderPlanMarkers();
-  // zona de la alerta: la celda y sus vecinas (~55 km)
-  zoneLayer.clearLayers();
-  const zone=h3.cellsToMultiPolygon(h3.gridDisk(a.h,1),true);
-  const z=L.geoJSON({type:"MultiPolygon",coordinates:zone},{interactive:false,
-    style:{color:LV[a.lvl].c,weight:2,opacity:.9,fillColor:LV[a.lvl].c,fillOpacity:.14,dashArray:"5 4"}}).addTo(zoneLayer);
-  // zoom a la región dejando lugar para la card
-  const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const B=z.getBounds(),pad={paddingTopLeft:[300,110],paddingBottomRight:[360,40],maxZoom:7};
-  const target=Math.min(7,planMap.getBoundsZoom(B,false,L.point(660,150))),dur=RM?0:1.1,tok=++flyTok;
-  if(RM)planMap.fitBounds(B,{...pad,animate:false});
-  else{
-    planMap.flyToBounds(B,{...pad,duration:dur});
-    // respaldo: si la animación no llegó (p. ej. pestaña en segundo plano), se ubica directo
-    setTimeout(()=>{if(tok===flyTok&&Math.abs(planMap.getZoom()-target)>.5)planMap.fitBounds(B,{...pad,animate:false})},dur*1000+500);
-  }
-  // card con la actividad observada en la zona
-  const lv=LV[a.lvl],name=a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",day=planBase.day;
-  const mx=Math.max(...a.days),kMax=a.days.indexOf(mx),conFocos=a.days.filter(v=>v>0).length;
-  $("pcChip").textContent=`Nivel ${lv.n.toLowerCase()}`;$("pcChip").style.background=lv.c;
-  $("pcTitle").textContent=name;
-  $("pcSub").textContent=`${a.lat.toFixed(2)}°, ${a.lng.toFixed(2)}° · zona de ~${fmt(AREA_AVG[4]*7)} km²`;
-  $("pcMax").textContent=fmt(a.s);$("pcMax").style.color=lv.c;
-  $("pcPeak").textContent=`${fshort(day(kMax))} · ${fmt(mx)}`;
-  $("pcHigh").textContent=`${conFocos} de 7 días con focos`;
-  $("pcDays").innerHTML=a.days.map((v,k)=>{const d=day(k);
-    return `<div title="${fdate(d)}: ${fmt(v)} focos"><i style="background:${dayInk(v,mx)}"></i>${d.getUTCDate()}/${d.getUTCMonth()+1}</div>`}).join("");
-  $("pcWhy").textContent=`${fmt(a.s)} focos y ${fmt(a.f)} MW de FRP en la zona (celda H3 y vecinas) entre el ${fshort(day(0))} y el ${fshort(day(6))}. Fuente: NASA FIRMS, MODIS y VIIRS.`;
-  updPriBtn();
-  $("planCard").classList.remove("off");
-  $("planCard").scrollTop=0;
-  renderPriList();
-}
-function closePlanCard(){
-  $("planCard").classList.add("off");
-  if(planSel!=null){planSel=null;if(zoneLayer)zoneLayer.clearLayers();renderPlanMarkers();renderPriList()}
-}
-$("pcClose").addEventListener("click",closePlanCard);
-
-// ---- Zonas prioritarias: se marcan desde la card y se listan en el panel izquierdo ----
-// Se guardan en este navegador (localStorage); si no está disponible, viven solo en esta sesión.
-const PRI_KEY="globo-quemas:prioritarias";
-let pri=[];
-try{pri=JSON.parse(localStorage.getItem(PRI_KEY)||"[]");if(!Array.isArray(pri))pri=[]}catch{pri=[]}
-const savePri=()=>{try{localStorage.setItem(PRI_KEY,JSON.stringify(pri))}catch{}};
-const isPri=h=>pri.some(z=>z.h===h);
-function togglePri(a){
-  if(isPri(a.h))pri=pri.filter(z=>z.h!==a.h);
-  else{
-    const k=a.days.indexOf(Math.max(...a.days));
-    pri.unshift({h:a.h,name:a.p>=0?PROVINCIAS[a.p].name:"Zona limítrofe",lvl:a.lvl,lat:a.lat,lng:a.lng,
-      n:a.s,peak:fdate(planBase.day(k)),added:Date.now()});
-  }
-  savePri();renderPriList();renderPlanMarkers();updPriBtn();
-}
-function updPriBtn(){
-  const a=planAlerts[planSel],b=$("pcPri");if(!a)return;
-  const on=isPri(a.h);
-  b.setAttribute("aria-pressed",on);
-  b.textContent=on?"✓ Marcada como prioritaria · quitar":"★ Marcar como prioritaria";
-}
-$("pcPri").addEventListener("click",()=>{const a=planAlerts[planSel];if(a)togglePri(a)});
-function renderPriList(){
-  const L=$("priList"),cur=planAlerts[planSel]?.h;
-  // primero las de mayor nivel; dentro del nivel, las últimas marcadas arriba
-  const list=pri.slice().sort((x,y)=>y.lvl-x.lvl||y.added-x.added);
-  L.innerHTML=list.map(z=>`<li class="pri-item${z.h===cur?" cur":""}">
-      <button class="pri-go" data-h="${z.h}" title="Ver en el mapa"><span class="pri-dot" style="background:${LV[z.lvl].c}"></span>
-      <span class="pri-name">${z.name}</span>
-      <span class="pri-meta">${LV[z.lvl].n}${z.n!=null?` · ${fmt(z.n)} focos`:""} · más focos el ${z.peak.replace(/ \d{4}$/,"")}</span></button>
-      <button class="pri-del" data-del="${z.h}" aria-label="Quitar ${z.name} de prioritarias">✕</button></li>`).join("");
-  $("priN").textContent=pri.length;
-  $("priEmpty").hidden=pri.length>0;$("priClear").hidden=pri.length<2;
-}
-$("priList").addEventListener("click",e=>{
-  const del=e.target.closest("[data-del]");
-  if(del){pri=pri.filter(z=>z.h!==del.dataset.del);savePri();renderPriList();renderPlanMarkers();updPriBtn();return}
-  const go=e.target.closest("[data-h]");if(!go)return;
-  const i=planAlerts.findIndex(a=>a.h===go.dataset.h);
-  if(i>=0){selectPlanAlert(i);return}
-  // la alerta ya no está vigente: igual se muestra la zona en el mapa
-  const z=pri.find(z=>z.h===go.dataset.h);if(!z||!planMap)return;
-  closePlanCard();
-  zoneLayer.clearLayers();
-  const g=window.L.geoJSON({type:"MultiPolygon",coordinates:h3.cellsToMultiPolygon(h3.gridDisk(z.h,1),true)},{interactive:false,
-    style:{color:"#0d0d0d",weight:2,opacity:.7,fillOpacity:.08,dashArray:"5 4"}}).addTo(zoneLayer);
-  planMap.fitBounds(g.getBounds(),{paddingTopLeft:[320,110],paddingBottomRight:[40,40],maxZoom:7});
-});
-$("priClear").addEventListener("click",()=>{if(confirm("¿Vaciar la lista de zonas prioritarias?")){pri=[];savePri();renderPriList();renderPlanMarkers();updPriBtn()}});
-
-renderPriList();
-addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("plan"))closePlanCard()});
-
-// ---- Planificación: planisferio físico plano con Leaflet (se carga la primera vez) ----
-let planMap=null,planMapP=null;
-function loadAsset(tag,attrs){return new Promise((ok,fail)=>{const e=document.createElement(tag);Object.assign(e,attrs);e.onload=ok;e.onerror=()=>fail(new Error(attrs.src||attrs.href));document.head.appendChild(e)})}
-function ensurePlanMap(){
-  if(planMapP)return planMapP;
-  planMapP=Promise.all([
-    loadAsset("link",{rel:"stylesheet",href:"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"}),
-    loadAsset("script",{src:"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"})
-  ]).then(()=>{
-    const L=window.L;
-    const WORLD=[[-85.05,-180],[85.05,180]];
-    planMap=L.map("planMap",{zoomControl:false,maxZoom:8,zoomSnap:0,zoomDelta:.5,
-      maxBounds:WORLD,maxBoundsViscosity:1,attributionControl:true});
-    // Mapa físico (vegetación, desiertos, hielo, batimetría), plano; solo mosaicos dentro del mundo
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}",
-      {maxZoom:8,noWrap:true,bounds:WORLD,attribution:"Mapa: Esri — US National Park Service"}).addTo(planMap);
-    // contorno de provincias argentinas (datos locales) como referencia
-    L.geoJSON({type:"FeatureCollection",features:PROVINCIAS.map(p=>({type:"Feature",properties:{name:p.name},geometry:p.geo}))},
-      {style:{color:"#5b4a3a",weight:.8,opacity:.6,fill:false},interactive:false}).addTo(planMap);
-    L.control.zoom({position:"bottomright"}).addTo(planMap);
-    alertLayer=L.layerGroup().addTo(planMap);zoneLayer=L.layerGroup().addTo(planMap);
-    // el planisferio ocupa todo el ancho; no se puede alejar más que eso
-    const fitW=()=>Math.log2(Math.max(256,$("planMap").clientWidth)/256);
-    planMap.setMinZoom(fitW());planMap.setView([20,0],fitW(),{animate:false});
-    addEventListener("resize",()=>{if(!planMap)return;const z=fitW();planMap.setMinZoom(z);if(planMap.getZoom()<z)planMap.setZoom(z)});
-    return planMap;
-  });
-  return planMapP;
-}
-$("viewSw").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setView(b.dataset.v)});
-$("viewSw").addEventListener("keydown",e=>{
-  if(e.key==="ArrowLeft")setView("analisis");else if(e.key==="ArrowRight")setView("plan");else return;
-  $("viewSw").querySelector('[aria-checked="true"]').focus();
-});
-document.querySelector(".logo").addEventListener("click",e=>{e.preventDefault();setView("analisis")});
-
-// ---- Historial: escala Semana / Mes / Año ----
-const DIAS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-const MESL=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+// ---- Historial: escala Week / Month / Year ----
+const DIAS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const MESL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const EMPTY="rgba(255,255,255,.06)";
 const dayCol=(v,mx)=>v>0?ramp(Math.sqrt(v/mx)):EMPTY;
 const inkOn=(v,mx)=>v>0&&Math.sqrt(v/mx)>.55?"#fff7dc":"#0d0d0d";  // texto legible sobre la celda
-const tip1=d=>`${lbl(d)}: ${fmt(daily[d])} focos · ${fmt(dailyF[d])} MW · ☀ ${fmt(dailyD[d])} / ☾ ${fmt(dailyN[d])}`;
+const tip1=d=>`${lbl(d)}: ${fmt(daily[d])} hotspots · ${fmt(dailyF[d])} MW · ☀ ${fmt(dailyD[d])} / ☾ ${fmt(dailyN[d])}`;
 function weekOf(d){const first=dow(0);return {w:Math.floor((d+first)/7),dw:dow(d)}}
-const calW=()=>Math.max(300,$("cal").clientWidth);
+// Ancho útil real de #cal (menos su padding); con el cajón cerrado mide 0 y se usa un valor de teléfono.
+const calW=()=>{const w=$("cal").clientWidth-4;return w>0?w:316};
+const coarse=matchMedia("(pointer: coarse)");
+const fmtK=n=>n>=1e4?Math.round(n/1e3)+"k":n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,"")+"k":fmt(n);
 
 // Año: grilla de semanas × días (estilo contribuciones)
 function yearGrid(){
@@ -1133,15 +554,15 @@ function yearGrid(){
 }
 // Mes: calendario clásico (Lun–Dom), número de día + focos
 function monthCal(){
-  const [a,b]=period(),mx=Math.max(1,...daily),W=calW(),cw=Math.min(96,Math.floor((W-6)/7)),TOP=15,rh=18;
+  const [a,b]=period(),mx=Math.max(1,...daily),W=calW(),cw=Math.max(20,Math.min(96,Math.floor(W/7))),narrow=cw<64,TOP=15,rh=narrow?36:coarse.matches?30:18;
   const off=dow(a),rows=Math.ceil((off+b-a+1)/7);
   let s=`<svg width="${cw*7}" height="${TOP+rows*rh+2}" role="img">`;
   DIAS.forEach((n,i)=>{s+=`<text class="mt" x="${i*cw+4}" y="10">${n}</text>`});
   for(let d=a;d<=b;d++){
     const k=off+d-a,x=(k%7)*cw,y=TOP+Math.floor(k/7)*rh,ink=inkOn(daily[d],mx),sel=st.day===d;
     s+=`<g data-d="${d}"><rect x="${x+1}" y="${y+1}" width="${cw-2}" height="${rh-2}" rx="3" fill="${dayCol(daily[d],mx)}"${sel?` stroke="#f0efec" stroke-width="1.6"`:""}/>
-      <text class="mt-b" x="${x+6}" y="${y+rh-5}" style="font-size:12px" fill="${daily[d]>0?ink:"#a2a198"}">${dateOf(d).getUTCDate()}</text>
-      ${daily[d]>0?`<text class="mt" x="${x+cw-6}" y="${y+rh-5}" text-anchor="end" style="fill:${ink};font-size:12px">${fmt(daily[d])}</text>`:""}
+      <text class="mt-b" x="${x+(narrow?5:6)}" y="${narrow?y+14:y+rh-5}" style="font-size:12px" fill="${daily[d]>0?ink:"#a2a198"}">${dateOf(d).getUTCDate()}</text>
+      ${daily[d]>0?`<text class="mt" x="${x+cw-(narrow?4:6)}" y="${y+rh-(narrow?5:5)}" text-anchor="end" style="fill:${ink};font-size:${narrow?10:12}px">${narrow?fmtK(daily[d]):fmt(daily[d])}</text>`:""}
       <title>${tip1(d)}</title></g>`;
   }
   return s+"</svg>";
@@ -1151,9 +572,9 @@ function weekCards(){
   const [a,b]=period(),mx=Math.max(1,...daily);let h=`<div class="wk-cards">`;
   for(let d=a;d<=b;d++){
     const v=daily[d],c=dayCol(v,mx),t=v||1;
-    h+=`<button class="wk-card" data-d="${d}" aria-pressed="${st.day===d}" title="${tip1(d)}" style="border-left-color:${c};background:linear-gradient(180deg,${v>0?c.replace("rgb","rgba").replace(")",",.16)"):"transparent"},transparent)">
-      <span class="dn">${DIAS[dow(d)]} ${dateOf(d).getUTCDate()} ${MES[dateOf(d).getUTCMonth()]}</span>
-      <span class="v">${fmt(v)}</span><span class="s">${fmt(dailyF[d])} MW</span>
+    h+=`<button class="wk-card" data-d="${d}" aria-pressed="${st.day===d}" aria-label="${tip1(d)}" title="${tip1(d)}" style="border-left-color:${c};background:linear-gradient(180deg,${v>0?c.replace("rgb","rgba").replace(")",",.16)"):"transparent"},transparent)">
+      <span class="dn"><b class="dw">${DIAS[dow(d)]}</b><span class="dd">${dateOf(d).getUTCDate()}</span><span class="dm">${MES[dateOf(d).getUTCMonth()]}</span></span>
+      <span class="v"><span class="vf">${fmt(v)}</span><span class="vk">${fmtK(v)}</span></span><span class="s"><span class="vf">${fmt(dailyF[d])}</span><span class="vk">${fmtK(dailyF[d])}</span><span class="su"> MW</span></span>
       <span class="split"><i style="width:${100*dailyD[d]/t}%"></i><i style="width:${100*dailyN[d]/t}%"></i></span></button>`;
   }
   return h+"</div>";
@@ -1162,21 +583,24 @@ const VIEWS={year:yearGrid,month:monthCal,week:weekCards};
 
 function perLabel(){
   const [a,b]=period();
-  if(st.scale==="year")return `Año ${st.year}`;
+  if(st.scale==="year")return `Year ${st.year}`;
   if(st.scale==="month")return `${MESL[dateOf(a).getUTCMonth()]} ${st.year}`;
   return `${dateOf(a).getUTCDate()} ${MES[dateOf(a).getUTCMonth()]} – ${dateOf(b).getUTCDate()} ${MES[dateOf(b).getUTCMonth()]} ${st.year}`;
 }
 function drawHistory(){
   const [a,b]=period();
   $("perLbl").textContent=perLabel();
-  $("pPrev").disabled=st.scale==="year"||a<=0;$("pNext").disabled=st.scale==="year"||b>=ND-1;
+  // Se deshabilita solo en el primer período del primer año y el último del último (o mientras carga un año)
+  const nav=navState(),day=st.day!=null;
+  $("pPrev").disabled=navBusy||!stepPeriod(nav,-1,YEARS);$("pNext").disabled=navBusy||!stepPeriod(nav,1,YEARS);
+  $("pPrev").setAttribute("aria-label",day?"Previous day":"Previous period");$("pNext").setAttribute("aria-label",day?"Next day":"Next period");
   const chip=$("dayChip");chip.hidden=st.day==null;
-  if(st.day!=null)chip.textContent=`Día: ${lbl(st.day)} ✕`;
+  if(st.day!=null)chip.textContent=`Day: ${lbl(st.day)} ✕`;
   pressed($("fScale"),$("fScale").querySelector(`[data-v="${st.scale}"]`));
   $("cal").innerHTML=VIEWS[st.scale]();
   // la vista semanal muestra la división día/noche
   $("dnKeyBox").innerHTML=st.scale==="week"
-    ?`<span class="dnkey"><span><i style="background:#f8b13a"></i>Día</span><span><i style="background:#6f7fe0"></i>Noche</span></span>`:"";
+    ?`<span class="dnkey"><span><i style="background:#f8b13a"></i>Day</span><span><i style="background:#6f7fe0"></i>Night</span></span>`:"";
 }
 $("cal").addEventListener("click",e=>{
   const el=e.target.closest("[data-d]");if(!el)return;
@@ -1187,12 +611,34 @@ $("fScale").addEventListener("click",e=>{
   if(st.day!=null)st.end=st.day;
   st.scale=b.dataset.v;st.day=null;render();
 });
-function shiftPeriod(dir){
-  const [a,b]=period();
-  if(st.scale==="week")st.end=Math.max(0,Math.min(ND-1,st.end+7*dir));
-  else if(st.scale==="month")st.end=dir>0?Math.min(ND-1,b+1):Math.max(0,a-1);
-  st.day=null;render();
+// Anterior / siguiente: cruza los límites de año reutilizando loadYear/useYear (el selector de año,
+// el título, el CSV y el globo quedan sincronizados). Mientras carga un año se ignoran los clics.
+let navBusy=false;
+const navState=()=>({scale:st.scale,year:st.year,end:st.end,day:st.day});
+async function shiftPeriod(dir){
+  if(navBusy||cameraAdapter.leased)return;
+  const t=stepPeriod(navState(),dir,YEARS);
+  if(!t)return;
+  if(t.year===st.year){st.end=t.end;st.day=t.day;render();return}
+  navBusy=true;yearMsg("");
+  const request=++yearRequest;
+  $("busy").hidden=false;drawHistory();
+  try{
+    const D=await loadYear(t.year);
+    if(request!==yearRequest)return;
+    useYear(t.year,D);calcDaily();st.end=t.end;st.day=t.day;render();
+  }catch(err){
+    // si el año no carga, se queda donde estaba y se muestra el error en línea
+    if(request===yearRequest)yearMsg(err&&err.message?err.message:"Could not load data for "+t.year+".");
+  }finally{
+    navBusy=false;
+    if(request===yearRequest)$("busy").hidden=true;
+    ySel.value=st.year;drawHistory();
+  }
 }
+// el ancho del cajón es 0 mientras está cerrado: se vuelve a dibujar al abrirlo, al girar o redimensionar
+let calWidth=0;
+if(window.ResizeObserver)new ResizeObserver(()=>{const w=$("cal").clientWidth;if(w&&w!==calWidth){calWidth=w;if(C)drawHistory()}}).observe($("cal"));
 $("pPrev").addEventListener("click",()=>shiftPeriod(-1));
 $("pNext").addEventListener("click",()=>shiftPeriod(1));
 $("dayChip").addEventListener("click",()=>{st.day=null;render()});
@@ -1222,7 +668,7 @@ $("fShape").addEventListener("click",e=>{
   if(curLists){drawAreas(curLists);drawLegend()}
 });
 function updResLbl(){
-  $("resLbl").textContent=`~${fmt(AREA_AVG[st.res])} km² · arista ~${fmt(h3.getHexagonEdgeLengthAvg(st.res,"km"))} km`;
+  $("resLbl").textContent=`~${fmt(AREA_AVG[st.res])} km² · edge ~${fmt(h3.getHexagonEdgeLengthAvg(st.res,"km"))} km`;
 }
 $("fRes").addEventListener("input",e=>{
   const r=+e.target.value;if(r===st.res)return;
@@ -1236,28 +682,34 @@ document.addEventListener("click",e=>{
 });
 $("fBase").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  pressed($("fBase"),b);globe.globeImageUrl(b.dataset.v.startsWith("/")?b.dataset.v:TEX+b.dataset.v);
+  pressed($("fBase"),b);earthView?.select(b.dataset.v,TEX);
 });
 
 // Año: 2000–2026; los años sin archivo en data/ quedan deshabilitados
-const Y_MIN=2000,Y_MAX=2026,ySel=$("fYear");
+const Y_MIN=2000,Y_MAX=2026,ySel=$("fYear"),yErr=$("yearErr");
 for(let y=Y_MAX;y>=Y_MIN;y--){
   const o=document.createElement("option"),ok=YEARS.includes(y);
-  o.value=y;o.textContent=ok?String(y):`${y} (sin datos)`;o.disabled=!ok;ySel.appendChild(o);
+  o.value=y;o.textContent=ok?String(y):`${y} (no data)`;o.disabled=!ok;ySel.appendChild(o);
 }
 ySel.value=st.year;
 let yearRequest=0;
+function yearMsg(t){yErr.textContent=t||"";yErr.hidden=!t}
 async function changeYear(y){
-  if(cameraAdapter.leased||!YEARS.includes(y))return;
+  yearMsg("");
+  // Si el cambio se rechaza, el selector vuelve al año cargado: nunca muestra uno que no esté cargado
+  if(cameraAdapter.leased||!YEARS.includes(y)){ySel.value=st.year;return}
   const request=++yearRequest;
-  if(y===st.year){$("busy").hidden=true;return;}
+  if(y===st.year){$("busy").hidden=true;return}
   $("busy").hidden=false;
   try{
     const D=await loadYear(y);
     if(request!==yearRequest)return;
     const doy=st.day!=null?st.day:st.end;useYear(y,D);calcDaily();
     st.end=Math.min(doy,ND-1);st.day=null;render();
-  }catch(err){if(request!==yearRequest)return;alert(err.message)}
+  }catch(err){
+    if(request!==yearRequest)return;
+    yearMsg(err&&err.message?err.message:"Could not load data for "+y+".");
+  }
   ySel.value=st.year;
   $("busy").hidden=true;
 }
@@ -1267,11 +719,10 @@ const tSel=$("fTerr");
 PROVINCIAS.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p.name;tSel.appendChild(o)});
 tSel.addEventListener("change",()=>setProv(+tSel.value));
 function setProv(i){
-  if(cameraAdapter.leased)return;
+  if(cameraAdapter.leased){tSel.value=st.prov;return}
   st.prov=i;tSel.value=i;
   setPaths();
   calcDaily();render();
-  pauseRot();scheduleResume();
   if(i<0){cameraAdapter.legacyFlight({lat:-38,lng:-64,altitude:1.9},1200);return}
   const [x0,y0,x1,y1]=PROVINCIAS[i].bbox;
   const span=Math.max(x1-x0,y1-y0);
@@ -1288,78 +739,91 @@ function provAt(lat,lng){
   }
   return -1;
 }
-const tip=$("tip");let mx=0,my=0,tipPending=false,hovering=false;
+const tip=$("tip");let mx=0,my=0,tipPending=false;
 function hideTip(event){
   if(event?.relatedTarget?.matches?.('[data-museum-anchor="tip"]'))return;
-  tip.hidden=true;if(hovering){hovering=false;scheduleResume()}
+  tip.hidden=true;
 }
 function updTip(){
   tipPending=false;
-  if(cameraAdapter.leased||curView!=="analisis")return;
+  if(cameraAdapter.leased||document.body.dataset.experience!=="world")return;
   const g=globe.toGlobeCoords(mx,my);
   if(!g||!cur){hideTip();return}
   const id=HX[st.res].ids.get(h3.latLngToCell(g.lat,g.lng,st.res)),o=id!==undefined?cur.m.get(id):null;
   const pv=provAt(g.lat,g.lng),pn=pv>=0?PROVINCIAS[pv].name:"";
+  const hint=pv<0?"":pv===st.prov?"click again to clear":"click to filter";
   let h;
   if(o&&st.layers[o.lvl]){
-    h=`<b>${fmt(o.n)}</b> focos · <b>${o.f.toFixed(1)}</b> MW<br>MODIS ${fmt(o.nM)} · VIIRS ${fmt(o.nV)}<br><span class="mut">Capa ${o.lvl+1} de 5${pn?" · "+pn:""} · ${fmt(hexGeo(st.res,o.id).area)} km²</span>`;
-  }else if(pv>=0){h=`${pn}<br><span class="mut">clic para analizar</span>`}
+    h=`<b>${fmt(o.n)}</b> hotspots · <b>${o.f.toFixed(1)}</b> MW<br>MODIS ${fmt(o.nM)} · VIIRS ${fmt(o.nV)}<br><span class="mut">Layer ${o.lvl+1} of 5${pn?" · "+pn:""} · ${fmt(hexGeo(st.res,o.id).area)} km²</span>${hint?`<br><span class="mut">${hint}</span>`:""}`;
+  }else if(pv>=0){h=`${pn}<br><span class="mut">${hint}</span>`}
   else{hideTip();return}
   tip.innerHTML=h;tip.hidden=false;
   const w=tip.offsetWidth,hh=tip.offsetHeight;
   tip.style.left=Math.min(innerWidth-w-8,mx+14)+"px";tip.style.top=Math.max(8,my-hh-10)+"px";
-  if(!hovering){hovering=true;pauseRot()}
   museumUI?.refresh();
 }
 el.addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;if(!tipPending&&!dragging){tipPending=true;requestAnimationFrame(updTip)}});
 el.addEventListener("pointerleave",hideTip);
-let downXY=null;
-el.addEventListener("pointerdown",e=>{if(cameraAdapter.leased)return;downXY=[e.clientX,e.clientY];pauseRot()});
+let downXY=null,downWithPanel=false;
+el.addEventListener("pointerdown",e=>{
+  if(cameraAdapter.leased)return;
+  downXY=[e.clientX,e.clientY];
+  downWithPanel=document.body.dataset.hud!=="explore";   // este clic solo cierra el panel
+});
 el.addEventListener("pointerup",e=>{
   if(cameraAdapter.leased||!downXY)return;const moved=Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1]);downXY=null;
-  if(moved>5)return;
-  const g=globe.toGlobeCoords(e.clientX,e.clientY);if(!g)return;
-  const pv=provAt(g.lat,g.lng);if(pv>=0&&pv!==st.prov)setProv(pv);
+  if(moved>5||downWithPanel)return;
+  const g=globe.toGlobeCoords(e.clientX,e.clientY);
+  const pv=g?provAt(g.lat,g.lng):-1;
+  // Alterna el filtro: otra provincia lo cambia; la misma, el océano u otro país lo quitan
+  if(pv>=0&&pv!==st.prov)setProv(pv);
+  else if(st.prov>=0)setProv(-1);
 });
 
-// ---- Rotación: pausa al interactuar, reanuda tras 6 s ----
-const rotChk=$("rot");
-let idleT=null,rotationDeadline=null,dragging=false;
-function pauseRot(){ctl.autoRotate=false;clearTimeout(idleT);rotationDeadline=null}
-// Con algún filtro activo el planeta queda quieto (no se reanuda la rotación)
-const DEF_YEAR=YEARS[YEARS.length-1];
-function filtersActive(){
-  return st.prov>=0||st.conf>0||st.dn!=="all"||st.scale!=="week"||st.day!=null||st.year!==DEF_YEAR||st.layers.some(v=>!v)||tab==="al";
-}
-const canRotate=()=>!cameraAdapter.leased&&curView==="analisis"&&rotChk.checked&&!dragging&&!hovering&&!filtersActive();
-function scheduleResume(delay=6000){
-  clearTimeout(idleT);rotationDeadline=null;
-  if(!canRotate())return;
-  rotationDeadline=performance.now()+delay;
-  idleT=setTimeout(()=>{rotationDeadline=null;if(canRotate())ctl.autoRotate=true},delay);
-}
-function syncRotation(){if(filtersActive())pauseRot();else if(!ctl.autoRotate)scheduleResume()}
-ctl.addEventListener("start",()=>{dragging=true;tip.hidden=true;pauseRot()});
-ctl.addEventListener("end",()=>{dragging=false;scheduleResume()});
-el.addEventListener("wheel",()=>{pauseRot();scheduleResume()},{passive:true});
-rotChk.addEventListener("change",e=>{if(e.target.checked)scheduleResume();else pauseRot()});
+// ---- Rotación: el globo no gira solo (autoRotate=false); solo se rastrea el arrastre para el tooltip ----
+let dragging=false;
+ctl.addEventListener("start",()=>{dragging=true;tip.hidden=true});
+ctl.addEventListener("end",()=>{dragging=false});
 
+// ---- Descarga CSV de lo que muestra el globo ----
+const csvBtn=$("dlCsv");
+const visibleHexes=()=>curLists?curLists.reduce((n,l,L)=>n+(st.layers[L]?l.length:0),0):0;
+function syncCsvBtn(){csvBtn.disabled=visibleHexes()===0}
+const slug=t=>t.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+const isoDay=d=>dateOf(d).toISOString().slice(0,10);
+const csvCell=v=>{const t=String(v);return /[",\r\n]/.test(t)?`"${t.replace(/"/g,'""')}"`:t};
+csvBtn.addEventListener("click",()=>{
+  if(!curLists||!visibleHexes())return;
+  const D=HX[st.res],[a,b]=range();
+  const rows=[["h3_cell","lat","lng","province","hotspots","frp_mw","modis_hotspots","viirs_hotspots","intensity_layer"]];
+  for(let L=4;L>=0;L--){
+    if(!st.layers[L])continue;
+    for(const o of curLists[L].slice().sort((x,y)=>y.n-x.n)){
+      const g=hexGeo(st.res,o.id),pv=provAt(g.lat,g.lng);
+      rows.push([D.str[o.id],g.lat.toFixed(5),g.lng.toFixed(5),pv>=0?PROVINCIAS[pv].name:"",o.n,+o.f.toFixed(2),o.nM,o.nV,L+1]);
+    }
+  }
+  const text=rows.map(r=>r.map(csvCell).join(",")).join("\r\n")+"\r\n";
+  const name=`museum-of-fire_${st.year}_${st.prov<0?"argentina":slug(PROVINCIAS[st.prov].name)}_${isoDay(a)}_${isoDay(b)}.csv`;
+  const url=URL.createObjectURL(new Blob([text],{type:"text/csv;charset=utf-8"}));
+  const link=document.createElement("a");link.href=url;link.download=name;
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
 
-// ---- Depuración (?debug=1): FPS, resolución, hexágonos, triángulos ----
 if(DEBUG){
   const dbg=$("dbg");dbg.hidden=false;let fr=0,t0=performance.now();
   (function loop(t){fr++;if(t-t0>=500){
     const tris=meshes.reduce((s,m)=>s+(m.visible?m.geometry.drawRange.count/3:0),0);
-    dbg.textContent=`${Math.round(fr*1000/(t-t0))} fps · modo ${st.mode} · H3 res ${st.res} · ${cur?fmt(cur.m.size):0} hex · ${fmt(tris)} triángulos · ${polysShown?globe.polygonsData().length:0} áreas · actualización ${lastMs.toFixed(1)} ms`;
+    dbg.textContent=`${Math.round(fr*1000/(t-t0))} fps · mode ${st.mode} · H3 res ${st.res} · ${cur?fmt(cur.m.size):0} hex · ${fmt(tris)} triangles · ${polysShown?globe.polygonsData().length:0} areas · update ${lastMs.toFixed(1)} ms`;
     fr=0;t0=t}requestAnimationFrame(loop)})(t0);
 }
 
 // The museum borrows camera ownership; analysis controls and loaded data stay mounted.
 function museumLegacy(){
-  const panels=["hdr","left","right","tbar","bottom","banner","planMap","planPh","planCard","dbg"].map($);
+  const panels=["hdr","left","right","bottom","dbg","globe-tools"].map($);
   return {
-    available:()=>globeReady&&curView==="analisis"&&$("busy").hidden&&!$("viewSw").hasAttribute("aria-busy"),
-    inAnalysis:()=>curView==="analisis",
+    available:()=>globeReady&&document.body.dataset.experience==="world"&&$("busy").hidden,
     dayLabel:lbl,
     lock(){
       const snapshot=Object.freeze({
@@ -1367,15 +831,13 @@ function museumLegacy(){
         dataset:Y, yearPayload:FOCOS[st.year],
         gearOpen:!$("gearPop").hidden,
         scroll:panels.concat($("cal")).map(node=>[node,node.scrollLeft,node.scrollTop]),
-        rotationRemaining:rotationDeadline===null?null:Math.max(0,rotationDeadline-performance.now()),
       });
       panels.forEach(panel=>panel.inert=true);
       document.body.classList.add("museum-active");
-      tip.hidden=true;hovering=false;downXY=null;dragging=false;
-      pauseRot();
+      tip.hidden=true;downXY=null;dragging=false;
       return snapshot;
     },
-    unlock(snapshot,wasRotating){
+    unlock(snapshot){
       const changed=Object.keys(st).some(key=>key==="layers"
         ? st.layers.some((value,i)=>value!==snapshot.filters.layers[i]) : st[key]!==snapshot.filters[key]);
       if(changed||Y!==snapshot.dataset){
@@ -1389,40 +851,42 @@ function museumLegacy(){
       $("gearPop").hidden=!snapshot.gearOpen;
       $("gearBtn").setAttribute("aria-expanded",snapshot.gearOpen);
       for(const [node,x,y] of snapshot.scroll)node.scrollTo(x,y);
-      if(wasRotating&&canRotate())ctl.autoRotate=true;
-      else if(snapshot.rotationRemaining!==null)scheduleResume(snapshot.rotationRemaining);
+      ySel.value=st.year;tSel.value=st.prov;
     },
   };
 }
 
 // ---- Inicio: último año, día pico ----
-loadYear(st.year).then(D=>{
+const hud=mountHud({globe,adapter:cameraAdapter,controls:ctl,readiness,onChange:()=>museumUI?.refresh()});
+Promise.resolve(document.fonts.ready).then(()=>readiness.complete("fonts")).catch(error=>readiness.fail(error));
+createEarthView(globe,THREE,window.EARTH_MAP,activityRoot).then(async view=>{
+  earthView=view;
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  globe.renderer().compile(globe.scene(),globe.camera());
+  globe.renderer().render(globe.scene(),globe.camera());
+  readiness.complete("earth");
+}).catch(error=>readiness.fail(error));
+loadYear(st.year).then(async D=>{
   useYear(st.year,D);calcDaily();st.end=peakDay();
   // vista inicial por URL (?mode=hex|heat|area&shape=hexb|cent|smooth|hull&res=2..5)
   const P=new URLSearchParams(location.search);
   if(["hex","heat","area"].includes(P.get("mode"))){st.mode=P.get("mode");pressed($("fMode"),$("fMode").querySelector(`[data-v="${st.mode}"]`));$("fShape").hidden=st.mode!=="area"}
   if(["hexb","cent","smooth","hull"].includes(P.get("shape"))){st.shape=P.get("shape");pressed($("fShape"),$("fShape").querySelector(`[data-v="${st.shape}"]`))}
-  if(RES.includes(+P.get("res"))){st.res=+P.get("res");$("fRes").value=st.res}
+  if(RES.includes(+P.get("res")))st.res=+P.get("res");
+  $("fRes").value=st.res;
   if(["week","month","year"].includes(P.get("scale")))st.scale=P.get("scale");
   updResLbl();render();fit();
-  if(P.get("view")==="plan"){
-    setView("plan");
-    if(P.has("alert"))ensurePlanMap().then(()=>drawPlanAlerts()).then(()=>{
-      // ?mark=0,3,5 marca esas alertas como prioritarias (para probar la lista)
-      (P.get("mark")||"").split(",").filter(Boolean).forEach(k=>{const a=planAlerts[+k];if(a&&!isPri(a.h)){planSel=+k;togglePri(a)}});
-      selectPlanAlert(+P.get("alert"));
-    });
-  }
-  // precarga del planisferio en segundo plano: el primer cambio de vista es instantáneo
-  else (window.requestIdleCallback||(f=>setTimeout(f,1500)))(()=>ensurePlanMap().catch(()=>{}));
-  // Los eventos curados vienen de /artifacts; si no cargan, el museo cae al catálogo ficticio.
-  Promise.all([import("./museum/index.mjs"),import("./museum/curated.mjs")]).then(async([{mountMuseum},{loadCuratedExhibits}])=>{
-    const exhibits=await loadCuratedExhibits();
-    museumUI=mountMuseum({exhibits,adapter:cameraAdapter,globe,controls:ctl,legacy:museumLegacy()});
-    fit();
-  }).catch(err=>console.error("Museum of Fires could not initialize",err));
-  const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),500);
-}).catch(e=>{$("load").textContent=e.message;console.error(e)});
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  globe.renderer().compile(globe.scene(),globe.camera());
+  globe.renderer().render(globe.scene(),globe.camera());
+  readiness.complete("activity");
+}).catch(error=>readiness.fail(error));
+Promise.all([import("/globe/museum/index.mjs"),import("/globe/museum/curated.mjs")]).then(async([{mountMuseum},{loadCuratedExhibits}])=>{
+  const exhibits=await loadCuratedExhibits();
+  if(exhibits.every(exhibit=>exhibit.isMock))throw new Error("Documentary events could not be loaded. Please retry.");
+  museumUI=mountMuseum({exhibits,adapter:cameraAdapter,globe,controls:ctl,legacy:museumLegacy()});
+  readiness.complete("museum");
+}).catch(error=>readiness.fail(error));
 </script>
 </body>
 </html>

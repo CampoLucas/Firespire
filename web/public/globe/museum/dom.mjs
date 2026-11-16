@@ -11,9 +11,3 @@ export function button(className, text, action) {
   node.addEventListener("click", action);
   return node;
 }
-
-export function annotate(node, title, data) {
-  node.dataset.museumHelp = title;
-  node.museumHelp = data;
-  return node;
-}
