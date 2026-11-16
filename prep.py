@@ -3,15 +3,15 @@
 Uso:  python -I prep.py <carpeta_csv> [<carpeta_csv> ...]
 Busca archivos modis_YYYY_Argentina.csv y viirs-*_YYYY_Argentina.csv en las carpetas,
 asigna cada foco a una provincia (fuentes/provincias_ign.json) y escribe:
-  data/data-YYYY.js   celdas de 0,1° por día/instrumento/día-noche/confianza/provincia
-  data/years.js       lista de años disponibles
-  data/provincias.js  nombres, bbox y contornos simplificados
+  web/public/globe/data/data-YYYY.js   celdas de 0,1° por día/instrumento/día-noche/confianza/provincia
+  web/public/globe/data/years.js       lista de años disponibles
+  web/public/globe/data/provincias.js  nombres, bbox y contornos simplificados
 """
 import sys, os, re, json, glob
 import numpy as np, pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "data")
+OUT = os.path.join(HERE, "web", "public", "globe", "data")
 os.makedirs(OUT, exist_ok=True)
 STEP = 0.1
 

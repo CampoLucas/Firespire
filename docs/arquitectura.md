@@ -55,7 +55,7 @@ pipeline/ (Python + DuckDB + h3)
 data/artifacts/<version>/   (estáticos, versionados)
         │
         ▼
-web/ (Next.js App Router + TypeScript, Vercel)
+web/ (Next.js App Router + TypeScript, Vercel; ver D-03)
   ├─ cliente: filtros sobre typed arrays, calendario, globo/mapa H3
   └─ /api/v1/*: lee artefactos; hotspots.csv es proxy a FIRMS
 ```
@@ -108,6 +108,23 @@ web/ (Next.js App Router + TypeScript, Vercel)
 9. **Meses NRT:** `provisional = true`; no entran a la calibración.
 10. **Línea base de anomalía:** frecuencia por celda y estación (±15 días) con vecinos `gridDisk(1)`; clases habitual / inusual / excepcional.
 
+# Hosting: Vercel
+Decidido el 14/11 (ver [T-12](decisiones.md)). Se descartó GitHub Pages como hosting principal porque solo sirve archivos estáticos: no puede correr `hotspots.csv` contra FIRMS sin exponer la MAP_KEY.
+
+- **Estático (CDN):** los artefactos (`monthly.bin`, `cells.json`, `calibration.json`, `validation.json`, `baseline.bin`, `events/*`) van en `public/` o en el build y **no pasan por funciones**.
+- **Funciones:** solo `GET /api/v1/hotspots.csv`, y `series`/`anomalies` si no se resuelven en el navegador.
+- **Variables de entorno:** `FIRMS_MAP_KEY` (solo servidor). Nunca en el cliente ni en el repo.
+- **Dominio:** el de GoDaddy se apunta a Vercel (ver [D-13](decisiones.md)). El DNS y el certificado pueden tardar: pedirlo esta noche. [inferencia]
+
+## Límites de las funciones
+| Límite | Valor | Consecuencia |
+|---|---|---|
+| Tamaño de respuesta (y de pedido) | 4,5 MB | Nunca servir artefactos desde una función. `hotspots.csv` tiene que limitar rango y área, o devolver un error que pida achicar la búsqueda |
+| Duración máxima | Entre 60 s y 300 s en el plan gratuito según la fuente consultada [sin verificar] | Fijar `maxDuration` explícito en la ruta. Un rango de 31 días son ~7 pedidos de 5 días por fuente, del orden de decenas de segundos |
+
+- Si el repo es privado y el proyecto queda en un plan gratuito personal, los deploys por commits de otras personas podrían bloquearse. Con el repo público, que igual conviene para la entrega, no pasa. [sin verificar]
+- Verificar el límite de duración en el dashboard de Vercel antes de depender de él.
+
 # Artefactos
 Esquemas propuestos. [hipótesis]
 
@@ -133,3 +150,5 @@ Con ~10.000–15.000 celdas y 313 meses, `monthly.bin` queda en ~6–9 MB sin co
 | `GET /api/v1/hotspots.csv` | filas crudas de FIRMS en vivo, máximo 31 días |
 | `GET /api/v1/validation` | `validation.json` |
 | `GET /api/v1/nrt` | últimos días NRT (opcional) |
+
+Los artefactos se sirven como archivos estáticos; solo `hotspots.csv` (y, si hace falta, `series` y `anomalies`) son funciones. Respuestas de función: máximo 4,5 MB.

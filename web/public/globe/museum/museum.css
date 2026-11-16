@@ -1,0 +1,267 @@
+.museum-active :is(#hdr, #left, #right, #tbar, #bottom, #busy, #dbg, #tip) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.museum-active #globe { pointer-events: none; }
+
+.museum-root {
+  --museum-ink: #f5e8d6;
+  --museum-dim: #c6b7a7;
+  --museum-accent: #f2a261;
+  --museum-serif: Georgia, 'Times New Roman', serif;
+  --museum-mono: 'Courier New', monospace;
+  --museum-edge: rgba(242, 184, 131, .28);
+  color: var(--museum-ink);
+  font: 14px/1.5 system-ui, sans-serif;
+  color-scheme: dark;
+}
+.museum-root [hidden] { display: none !important; }
+.museum-root :is(button, select) { flex: none; min-width: 0; color: inherit; font: inherit; }
+.museum-root button:focus-visible, .museum-root :is(select, .museum-paper-body):focus-visible {
+  outline: 2px solid #ffaf72;
+  outline-offset: 3px;
+}
+.museum-root :is(h1,h2,h3,p,figure,dl,dd) { margin: 0; }
+.museum-root .museum-kicker {
+  color: var(--museum-accent);
+  font: 700 11px/1.5 var(--museum-mono);
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.museum-visually-hidden {
+  position: fixed; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden;
+}
+
+.museum-markers { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.museum-marker {
+  /* Positioned with the `translate` property from JS: no layout per frame. */
+  left: 0; top: 0;
+  position: absolute; display: flex; align-items: center; gap: 8px; pointer-events: auto;
+  transform: translate(-13px,-50%); min-height: 37px; padding: 4px 2px;
+}
+.museum-marker--diamond.museum-marker { flex-direction: row-reverse; transform: translate(calc(-100% + 13px),-50%); }
+.museum-marker i, .museum-dock-link i {
+  display: inline-block; height: 11px; width: 11px; margin: 6px;
+  background: #ffd19b; border: 1px solid #fff4d4;
+  box-shadow: 0 0 0 3px #1a1f25, 0 0 0 5px #ffbb7e94, 0 0 15px #ff935b;
+}
+.museum-marker--diamond i { transform: rotate(45deg); background: #9ddad9; box-shadow: 0 0 0 3px #1a1f25, 0 0 0 5px #9ddad98c; }
+.museum-marker.is-selected { pointer-events: none; opacity: 1; }
+.museum-marker.is-selected i { box-shadow: 0 0 0 3px #221d18, 0 0 0 7px #f3a26180, 0 0 30px 9px #f3875170; }
+.museum-dock {
+  position: fixed; bottom: max(8px, env(safe-area-inset-bottom)); z-index: 42;
+  border: 1px solid var(--museum-edge); background: #211c18f5; border-radius: 5px;
+  box-shadow: 0 5px 20px #0005;
+}
+.museum-dock { right: 12px; display: flex; align-items: center; min-height: 35px; gap: 3px; padding: 0 5px 0 10px; }
+.museum-dock-label { font: 700 10px/1.1 var(--museum-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--museum-accent); padding-right: 7px; }
+.museum-dock-link { display: flex; align-items: center; gap: 4px; padding: 3px 5px; border-radius: 3px; }
+.museum-root .museum-dock-link { font-size: 11px; }
+.museum-dock-link i { width: 6px; height: 6px; margin: 4px; box-shadow: none; }
+.museum-dock-link:hover { background: #fff1; }
+.museum-intro {
+  position: fixed; z-index: 20; top: 50%; right: clamp(24px, 6vw, 104px);
+  margin-top: -160px; width: min(44vw, 464px); overflow: hidden;
+  padding: clamp(20px, 3.4vw, 42px);
+  border: 1px solid #faad7366; border-radius: 7px;
+  background: linear-gradient(155deg,#30231ceF,#181514f5 75%);
+  box-shadow: 0 20px 90px #000a, inset 0 1px #ffd8a224;
+  transform-origin: center left;
+}
+.museum-intro h1 {
+  margin: 11px 0 9px; font: 400 clamp(35px,4vw,66px)/.97 var(--museum-serif);
+  letter-spacing: -.035em; text-wrap: balance;
+}
+.museum-intro .museum-intro-location { color: #ffcb9d; font-size: 13px; }
+.museum-intro .museum-intro-summary { margin-top: 17px; color: #f5e4d1; font-size: 15px; }
+.museum-intro .museum-intro-disclosure { margin: 12px 0 18px; color: var(--museum-dim); font-size: 12px; }
+.museum-root .museum-start {
+  display: inline-block; padding: 8px 15px; color: #26160e; background: #f0a36d;
+  border-radius: 4px; font-weight: 700; min-height: 42px;
+}
+.museum-root .museum-start:hover { background: #ffc097; }
+.museum-countdown { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #e47a4422; }
+.museum-countdown i {
+  display: block; height: 100%; transform: scaleX(0); transform-origin: left;
+  background: linear-gradient(90deg,#bd4734,#f78042 55%,#ffd170);
+}
+.museum-root .museum-exit {
+  position: fixed; z-index: 43; top: max(13px, env(safe-area-inset-top)); right: max(13px, env(safe-area-inset-right));
+  padding: 7px 13px; min-height: 40px; color: #fce7d1; background: #251d17f7;
+  border: 1px solid var(--museum-edge); border-radius: 4px; font-size: 12px;
+}
+.museum-exit:hover { background: #483022; }
+@media (max-height: 510px) and (orientation: landscape) {
+  .museum-intro { margin-top: 0; top: 59px; bottom: 49px; width: min(48vw, 450px); overflow: auto; padding: 14px 18px; }
+  .museum-intro h1 { margin-block: 5px; font-size: clamp(25px, 5vw, 42px); }
+  .museum-intro .museum-intro-summary { margin-top: 7px; font-size: 13px; }
+  .museum-intro .museum-intro-disclosure { margin: 4px 0 7px; }
+}
+
+.museum-scene {
+  position: fixed; inset: 0; z-index: 30; visibility: hidden; opacity: 0; overflow: hidden;
+  background: radial-gradient(ellipse at 44% 30%, #423124 0%, #241b15 55%, #120f0e 100%);
+}
+.museum-board-header { position: absolute; top: 20px; left: clamp(16px, 4vw, 56px); right: 160px; }
+.museum-board-header h2 {
+  margin-top: 2px; font: 400 clamp(26px, 4.5vw, 57px)/1 var(--museum-serif);
+  letter-spacing: -.035em;
+}
+.museum-board-header h2:focus { outline: none; }
+.museum-board-location { color: var(--museum-dim); font-size: 12px; margin-top: 6px !important; }
+.museum-board-viewport {
+  position: absolute; inset: 122px 0 89px; overflow: hidden; touch-action: pan-y;
+  -webkit-mask-image: linear-gradient(transparent,black 10px,black calc(100% - 10px),transparent);
+  mask-image: linear-gradient(transparent,black 10px,black calc(100% - 10px),transparent);
+}
+.museum-board-world {
+  position: absolute; transform-origin: 0 0; isolation: isolate;
+  border-radius: 8px;
+  outline: 2px solid #df9a5940;
+  background:
+    radial-gradient(ellipse at 46% 27%,#e7ad7447,transparent 78%),
+    url('./assets/cork.webp') repeat,
+    #986842;
+  box-shadow: 0 30px 90px #0009, inset 0 12px 35px #2b120fc4, inset 0 0 4px 3px #f0bd842a;
+}
+.museum-board-world::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border: 18px ridge #67452c; border-radius: inherit;
+  pointer-events: none;
+}
+.museum-strings { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 2; pointer-events: none; }
+.museum-strings path { fill: none; stroke: #9b2c27; stroke-width: 3.4; filter: drop-shadow(0 2px 1px #2d080b70); }
+.museum-edge {
+  position: absolute; z-index: 3; transform: translate(-50%,-50%) rotate(-3deg);
+  padding: 6px 12px; font: 700 17px/1.1 var(--museum-mono);
+  color: #381d14; background: #e4c38d; border-bottom: 2px solid #976843;
+  box-shadow: 1px 3px 5px #39140e55; white-space: nowrap;
+}
+.museum-empty {
+  position: absolute; inset: 38% 30% auto; text-align: center; font: 32px var(--museum-serif);
+  color: #301e14; background: #f4ddba; padding: 32px;
+}
+
+.museum-paper {
+  position: absolute; z-index: 1; display: flex; flex-direction: column; gap: 9px;
+  padding: 26px 22px 15px; color: #302319; color-scheme: light;
+  background:
+    linear-gradient(125deg,#fff6e6bd,transparent 90%),
+    url('./assets/paper.webp') repeat,
+    #ead6b2;
+  border-radius: 1px 2px 3px 2px;
+  box-shadow: 2px 6px 8px #31170080, 9px 18px 25px #2a130553, inset 0 0 22px #a167302e;
+}
+.museum-paper--report { background-color: #ecd6a9; border-top: 10px solid #735240; padding-top: 19px; }
+.museum-paper--photo { background-color: #f0e8d7; padding: 22px 14px 12px; gap: 5px; }
+.museum-paper--satellite { background-color: #d8d8c5; padding: 24px 13px 11px; gap: 6px; }
+.museum-paper h3 { font: 600 30px/.99 var(--museum-serif); letter-spacing: -.03em; }
+.museum-paper--article h3 { padding-bottom: 9px; border-bottom: 3px double #967959; }
+.museum-paper--photo h3, .museum-paper--satellite h3 { font-size: 25px; }
+.museum-paper-type {
+  color: #70382c; font: 700 15px/1 var(--museum-mono); letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.museum-paper-body {
+  flex: 1; min-height: 0; overflow: hidden; font: 23px/1.29 var(--museum-serif);
+  scrollbar-color: #986c45 transparent; scrollbar-width: thin;
+}
+.museum-paper.is-readable { z-index: 4; }
+.museum-paper.is-readable .museum-paper-body {
+  overflow: auto; touch-action: pan-y; padding-right: 5px;
+  font-size: max(21px, calc(16px / var(--museum-scale, 1)));
+}
+.museum-paper.is-readable .museum-observation { font-size: max(16px, calc(13px / var(--museum-scale, 1))); }
+.museum-paper-body p + p { margin-top: .6em; }
+.museum-paper-source {
+  display: grid; gap: 2px; border-top: 1px solid #9b754b72; padding-top: 6px; padding-right: 25px;
+  font: 14px/1.2 var(--museum-mono); color: #4b3528;
+}
+.museum-paper-source span { color: #644b3a; }
+.museum-root .museum-paper-hit { position: absolute; inset: 0; border-radius: inherit; width: 100%; }
+.museum-root .museum-paper-hit:hover { outline: 3px solid #fff1cf; outline-offset: 4px; }
+.museum-pin {
+  position: absolute; z-index: 6; top: 12px; left: 50%; transform: translate(-50%,-50%);
+  pointer-events: none; width: 19px; height: 19px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 27%,#ffd0ae,#bf5740 26%,#982f21 61%,#622018 83%);
+  box-shadow: 1px 3px 2px #30150d97, 3px 6px 5px #48180f73;
+}
+.museum-paper--report .museum-pin { top: 2px; }
+.museum-figure img, .museum-image-fallback { display: block; width: 100%; height: 145px; object-fit: cover; color: #f8e8c6; background: #49473b; }
+.museum-figure figcaption { margin-top: 4px; font: 15px/1.2 var(--museum-mono); }
+.museum-paper--satellite .museum-paper-body { display: flex; gap: 10px; }
+.museum-paper--satellite .museum-figure { flex: 1; min-width: 0; }
+.museum-paper--satellite .museum-figure img { height: 100%; min-height: 107px; }
+.museum-observation { flex: 1; font: 16px/1.13 var(--museum-mono); }
+.museum-observation dt { color: #643427; text-transform: uppercase; font-weight: 700; font-size: 13px; }
+.museum-root .museum-observation dd { margin-bottom: 4px; }
+
+.museum-board-footer {
+  position: absolute; left: clamp(14px, 4vw, 56px); right: clamp(14px, 4vw, 56px); bottom: 45px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.museum-board-note { font-size: 12px; color: var(--museum-dim); max-width: 43ch; }
+.museum-board-controls { display: flex; min-width: 0; gap: 5px; align-items: center; justify-content: space-between; }
+.museum-root .museum-board-controls :is(button,select) {
+  min-height: 38px; padding: 4px 10px; border: 1px solid var(--museum-edge);
+  border-radius: 4px; background: #2d211a; font-size: 12px;
+}
+.museum-root .museum-board-controls button:not(:disabled):hover { background: #513928; }
+.museum-board-controls button:disabled { opacity: .4; }
+.museum-root .museum-board-controls select { width: min(31vw, 260px); flex: 0 1 auto; }
+@media (max-height: 510px) and (orientation: landscape) {
+  .museum-board-header { top: 8px; }
+  .museum-board-header h2 { font-size: 25px; }
+  .museum-board-location { margin-top: 2px !important; }
+  .museum-board-viewport { inset-block: 76px 55px; }
+  .museum-board-footer { left: 164px; bottom: 7px; }
+  .museum-board-note { font-size: 10px; }
+  .museum-root .museum-board-controls :is(button,select) { min-height: 31px; }
+}
+
+/* ---- Curated real events ---- */
+.museum-paper--curated h3 { font-size: 24px; }
+.museum-paper--curated .museum-paper-body { font-size: 18px; line-height: 1.3; }
+.museum-paper--curated.is-readable .museum-paper-body { font-size: max(15px, calc(15px / var(--museum-scale, 1))); }
+.museum-paper--curated.is-readable .museum-observation { font-size: max(14px, calc(14px / var(--museum-scale, 1))); }
+.museum-paper--event { background-color: #ead6b2; border-top: 10px solid #5d6a52; padding-top: 19px; }
+.museum-paper--chart, .museum-paper--context { background-color: #d8d8c5; padding: 24px 14px 12px; }
+.museum-paper--method { background-color: #e1d3c3; border-top: 10px solid #735240; padding-top: 19px; }
+.museum-quote { margin: 0; padding-left: 12px; border-left: 4px solid #967959; font-style: italic; }
+.museum-source-link {
+  color: #70382c; font-weight: 700; text-decoration: underline;
+  width: fit-content; padding: 2px 0;
+}
+.museum-source-link:focus-visible { outline: 3px solid #70382c; outline-offset: 3px; }
+.museum-chart { margin: 0; }
+.museum-chart-svg { width: 100%; height: auto; display: block; background: #f2efe2; border: 1px solid #9b754b72; }
+.museum-chart-grid { stroke: #9b754b66; stroke-width: 1; }
+.museum-chart-tick { fill: #4b3528; font: 10px var(--museum-mono); }
+.museum-line { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.museum-line--modis { stroke: #a8442c; stroke-width: 1.6; }
+.museum-line--viirs { stroke: #2b6f73; stroke-width: 1.6; stroke-dasharray: 5 3; }
+.museum-line--harmonized { stroke: #2d2118; stroke-width: 2.4; }
+.museum-legend { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font: 13px/1.2 var(--museum-mono); }
+.museum-swatch { display: inline-block; width: 18px; height: 0; margin-right: 6px; vertical-align: middle; border-top: 3px solid; }
+.museum-swatch--modis { border-color: #a8442c; }
+.museum-swatch--viirs { border-color: #2b6f73; border-top-style: dashed; }
+.museum-swatch--harmonized { border-color: #2d2118; border-top-width: 4px; }
+.museum-marker--approx i { border-style: dashed; outline: 2px dashed #ffbb7eb0; outline-offset: 6px; }
+
+/* ---- Transition performance ----
+   The board is promoted to its own layer only while it moves (and while it is
+   warmed up, painted at near-zero opacity during the intro), so the camera
+   changes are compositor transforms instead of a re-raster of the whole board
+   on every frame. The hint is dropped at rest so text is rasterised crisp. */
+.museum-root:is([data-stage="approach"], [data-stage="intro"], [data-stage="entering"], [data-stage="travel"], [data-stage="returning"]) .museum-board-world {
+  will-change: transform;
+}
+.museum-root:is([data-stage="entering"], [data-stage="returning"]) .museum-scene {
+  will-change: opacity;
+}
+.museum-root:is([data-stage="entering"], [data-stage="returning"]) .museum-intro {
+  will-change: transform, opacity;
+}
+.museum-countdown i { will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  .museum-root .museum-board-world, .museum-root .museum-scene, .museum-root .museum-intro { will-change: auto; }
+}

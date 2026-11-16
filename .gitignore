@@ -37,3 +37,18 @@ next-env.d.ts
 
 # Globo de quemas: fuente IGN de provincias (111 MB, supera el límite de GitHub; sólo la usa prep.py)
 fuentes/provincias_ign.json
+
+# python (pipeline/)
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.duckdb
+*.duckdb.wal
+
+# datos NRT bajados de la API de FIRMS (se regeneran con `firespire fetch`)
+fuentes/nrt/
+
+.obsidian
+# candidatos del museo (firespire museum candidates)
+pipeline/out/

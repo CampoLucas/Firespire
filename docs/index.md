@@ -7,6 +7,8 @@ Definiciones del proyecto para el NASA Space Apps Challenge 2026 (challenge *MOD
 
 ## Arquitectura
 - [Arquitectura y método](arquitectura.md): estado implementado en este repo, arquitectura objetivo, datos FIRMS, método de armonización MODIS/VIIRS, artefactos y API.
+- [Contratos de datos](contratos.md): contrato entre pipeline y web: tablas DuckDB intermedias, interfaces de los módulos Python y esquema de los artefactos v1.
+- [Paquete de arquitectura del MVP](arquitechture-decitions/00_START_HERE.md) (en inglés): MVP centrado en el núcleo del challenge (calendario armonizado 2000–hoy, región y fechas, descargas, mediana) y museo curado con Tavily cruzado con FIRMS; incluye auditoría, ADRs, contratos, runbook en tres tracks, setup y gates de entrega.
 
 ## Diseño
 - [Diseño de producto e interfaz](diseno.md): vistas, componentes, interacción, rampas de color, idioma y reglas sobre datos simulados.
