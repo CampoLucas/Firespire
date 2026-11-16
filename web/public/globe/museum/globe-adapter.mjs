@@ -121,6 +121,27 @@ export function createGlobeAdapter(globe, ctl, THREE, canvasHost) {
     return { position: [x, y, z], target: [0, 0, 0] };
   }
 
+  function orbitTo(destination, framing, turns = 0) {
+    const start = globe.pointOfView();
+    const offset = camera.view?.enabled
+      ? [camera.view.offsetX / camera.view.fullWidth, camera.view.offsetY / camera.view.fullHeight] : [0, 0];
+    const longitude = ((destination.lng - start.lng + 540) % 360) - 180 + turns * 360;
+    return (t) => {
+      const main = Math.min(1, t / .92);
+      const u = main * main * main * (main * (main * 6 - 15) + 10);
+      const recoil = Math.sin(Math.PI * clamp((t - .8) / .2, 0, 1)) * .008;
+      const altitude = Math.exp(mix(Math.log(1 + start.altitude), Math.log(1 + destination.altitude), u)) - 1;
+      const point = globe.getCoords(mix(start.lat, destination.lat, u), start.lng + longitude * u, altitude * (1 - recoil));
+      camera.position.set(point.x, point.y, point.z);
+      ctl.target.set(0, 0, 0);
+      camera.lookAt(ctl.target);
+      const width = Math.max(1, canvasHost.clientWidth), height = Math.max(1, canvasHost.clientHeight);
+      const [x, y] = framing();
+      camera.setViewOffset(width, height, mix(offset[0], x, u) * width, mix(offset[1], y, u) * height, width, height);
+      camera.updateMatrixWorld();
+    };
+  }
+
   function legacyFlight(pov, duration) {
     if (leased) return;
     releaseFlight();
@@ -157,7 +178,7 @@ export function createGlobeAdapter(globe, ctl, THREE, canvasHost) {
   }
 
   return {
-    capture, acquire, release, apply, project, legacyFlight, altitudePose, sampleTo,
+    capture, acquire, release, apply, project, legacyFlight, altitudePose, sampleTo, orbitTo,
     get leased() { return leased; },
     cancelFlight() { releaseFlight(); releaseFlight = () => {}; },
   };

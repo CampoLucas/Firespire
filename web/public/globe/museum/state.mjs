@@ -29,11 +29,14 @@ export function reduce(state, event, ids = []) {
       return stage === Stage.entering ? { ...state, stage: Stage.board } : state;
     case "focus":
       if (![Stage.board, Stage.travel, Stage.evidence].some((candidate) => stage === candidate) ||
-          (event.id != null && !ids.includes(event.id)) || state.target === (event.id ?? null)) return state;
+          (event.id != null && !ids.includes(event.id)) || (state.target === (event.id ?? null) && !event.force)) return state;
       return { ...state, stage: Stage.travel, motion: motion + 1, target: event.id ?? null };
     case "settle":
       return stage === Stage.travel
         ? { ...state, stage: state.target == null ? Stage.board : Stage.evidence } : state;
+    case "navigate":
+      return [Stage.board, Stage.travel, Stage.evidence].some((candidate) => candidate === stage)
+        ? { ...state, stage: state.target == null ? Stage.board : Stage.evidence, motion: motion + 1 } : state;
     case "exit":
       return [Stage.globe, Stage.returning].some((candidate) => stage === candidate) ? state
         : { ...state, stage: Stage.returning, motion: motion + 1 };

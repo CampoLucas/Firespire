@@ -8,8 +8,10 @@ export interface MuseumState {
 }
 
 export type MuseumEvent = {
-  type: "select" | "arrived" | "start" | "board" | "focus" | "settle" | "exit" | "restored";
+  type: "select" | "arrived" | "start" | "board" | "focus" | "settle" | "exit" | "restored" | "navigate";
+  pose?: { x: number; y: number; scale: number; roll: number };
   id?: string | null;
+  force?: boolean;
   session?: number;
   motion?: number;
 };

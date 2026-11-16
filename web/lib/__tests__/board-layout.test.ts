@@ -6,11 +6,12 @@ import { readFileSync } from "node:fs";
 const museum = JSON.parse(readFileSync(new URL("../../public/artifacts/v2-full/museum.json", import.meta.url), "utf8"));
 
 describe("responsive documentary board layout", () => {
-  it("keeps desktop placements and source records unchanged", () => {
+  it("arranges desktop papers spatially without changing documentary records", () => {
     const exhibit = mapArtifact(museum)[0];
     const before = JSON.stringify(exhibit);
     const result = layoutEvidence(exhibit.items, false);
-    expect(result.items).toEqual(exhibit.items);
+    expect(result.items.map(({ id, source, blocks }) => ({ id, source, blocks }))).toEqual(exhibit.items.map(({ id, source, blocks }) => ({ id, source, blocks })));
+    expect(new Set(result.items.map(({ placement }) => placement.y)).size).toBeGreaterThan(2);
     expect(result.width).toBe(1600);
     expect(result.height).toBe(1000);
     expect(JSON.stringify(exhibit)).toBe(before);
