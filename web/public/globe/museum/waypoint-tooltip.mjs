@@ -7,7 +7,7 @@ export function createWaypointTooltip(marker, exhibit, signal) {
   const window = element("div", "museum-tooltip-window");
   const title = element("b", "museum-tooltip-text", exhibit.title);
   window.append(title);
-  tooltip.append(window, element("small", "", `${exhibit.isMock ? "Fictional" : "Curated"}${exhibit.approximate ? " · approximate location" : ""}`));
+  tooltip.append(window, element("small", "", `${exhibit.isMock ? "Fictional" : "Event"}${exhibit.approximate ? " · approximate location" : ""}`));
   marker.setAttribute("aria-describedby", tooltip.id);
   const measure = () => {
     tooltip.style.setProperty("--tooltip-shift", "0px");

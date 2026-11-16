@@ -10,8 +10,8 @@ describe("responsive documentary board layout", () => {
     const exhibit = mapArtifact(museum)[0];
     const before = JSON.stringify(exhibit);
     const result = layoutEvidence(exhibit.items, false);
-    expect(result.items.map(({ id, source, blocks }) => ({ id, source, blocks }))).toEqual(exhibit.items.map(({ id, source, blocks }) => ({ id, source, blocks })));
-    expect(new Set(result.items.map(({ placement }) => placement.y)).size).toBeGreaterThan(2);
+    expect(result.items.map(({ id, source, blocks }: { id: string; source: unknown; blocks?: unknown }) => ({ id, source, blocks }))).toEqual(exhibit.items.map(({ id, source, blocks }) => ({ id, source, blocks })));
+    expect(new Set(result.items.map(({ placement }: { placement: { y: number } }) => placement.y)).size).toBeGreaterThan(2);
     expect(result.width).toBe(1600);
     expect(result.height).toBe(1000);
     expect(JSON.stringify(exhibit)).toBe(before);
@@ -20,10 +20,10 @@ describe("responsive documentary board layout", () => {
   it.each(mapArtifact(museum).map((exhibit) => [exhibit.id, exhibit]))("fits every record in the compact board for %s", (_id, exhibit) => {
     const before = JSON.stringify(exhibit);
     const result = layoutEvidence(exhibit.items, true);
-    expect(result.items.map((item) => item.id)).toEqual(exhibit.items.map((item) => item.id));
-    expect(result.items.map((item) => item.source)).toEqual(exhibit.items.map((item) => item.source));
-    expect(result.items.map((item) => item.blocks)).toEqual(exhibit.items.map((item) => item.blocks));
-    expect(result.items.every(({ placement: p }) => p.x - p.width / 2 >= 0 && p.x + p.width / 2 <= result.width && p.y - p.height / 2 >= 0 && p.y + p.height / 2 <= result.height)).toBe(true);
+    expect(result.items.map((item: { id: string; source: unknown; blocks?: unknown }) => item.id)).toEqual(exhibit.items.map((item) => item.id));
+    expect(result.items.map((item: { id: string; source: unknown; blocks?: unknown }) => item.source)).toEqual(exhibit.items.map((item) => item.source));
+    expect(result.items.map((item: { id: string; source: unknown; blocks?: unknown }) => item.blocks)).toEqual(exhibit.items.map((item) => item.blocks));
+    expect(result.items.every(({ placement: p }: { placement: { x: number; y: number; width: number; height: number } }) => p.x - p.width / 2 >= 0 && p.x + p.width / 2 <= result.width && p.y - p.height / 2 >= 0 && p.y + p.height / 2 <= result.height)).toBe(true);
     expect(JSON.stringify(exhibit)).toBe(before);
   });
 

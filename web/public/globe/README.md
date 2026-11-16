@@ -1,15 +1,17 @@
-# Globe and Museum of Fires
+# Globe and Museum of Fire
 
-Open `/globe/index.html` through the existing web application. This static frontend remains separate from the React history dashboard.
+Open `/` (a rewrite of `/globe/index.html`, which still works). This static frontend remains separate from the React history dashboard at `/history`, which the Summary panel links to. All assets are referenced with root-absolute `/globe/...` paths so both URLs load them. Layout is mobile-first: base CSS targets phones and `min-width: 700px` adds the desktop layout (the same breakpoint as `matchMedia` in `hud.mjs` and `board-view.mjs`).
 
 ## Presentation
 
 - The hero shows **Loading Experience** until the Earth, rendered real activity, documentary museum and fonts are ready. **Ready to go** enables entry but never auto-starts. Loading failures provide **Retry loading**. A settling introduction and a user-triggered two-turn entrance use the existing camera adapter.
 - Summary, Calendar and Filters open responsive drawers. Existing confidence, province, year, day/night, activity-layer and visualization controls retain their data bindings.
-- Display settings include illustrated, NASA Blue Marble, dark and night basemaps. The illustrated map interprets its alpha channel as a separate cloud layer and blends a downsampled existing NASA texture at the poles to repair malformed reference pixels. Activity defaults to a transparent yellow/orange/red heatmap derived from real FIRMS observations; hexagon and area modes remain available. Geographic meshes share the native globe layer hierarchy.
-- Museum previews start a fifteen-second countdown only after the preview is visible and its approach completes; manual start and exit cancel it. Boards render actual evidence, charts, citations and source links. Pointer drag, wheel zoom and touch pinch share the existing museum camera state with click-to-focus and previous/next navigation. **Whole board** restores framing. Mobile retains the complete Evidence list.
-- Returning restores the original camera and analysis state. Exploration never auto-rotates; manual globe rotation and zoom retain their controls and damping. Reduced-motion preferences bypass camera travel, disable tooltip panning and shorten CSS transitions.
-- Planning mode and Developer View were intentionally removed. The observed-activity alert summary and optional `?debug=1` renderer diagnostics remain.
+- Display settings include illustrated, NASA Blue Marble, dark and night basemaps. The illustrated map interprets its alpha channel as a separate cloud layer and blends a downsampled existing NASA texture at the poles to repair malformed reference pixels. Activity defaults to a transparent yellow/orange/red heat map derived from real FIRMS observations; hexagon and area modes remain available. Geographic meshes share the native globe layer hierarchy.
+- Museum previews start a fifteen-second countdown only after the preview is visible and its approach completes; manual start and exit cancel it. Boards render actual evidence, charts, citations and source links. Pointer drag, wheel zoom and touch pinch share the existing museum camera state with click-to-focus and previous/next navigation. **Whole board** restores framing. Mobile provides a scrollable compact board and a complete Evidence list.
+- Returning restores the original camera and analysis state. The globe never rotates on its own (no auto-rotation); manual rotation and zoom keep their controls and damping. Reduced-motion preferences bypass camera travel, disable tooltip panning and shorten CSS transitions.
+- Planning mode and Developer View were intentionally removed. The activity alerts (banner, pulsing rings and Alerts tab) were removed; the Summary panel shows only the KPIs and a **Download CSV** button that exports the hexagons currently shown (one row per hexagon, honouring year, province, confidence, day/night, period or selected day, visible layers and grid resolution). Optional `?debug=1` renderer diagnostics remain.
+- The default grid is H3 resolution 5 (the finest the data supports); `?res=2..5` still overrides it.
+- Clicking a province filters by it; clicking it again, or clicking outside any province, clears the filter.
 
 ## Assets and data integrity
 

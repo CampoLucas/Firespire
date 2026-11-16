@@ -1,4 +1,4 @@
-.museum-active :is(#hdr, #left, #right, #tbar, #bottom, #banner, #busy, #dbg, #tip) {
+.museum-active :is(#hdr, #left, #right, #tbar, #bottom, #busy, #dbg, #tip) {
   visibility: hidden !important;
   pointer-events: none !important;
 }
@@ -34,15 +34,12 @@
 
 .museum-markers { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
 .museum-marker {
+  /* Positioned with the `translate` property from JS: no layout per frame. */
+  left: 0; top: 0;
   position: absolute; display: flex; align-items: center; gap: 8px; pointer-events: auto;
   transform: translate(-13px,-50%); min-height: 37px; padding: 4px 2px;
 }
 .museum-marker--diamond.museum-marker { flex-direction: row-reverse; transform: translate(calc(-100% + 13px),-50%); }
-.museum-marker span {
-  padding: 4px 8px; border: 1px solid #e8ad7f65; border-radius: 3px;
-  background: #181a1ceb; color: #fff1de; font-size: 11px; font-weight: 600;
-  box-shadow: 0 3px 10px #0008;
-}
 .museum-marker i, .museum-dock-link i {
   display: inline-block; height: 11px; width: 11px; margin: 6px;
   background: #ffd19b; border: 1px solid #fff4d4;
@@ -62,12 +59,6 @@
 .museum-root .museum-dock-link { font-size: 11px; }
 .museum-dock-link i { width: 6px; height: 6px; margin: 4px; box-shadow: none; }
 .museum-dock-link:hover { background: #fff1; }
-@media (max-width: 540px) { .museum-dock-label { display: none; } }
-@media (max-width: 360px) {
-  .museum-dock { padding: 0; gap: 0; right: 6px; }
-  .museum-root .museum-dock-link { font-size: 10px; padding-inline: 3px; }
-}
-
 .museum-intro {
   position: fixed; z-index: 20; top: 50%; right: clamp(24px, 6vw, 104px);
   margin-top: -160px; width: min(44vw, 464px); overflow: hidden;
@@ -100,10 +91,6 @@
   border: 1px solid var(--museum-edge); border-radius: 4px; font-size: 12px;
 }
 .museum-exit:hover { background: #483022; }
-@media (max-width: 720px) and (orientation: portrait) {
-  .museum-intro { top: auto; bottom: 63px; right: 14px; left: 14px; margin: 0; width: auto; }
-  .museum-intro h1 { font-size: clamp(34px, 10vw, 55px); }
-}
 @media (max-height: 510px) and (orientation: landscape) {
   .museum-intro { margin-top: 0; top: 59px; bottom: 49px; width: min(48vw, 450px); overflow: auto; padding: 14px 18px; }
   .museum-intro h1 { margin-block: 5px; font-size: clamp(25px, 5vw, 42px); }
@@ -213,7 +200,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
 .museum-board-note { font-size: 12px; color: var(--museum-dim); max-width: 43ch; }
-.museum-board-controls { display: flex; min-width: 0; gap: 5px; align-items: center; }
+.museum-board-controls { display: flex; min-width: 0; gap: 5px; align-items: center; justify-content: space-between; }
 .museum-root .museum-board-controls :is(button,select) {
   min-height: 38px; padding: 4px 10px; border: 1px solid var(--museum-edge);
   border-radius: 4px; background: #2d211a; font-size: 12px;
@@ -221,16 +208,6 @@
 .museum-root .museum-board-controls button:not(:disabled):hover { background: #513928; }
 .museum-board-controls button:disabled { opacity: .4; }
 .museum-root .museum-board-controls select { width: min(31vw, 260px); flex: 0 1 auto; }
-@media (max-width: 620px) {
-  .museum-board-header { right: 130px; top: 16px; }
-  .museum-board-header h2 { font-size: clamp(24px,7vw,34px); }
-  .museum-board-header .museum-kicker { font-size: 9px; letter-spacing: .08em; }
-  .museum-board-viewport { top: 132px; bottom: 122px; }
-  .museum-board-footer { flex-direction: column; align-items: stretch; bottom: 52px; gap: 5px; }
-  .museum-board-controls { justify-content: space-between; }
-  .museum-root .museum-board-controls select { width: 100%; }
-  .museum-board-note { font-size: 10px; }
-}
 @media (max-height: 510px) and (orientation: landscape) {
   .museum-board-header { top: 8px; }
   .museum-board-header h2 { font-size: 25px; }
@@ -241,7 +218,7 @@
   .museum-root .museum-board-controls :is(button,select) { min-height: 31px; }
 }
 
-/* ---- Eventos curados reales ---- */
+/* ---- Curated real events ---- */
 .museum-paper--curated h3 { font-size: 24px; }
 .museum-paper--curated .museum-paper-body { font-size: 18px; line-height: 1.3; }
 .museum-paper--curated.is-readable .museum-paper-body { font-size: max(15px, calc(15px / var(--museum-scale, 1))); }
@@ -269,3 +246,22 @@
 .museum-swatch--viirs { border-color: #2b6f73; border-top-style: dashed; }
 .museum-swatch--harmonized { border-color: #2d2118; border-top-width: 4px; }
 .museum-marker--approx i { border-style: dashed; outline: 2px dashed #ffbb7eb0; outline-offset: 6px; }
+
+/* ---- Transition performance ----
+   The board is promoted to its own layer only while it moves (and while it is
+   warmed up, painted at near-zero opacity during the intro), so the camera
+   changes are compositor transforms instead of a re-raster of the whole board
+   on every frame. The hint is dropped at rest so text is rasterised crisp. */
+.museum-root:is([data-stage="approach"], [data-stage="intro"], [data-stage="entering"], [data-stage="travel"], [data-stage="returning"]) .museum-board-world {
+  will-change: transform;
+}
+.museum-root:is([data-stage="entering"], [data-stage="returning"]) .museum-scene {
+  will-change: opacity;
+}
+.museum-root:is([data-stage="entering"], [data-stage="returning"]) .museum-intro {
+  will-change: transform, opacity;
+}
+.museum-countdown i { will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  .museum-root .museum-board-world, .museum-root .museum-scene, .museum-root .museum-intro { will-change: auto; }
+}

@@ -19,9 +19,10 @@ export function mountHud({ globe, adapter, controls, readiness, onChange }) {
   controls.autoRotate = false;
 
   const filters = panels.calendar.querySelector(".ctrls");
-  if (filters) panels.filters.append(filters);
   const advanced = element("details", "display-settings");
-  advanced.append(element("summary", "", "Display settings"), find("tbar"));
+  const toolbar = find("tbar");
+  advanced.append(element("summary", "", "Display settings"), toolbar);
+  toolbar.hidden = false; // llega oculto en el HTML para que no parpadee antes de montar el HUD
   panels.filters.append(advanced);
   for (const [name, panel] of Object.entries(panels)) {
     const heading = element("header", "drawer-head");
@@ -33,6 +34,8 @@ export function mountHud({ globe, adapter, controls, readiness, onChange }) {
     heading.append(title, close);
     panel.prepend(heading);
   }
+  // Year / Country / Province van primero, justo debajo del encabezado del cajón
+  if (filters) panels.filters.querySelector(".drawer-head")?.after(filters);
 
   function setHud(name, restoreFocus = false) {
     active = name;
@@ -96,7 +99,7 @@ export function mountHud({ globe, adapter, controls, readiness, onChange }) {
     entry.disabled = next.disabled = !ready;
     document.body.dataset.readiness = readiness.status;
     find("hero-status").textContent = ready ? "Ready to go" : readiness.status === "error" ? "Unable to load the experience" : "Loading Experience";
-    find("hero-detail").textContent = ready ? "Start exploring the Museum of Fires" : readiness.status === "error" ? readiness.error : "Preparing the globe and real fire activity";
+    find("hero-detail").textContent = ready ? "Start exploring the Museum of Fire" : readiness.status === "error" ? readiness.error : "Preparing the globe and real fire activity";
     find("hero-retry").hidden = readiness.status !== "error";
   });
   entry.addEventListener("click", () => enter());

@@ -45,7 +45,7 @@ export default function Calendar({ rows, edges, valueOf, unit }: Props) {
         </div>
       </div>
       <p className={styles.readout} aria-live="polite">
-        {active || "Hover or focus a month to see its details."}
+        {active || "Hover, tap or focus a month to see its details."}
       </p>
       <div className={styles.legend} aria-label="Legend">
         {legend.map((l) => (
@@ -98,6 +98,7 @@ function YearRow({
             title={text.replaceAll("; ", "\n")}
             onMouseEnter={() => onActive(text)}
             onFocus={() => onActive(text)}
+            onClick={() => onActive(text)}
           />
         );
       })}

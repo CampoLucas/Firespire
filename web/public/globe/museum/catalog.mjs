@@ -23,7 +23,7 @@ function item(id, kind, title, source, date, placement, content) {
 /** @type {import("./contracts").MockExhibit[]} */
 export const exhibits = [
   {
-    id: "river", isMock: true, marker: "square", origin: "Curated sample",
+    id: "river", isMock: true, marker: "square", origin: "Fictional sample",
     short: "Riverside files", title: "The Riverside Files", region: "Corrientes, Argentina",
     lat: -28.5, lng: -58.5, altitude: .76, period: "10–16 September 2024",
     summary: "A riverside closure, a field memo and a simulated satellite pass. Explore what each record can tell you about the same stretch of wetland.",

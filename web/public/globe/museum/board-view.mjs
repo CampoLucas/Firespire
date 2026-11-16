@@ -21,7 +21,7 @@ function pinPosition({ placement: { x, y, height, rotation } }) {
   return [x + Math.sin(radians) * offset, y - Math.cos(radians) * offset];
 }
 
-function renderEvidence(item, select) {
+function renderEvidence(item, select, decodes) {
   const { x, y, width, height, rotation } = item.placement;
   const paper = element("article", `museum-paper museum-paper--${item.kind}${item.isMock ? "" : " museum-paper--curated"}`);
   paper.dataset.item = item.id;
@@ -41,6 +41,10 @@ function renderEvidence(item, select) {
     image.src = new URL(`./assets/${item.image}`, import.meta.url).href;
     image.alt = item.alt;
     image.draggable = false;
+    // Decode off the main thread before the board is shown, so the first
+    // painted frame of the opening animation does not pay for it.
+    image.decoding = "async";
+    decodes.push(image.decode().catch(() => {}));
     const fallback = element("span", "museum-image-fallback", item.alt);
     fallback.hidden = true;
     image.addEventListener("error", () => {
@@ -60,7 +64,7 @@ function renderEvidence(item, select) {
   if (item.blocks) renderBlocks(body, item.blocks);
   const source = element("footer", "museum-paper-source");
   source.append(element("b", "", item.source.name), element("span", "", item.source.date));
-  // Enlace a la fuente original: solo https, y sus eventos no deben seleccionar ni deslizar la tarjeta.
+  // Link to the original source: https only, and its events must not select or swipe the card.
   let link = null;
   if (item.link && isHttpsUrl(item.source.url)) {
     link = element("a", "museum-source-link", "Open original source");
@@ -89,7 +93,7 @@ export function createBoard(exhibit, actions) {
   root.dataset.boardView = "whiteboard";
   const header = element("header", "museum-board-header");
   header.append(element("p", "museum-kicker", exhibit.isMock
-    ? "Museum of Fires / Fictional exhibit" : "Museum of Fires / Curated event · satellite overlap, not attribution"));
+    ? "Museum of Fire / Fictional exhibit" : "Museum of Fire / Real sources · satellite overlap, not attribution"));
   const title = element("h2", "", exhibit.title);
   title.tabIndex = -1;
   header.append(title, element("p", "museum-board-location", `${exhibit.region} · ${exhibit.period}`));
@@ -100,8 +104,9 @@ export function createBoard(exhibit, actions) {
   const strings = svg("svg", { class: "museum-strings", viewBox: `0 0 ${BOARD.width} ${BOARD.height}`, "aria-hidden": "true" });
   world.append(strings);
   const papers = new Map();
+  const decodes = [];
   for (const item of exhibit.items) {
-    const record = renderEvidence(item, actions.select);
+    const record = renderEvidence(item, actions.select, decodes);
     papers.set(item.id, record);
     world.append(record.paper);
   }
@@ -174,12 +179,27 @@ export function createBoard(exhibit, actions) {
   footer.append(note, controls);
   root.append(header, tabs, viewport, list, footer);
 
+  // The viewport size is read once and cached: setCamera() runs on every animation
+  // frame and on every pointer move, and must not force a synchronous layout.
+  const compactQuery = matchMedia("(max-width: 699px)");
   let currentPose = { x: 800, y: 500, scale: .7, roll: 0 };
-  let layout = layoutEvidence(exhibit.items, matchMedia("(max-width: 699px)").matches);
+  let layout = layoutEvidence(exhibit.items, compactQuery.matches);
+  let appliedKey = null;
+  let size = null;
+  let lastMatrix = "";
   let suppressClick = 0;
   const pointers = new Map();
   const signal = lifetime.signal;
-  const fitScale = () => Math.max(.02, Math.min((viewport.clientWidth - 28) / layout.width, (viewport.clientHeight - 20) / layout.height));
+  const measure = () => {
+    if (size) return size;
+    const current = [viewport.clientWidth, viewport.clientHeight];
+    if (current[0] >= 2 && current[1] >= 2) size = current;   // un tamaño nulo (oculto) no se cachea
+    return current;
+  };
+  const fitScale = () => {
+    const [width, height] = measure();
+    return Math.max(.02, Math.min((width - 28) / layout.width, (height - 20) / layout.height));
+  };
   const navigate = (pose) => actions.navigate(constrainPose(pose, layout.width, layout.height, fitScale()));
   const zoom = (factor, x, y) => {
     const scale = Math.max(fitScale() * .55, Math.min(3, currentPose.scale * factor));
@@ -201,8 +221,9 @@ export function createBoard(exhibit, actions) {
       const previous = Math.hypot(old[1].x - old[0].x, old[1].y - old[0].y);
       const distance = Math.hypot(now[1].x - now[0].x, now[1].y - now[0].y);
       const rect = viewport.getBoundingClientRect();
-      const x = (now[0].x + now[1].x) / 2 - rect.left - viewport.clientWidth / 2;
-      const y = (now[0].y + now[1].y) / 2 - rect.top - viewport.clientHeight / 2;
+      const [width, height] = measure();
+      const x = (now[0].x + now[1].x) / 2 - rect.left - width / 2;
+      const y = (now[0].y + now[1].y) / 2 - rect.top - height / 2;
       if (previous > 0) zoom(Math.max(.8, Math.min(1.25, distance / previous)), x, y);
       suppressClick = performance.now() + 350;
       event.preventDefault();
@@ -225,7 +246,8 @@ export function createBoard(exhibit, actions) {
     if (!event.ctrlKey && event.target instanceof Element && event.target.closest(".is-readable .museum-paper-body")) return;
     const rect = viewport.getBoundingClientRect();
     event.preventDefault();
-    zoom(Math.exp(-Math.max(-100, Math.min(100, event.deltaY)) * .0025), event.clientX - rect.left - viewport.clientWidth / 2, event.clientY - rect.top - viewport.clientHeight / 2);
+    const [width, height] = measure();
+    zoom(Math.exp(-Math.max(-100, Math.min(100, event.deltaY)) * .0025), event.clientX - rect.left - width / 2, event.clientY - rect.top - height / 2);
   }, { passive: false, signal });
 
   function mark(id, settled = false) {
@@ -250,50 +272,69 @@ export function createBoard(exhibit, actions) {
   }
 
   mark(null);
+
+  function applyLayout(compact, id) {
+    layout = layoutEvidence(exhibit.items, compact);
+    if (id != null) layout = { ...layout, items: layout.items.map((item) => item.id === id
+      ? { ...item, placement: { ...item.placement, height: Math.max(520, item.placement.height) } } : item) };
+    appliedKey = `${compact}|${id ?? ""}`;
+    world.style.width = `${layout.width}px`;
+    world.style.height = `${layout.height}px`;
+    for (const item of layout.items) {
+      const { x, y, width: w, height: h, rotation } = item.placement;
+      Object.assign(papers.get(item.id).paper.style, {
+        left: `${x - w / 2}px`, top: `${y - h / 2}px`, width: `${w}px`, height: `${h}px`, transform: `rotate(${rotation}deg)`,
+      });
+    }
+    strings.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+    const labels = world.querySelectorAll(".museum-edge");
+    edges.forEach((edge, index) => {
+      const a = pinPosition(layout.items.find((item) => item.id === edge.from));
+      const b = pinPosition(layout.items.find((item) => item.id === edge.to));
+      const [x, y] = edge.sourceId
+        ? [(a[0] + b[0]) / 2, Math.max(24, Math.min(a[1], b[1]) - 45)]
+        : compact ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] : edge.via;
+      const guides = !compact && edge.guides ? edge.guides : [[a[0], y], [b[0], y]];
+      strings.children[index].setAttribute("d", `M ${a.join(" ")} Q ${guides[0].join(" ")} ${x} ${y} Q ${guides[1].join(" ")} ${b.join(" ")}`);
+      Object.assign(labels[index].style, { left: `${x}px`, top: `${y}px` });
+    });
+  }
+
   return {
     root, title, index, viewport,
     dispose() { lifetime.abort(); pointers.clear(); },
     focusEvidence(id) { papers.get(id)?.body.focus({ preventScroll: true }); },
     mark,
+    /** Resolves when the images of the board are decoded (never rejects). */
+    ready: Promise.all(decodes).then(() => {}),
+    /** Forget the cached viewport size; call after a resize. */
+    invalidate() { size = null; },
     pose(id = null) {
-      const width = viewport.clientWidth;
-      const height = viewport.clientHeight;
-      const compact = matchMedia("(max-width: 699px)").matches;
+      const [width, height] = measure();
+      const compact = compactQuery.matches;
       if (!compact && root.dataset.boardView === "evidence") showView("whiteboard");
-      layout = layoutEvidence(exhibit.items, compact);
-      if (id != null) layout = { ...layout, items: layout.items.map((item) => item.id === id
-        ? { ...item, placement: { ...item.placement, height: Math.max(520, item.placement.height) } } : item) };
-      world.style.width = `${layout.width}px`;
-      world.style.height = `${layout.height}px`;
-      for (const item of layout.items) {
-        const { x, y, width: w, height: h, rotation } = item.placement;
-        Object.assign(papers.get(item.id).paper.style, {
-          left: `${x - w / 2}px`, top: `${y - h / 2}px`, width: `${w}px`, height: `${h}px`, transform: `rotate(${rotation}deg)`,
-        });
-      }
-      strings.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
-      const labels = world.querySelectorAll(".museum-edge");
-      edges.forEach((edge, index) => {
-        const a = pinPosition(layout.items.find((item) => item.id === edge.from));
-        const b = pinPosition(layout.items.find((item) => item.id === edge.to));
-        const [x, y] = edge.sourceId
-          ? [(a[0] + b[0]) / 2, Math.max(24, Math.min(a[1], b[1]) - 45)]
-          : compact ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] : edge.via;
-        const guides = !compact && edge.guides ? edge.guides : [[a[0], y], [b[0], y]];
-        strings.children[index].setAttribute("d", `M ${a.join(" ")} Q ${guides[0].join(" ")} ${x} ${y} Q ${guides[1].join(" ")} ${b.join(" ")}`);
-        Object.assign(labels[index].style, { left: `${x}px`, top: `${y}px` });
-      });
+      const key = `${compact}|${id ?? ""}`;
+      if (appliedKey !== key) applyLayout(compact, id);
       if (width < 2 || height < 2) return currentPose;
       const item = layout.items.find((item) => item.id === id);
       if (item) return focusPose(item.placement, width, height);
       return { x: layout.width / 2, y: layout.height / 2, scale: fitScale(), roll: 0 };
     },
-    setCamera(pose) {
+    /**
+     * Per-frame camera write: only the world transform. `--museum-scale`
+     * (which restyles every descendant) is written when the camera settles.
+     * Returns the constrained pose actually applied.
+     */
+    setCamera(pose, settled = false) {
+      const [width, height] = measure();
       pose = constrainPose(pose, layout.width, layout.height, fitScale());
       currentPose = pose;
-      world.style.setProperty("--museum-scale", String(pose.scale));
-      world.style.transform = `matrix(${cameraMatrix(pose, viewport.clientWidth, viewport.clientHeight).join(",")})`;
-      canvas.style.height = "100%";
+      const matrix = `matrix(${cameraMatrix(pose, width, height).join(",")})`;
+      if (matrix !== lastMatrix) {
+        world.style.transform = matrix;
+        lastMatrix = matrix;
+      }
+      if (settled) world.style.setProperty("--museum-scale", String(pose.scale));
       return pose;
     },
   };
