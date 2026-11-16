@@ -18,7 +18,7 @@ describe("globe presentation integration", () => {
     expect(museum).not.toMatch(/createDeveloperOverlay|legacyAnnotations|waypointHelp|overlay\./);
     expect(museum).toContain("adapter.release(s.snapshot)");
     expect(museum).toContain("legacy.unlock(s.original");
-    expect(museum).toContain("const INTRO_MS = 5000");
+    expect(museum).toContain("const INTRO_MS = 15000");
   });
 
   it("retains the real analysis controls and data integrations", () => {
@@ -71,7 +71,7 @@ describe("globe presentation integration", () => {
     const board = read("museum/board-view.mjs");
     expect(board).not.toMatch(/annotate\(|annotations\.mjs/);
     expect(board).toContain("for (const item of exhibit.items)");
-    expect(board).toContain("for (const edge of exhibit.edges)");
+    expect(board).toContain("for (const edge of edges)");
     expect(board).toContain('"noopener noreferrer"');
     expect(board).toContain("renderBlocks(body, item.blocks)");
     expect(board).toContain("cameraMatrix(pose");

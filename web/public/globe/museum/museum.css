@@ -40,11 +40,6 @@
   transform: translate(-13px,-50%); min-height: 37px; padding: 4px 2px;
 }
 .museum-marker--diamond.museum-marker { flex-direction: row-reverse; transform: translate(calc(-100% + 13px),-50%); }
-.museum-marker .museum-marker-label {
-  padding: 4px 8px; border: 1px solid #e8ad7f65; border-radius: 3px;
-  background: #181a1ceb; color: #fff1de; font-size: 11px; font-weight: 600;
-  box-shadow: 0 3px 10px #0008;
-}
 .museum-marker i, .museum-dock-link i {
   display: inline-block; height: 11px; width: 11px; margin: 6px;
   background: #ffd19b; border: 1px solid #fff4d4;

@@ -4,10 +4,12 @@ import { CURATED_TAGLINE } from "./curated.mjs";
 import { button, element } from "./dom.mjs";
 import { createBoard } from "./board-view.mjs";
 import { interpolatePose, travelSpec } from "./board-camera.mjs";
-import { clamp, mix, reducedMotion, tween } from "./motion.mjs";
+import { mix, reducedMotion, tween } from "./motion.mjs";
+import { startCountdown } from "./readiness.mjs";
+import { createWaypointTooltip } from "./waypoint-tooltip.mjs";
 import { initial, reduce, Stage } from "./state.mjs";
 
-const INTRO_MS = 5000;
+const INTRO_MS = 15000;
 
 export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   const mock = exhibits.filter(({ isMock }) => isMock);
@@ -30,11 +32,8 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     const shape = element("i");
     marker.setAttribute("aria-label", `${exhibit.title}. ${exhibit.isMock ? "Fictional exhibit" : "Event"}${exhibit.approximate ? ", approximate location" : ""}`);
     shape.setAttribute("aria-hidden", "true");
-    // Etiqueta: nombre en una línea y, si la posición es aproximada, una segunda línea más chica.
-    const label = element("span", "museum-marker-label");
-    label.append(element("span", "museum-marker-name", exhibit.isMock ? `${exhibit.short} · Fictional` : exhibit.short));
-    if (exhibit.approximate) label.append(element("small", "museum-marker-note", "approximate location"));
-    marker.append(shape, label);
+    // Tooltip de su propio mecanismo (waypoint-tooltip.mjs): título completo, desplazable si no entra, y fuera de pantalla nunca.
+    marker.append(shape, createWaypointTooltip(marker, exhibit, signal));
     const link = button(`museum-dock-link museum-marker--${exhibit.marker}`, "", (event) => {
       select(exhibit, event.currentTarget);
     });
@@ -76,16 +75,6 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
       if (!coordinates) continue;
       // `translate` (with left/top fixed at 0 in CSS) moves the marker without triggering layout.
       marker.style.translate = `${coordinates.x}px ${coordinates.y}px`;
-      // Mantiene la etiqueta dentro de la pantalla: el ancho se mide una vez (y de nuevo tras un resize).
-      const label = marker.lastElementChild;
-      const width = record.labelWidth ||= label.offsetWidth;
-      const left = coordinates.x - width / 2;
-      const right = coordinates.x + width / 2;
-      const shift = left < 8 ? 8 - left : right > innerWidth - 8 ? innerWidth - 8 - right : 0;
-      if (shift !== record.labelShift) {
-        label.style.setProperty("--label-shift", `${Math.round(shift)}px`);
-        record.labelShift = shift;
-      }
       marker.classList.toggle("is-selected", Boolean(session));
       marker.disabled = Boolean(session);
     }
@@ -118,12 +107,12 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     const progress = element("div", "museum-countdown");
     const bar = element("i");
     progress.setAttribute("role", "progressbar");
-    progress.setAttribute("aria-label", "Automatic entry in five seconds");
+    progress.setAttribute("aria-label", "Automatic entry in fifteen seconds");
     progress.setAttribute("aria-valuemin", "0");
-    progress.setAttribute("aria-valuemax", "5");
+    progress.setAttribute("aria-valuemax", "15");
     progress.setAttribute("aria-valuenow", "0");
     progress.append(bar);
-    const countdown = element("p", "museum-countdown-label", "Auto-start in 5 s");
+    const countdown = element("p", "museum-countdown-label", "Auto-start in 15 s");
     const actions = element("div", "museum-preview-actions");
     const timer = element("div", "museum-preview-timer");
     timer.append(countdown, progress);
@@ -139,8 +128,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     );
     intro.hidden = false;
     intro.inert = false;
-    start.focus({ preventScroll: true });
-    return { progress, bar, countdown };
+    return { progress, bar, countdown, start };
   }
 
   function frameAnchor() {
@@ -169,6 +157,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   }
 
   function clearCountdown(s) {
+    s.cancelCountdown?.();
     clearTimeout(s.timer);
     cancelAnimationFrame(s.counterFrame);
   }
@@ -198,8 +187,9 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     try {
       s.board = createBoard(s.exhibit, {
         select: (id) => dispatch({ type: "focus", id }),
-        overview: () => dispatch({ type: "focus", id: null }),
+        overview: () => dispatch({ type: "focus", id: null, force: true }),
         step,
+        navigate: (pose) => dispatch({ type: "navigate", pose }),
       });
       s.board.root.inert = true;
       root.insertBefore(s.board.root, exit);
@@ -241,7 +231,8 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         exit.hidden = false;
         exit.disabled = false;
         exit.textContent = "← Back to globe";
-        const { progress, bar, countdown } = fillIntro(s.exhibit);
+        s.preview = fillIntro(s.exhibit);
+        intro.style.visibility = "hidden";
         presentation(0, 1);
         live.textContent = `Approaching ${s.exhibit.title}`;
         // The intro does not move during the approach: measure its frame once, not per frame.
@@ -250,34 +241,28 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         motion(780, (t) => { approach(t); refreshSoon(); },
           (token) => dispatch({ type: "arrived", ...token }));
 
-        s.counterFrame = requestAnimationFrame((start) => {
-          const token = { session: state.session };
-          const deadline = start + INTRO_MS;
-          const expire = () => dispatch({ type: "start", ...token });
-          let shown = -1;
-          function tick(now) {
-            const elapsed = clamp(now - start, 0, INTRO_MS);
-            bar.style.transform = `scaleX(${elapsed / INTRO_MS})`;
-            // Text and ARIA only change once per second; rewriting them every frame dirties layout.
-            const second = Math.floor(elapsed / 1000);
-            if (second !== shown) {
-              shown = second;
-              progress.setAttribute("aria-valuenow", String(second));
-              countdown.textContent = `Auto-start in ${Math.ceil((INTRO_MS - elapsed) / 1000)} s`;
-            }
-            if (elapsed === INTRO_MS) expire();
-            else s.counterFrame = requestAnimationFrame(tick);
-          }
-          s.timer = setTimeout(expire, Math.max(0, deadline - performance.now()));
-          tick(start);
-        });
-
         break;
       }
-      case "arrived":
+      case "arrived": {
         // The camera is idle and the intro stays up for a while: build the board now.
         scheduleBoard(s);
+        intro.style.visibility = "visible";
+        s.preview.start.focus({ preventScroll: true });
+        s.counterFrame = requestAnimationFrame(() => {
+          if (session !== s || state.stage !== Stage.intro) return;
+          let shown = -1;
+          s.cancelCountdown = startCountdown(INTRO_MS, (elapsed) => {
+            s.preview.bar.style.transform = `scaleX(${elapsed / INTRO_MS})`;
+            // Text and ARIA only change once per second; rewriting them every frame dirties layout.
+            const second = Math.floor(elapsed / 1000);
+            if (second === shown) return;
+            shown = second;
+            s.preview.progress.setAttribute("aria-valuenow", String(second));
+            s.preview.countdown.textContent = `Auto-start in ${Math.ceil((INTRO_MS - elapsed) / 1000)} s`;
+          }, () => { if (session === s) dispatch({ type: "start", session: state.session }); });
+        });
         break;
+      }
       case "start": {
         clearCountdown(s);
         intro.inert = true;
@@ -321,6 +306,11 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         }, (token) => dispatch({ type: "settle", ...token }));
         break;
       }
+      case "navigate":
+        s.cancelMotion?.();
+        s.pose = s.board.setCamera(event.pose, true);
+        s.board.mark(state.target, true);
+        break;
       case "settle":
         s.board.setCamera(s.pose, true);
         s.board.mark(state.target, true);
@@ -360,6 +350,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
       }
       case "restored":
         adapter.release(s.snapshot);
+        s.board?.dispose();
         s.board?.root.remove();
         intro.hidden = true;
         intro.replaceChildren();
@@ -375,7 +366,6 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   }
 
   const onResize = () => {
-    for (const record of markerRecords) record.labelWidth = 0;
     session?.board?.invalidate();
     if (session?.board && [Stage.board, Stage.evidence].some((stage) => stage === state.stage)) {
       session.pose = session.board.pose(state.target);
@@ -454,6 +444,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         adapter.release(session.snapshot);
         legacy.unlock(session.original, session.snapshot.controls.autoRotate);
       }
+      session?.board?.dispose();
       root.remove();
       document.body.classList.remove("has-museum");
     },

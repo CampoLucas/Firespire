@@ -1,7 +1,7 @@
 import { button, element } from "./dom.mjs";
 import { reducedMotion, tween } from "./motion.mjs";
 
-export function mountHud({ globe, adapter, controls, onChange, onInteract = () => {} }) {
+export function mountHud({ globe, adapter, controls, readiness, onChange }) {
   const find = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
   const hero = find("hero");
   const nav = find("world-nav");
@@ -11,11 +11,12 @@ export function mountHud({ globe, adapter, controls, onChange, onInteract = () =
   const entry = /** @type {HTMLButtonElement} */ (find("hero-entry"));
   const next = /** @type {HTMLButtonElement} */ (find("continue"));
   let active = "explore";
-  let entranceTimer;
   let entering = false;
   let pending = "explore";
   let cancelMotion = () => {};
   const world = adapter.capture();
+  const worldPov = globe.pointOfView();
+  controls.autoRotate = false;
 
   const filters = panels.calendar.querySelector(".ctrls");
   const advanced = element("details", "display-settings");
@@ -48,8 +49,6 @@ export function mountHud({ globe, adapter, controls, onChange, onInteract = () =
         else trigger.removeAttribute("aria-current");
       }
     }
-    // abrir cualquier panel cuenta como ver información: detiene la rotación automática
-    if (name !== "explore") onInteract();
     if (document.body.dataset.experience === "world") {
       window.dispatchEvent(new Event("resize"));
       if (restoreFocus) nav.querySelector("button")?.focus();
@@ -64,16 +63,16 @@ export function mountHud({ globe, adapter, controls, onChange, onInteract = () =
 
   function enter(name = "explore") {
     pending = name;
-    if (entering || document.body.dataset.experience !== "hero") return;
+    if (entering || readiness.status !== "ready" || document.body.dataset.experience !== "hero") return;
     entering = true;
-    clearTimeout(entranceTimer);
+    cancelMotion();
     document.body.dataset.experience = "entering";
     hero.inert = true;
     nav.inert = true;
-    const sample = adapter.sampleTo(world, () => [0, 0]);
+    const sample = adapter.orbitTo(worldPov, () => [0, 0], 2);
     cancelMotion = tween(reducedMotion() ? 0 : 1070, sample, () => {
       adapter.release(world);
-      controls.autoRotate = world.controls.autoRotate;
+      controls.autoRotate = false;
       hero.hidden = true;
       nav.inert = false;
       document.body.dataset.experience = "world";
@@ -81,22 +80,32 @@ export function mountHud({ globe, adapter, controls, onChange, onInteract = () =
       if (pending === "explore") find("recenter").focus({ preventScroll: true });
       else panels[pending].querySelector("button")?.focus({ preventScroll: true });
       onChange();
-    });
-  }
-
-  function schedule() {
-    clearTimeout(entranceTimer);
-    if (!mobile.matches && document.body.dataset.experience === "hero") entranceTimer = setTimeout(() => enter(), 4800);
+    }, (t) => t);
   }
 
   adapter.acquire(world);
   heroPose();
+  let introduced = false;
   setHud("explore");
-  entry.disabled = next.disabled = false;
+  const unsubscribe = readiness.subscribe(() => {
+    if (!introduced && !entering && readiness.isComplete("earth") && readiness.isComplete("globe") && readiness.status !== "error") {
+      introduced = true;
+      const destination = { ...globe.pointOfView() };
+      adapter.sampleTo(adapter.altitudePose({ ...destination, lng: destination.lng - 100 }), () => mobile.matches ? [-.09, -.28] : [-.11, -.03])(1);
+      const intro = adapter.orbitTo(destination, () => mobile.matches ? [-.09, -.28] : [-.11, -.03]);
+      cancelMotion = tween(reducedMotion() ? 0 : 2600, intro, () => {}, (t) => t);
+    }
+    const ready = readiness.status === "ready";
+    entry.disabled = next.disabled = !ready;
+    document.body.dataset.readiness = readiness.status;
+    find("hero-status").textContent = ready ? "Ready to go" : readiness.status === "error" ? "Unable to load the experience" : "Loading Experience";
+    find("hero-detail").textContent = ready ? "Start exploring the Museum of Fire" : readiness.status === "error" ? readiness.error : "Preparing the globe and real fire activity";
+    find("hero-retry").hidden = readiness.status !== "error";
+  });
   entry.addEventListener("click", () => enter());
   next.addEventListener("click", () => enter());
   hero.addEventListener("click", (event) => {
-    if (!mobile.matches && event.target instanceof Element && !event.target.closest("button")) enter();
+    if (!mobile.matches && event.target instanceof Element && !event.target.closest("button") && readiness.status === "ready") enter();
   });
   for (const trigger of triggers) trigger.addEventListener("click", () => {
     const name = trigger.getAttribute("data-hud") || "explore";
@@ -149,13 +158,12 @@ export function mountHud({ globe, adapter, controls, onChange, onInteract = () =
   const observer = new MutationObserver(relocateDock);
   observer.observe(document.body, { childList: true });
   relocateDock();
-  mobile.addEventListener("change", () => { if (!entering && document.body.dataset.experience === "hero") heroPose(); schedule(); });
-  window.addEventListener("resize", () => { if (!entering && document.body.dataset.experience === "hero") heroPose(); });
+  mobile.addEventListener("change", () => { if (!entering && document.body.dataset.experience === "hero") { cancelMotion(); heroPose(); } });
+  window.addEventListener("resize", () => { if (!entering && document.body.dataset.experience === "hero") { cancelMotion(); heroPose(); } });
   document.querySelector(".logo")?.addEventListener("click", (event) => {
     event.preventDefault();
     if (document.body.dataset.experience === "hero") enter();
     else if (!adapter.leased) setHud("explore");
   });
-  schedule();
-  return { dispose() { clearTimeout(entranceTimer); cancelMotion(); observer.disconnect(); } };
+  return { dispose() { unsubscribe(); cancelMotion(); observer.disconnect(); } };
 }

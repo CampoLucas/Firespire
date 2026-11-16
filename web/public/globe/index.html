@@ -9,13 +9,12 @@
 <link rel="stylesheet" href="/globe/design/fonts.css">
 <link rel="stylesheet" href="/globe/design/icons.css">
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link rel="preload" as="image" href="/globe/textures/earth-bmng-8k.jpg">
+<link rel="preload" as="image" href="/globe/textures/earth-bmng-8k.jpg" crossorigin>
 <link rel="stylesheet" href="/globe/controls.css">
 <link rel="stylesheet" href="/globe/museum/museum.css">
 <link rel="stylesheet" href="/globe/presentation.css">
 </head>
 <body data-experience="hero">
-<div id="load" role="status">Loading fire hotspots…</div>
 <div id="busy" role="status" hidden>Loading year…</div>
 <div id="globe"></div>
 <div id="tip" hidden></div>
@@ -31,7 +30,8 @@
   </nav>
 </header>
 <section id="hero" aria-labelledby="hero-title">
-  <div class="hero-copy"><h1 id="hero-title">Museum of Fire</h1><div class="red-rule" aria-hidden="true"></div><p class="hero-description">A digital museum of wildfires,<br> evidence and environmental impact.</p><button type="button" id="hero-entry" class="loading-entry" disabled><span class="loading-ring" aria-hidden="true"></span><span>Loading experiences…<small>Auto-zooming to Argentina</small></span></button></div>
+  <div class="hero-copy"><h1 id="hero-title">Museum of Fire</h1><div class="red-rule" aria-hidden="true"></div><p class="hero-description">A digital museum of wildfires,<br> evidence and environmental impact.</p><button type="button" id="hero-entry" class="loading-entry" disabled><span class="loading-ring" aria-hidden="true"></span><span><span id="hero-status" role="status" aria-live="polite">Loading Experience</span><small id="hero-detail">Preparing the globe and real fire activity</small></span></button></div>
+  <button type="button" id="hero-retry" class="cta" hidden>Retry loading</button>
   <button type="button" id="continue" class="cta continue" disabled>Tap to continue <i data-icon="arrow-right" aria-hidden="true"></i></button>
 </section>
 <div class="globe-tools" id="globe-tools" aria-label="Globe controls"><button type="button" id="zoom-in" aria-label="Zoom in"><i data-icon="plus" aria-hidden="true"></i></button><button type="button" id="zoom-out" aria-label="Zoom out"><i data-icon="minus" aria-hidden="true"></i></button><button type="button" id="recenter" aria-label="Recenter on Argentina"><i data-icon="locate-fixed" aria-hidden="true"></i></button></div>
@@ -51,7 +51,7 @@
 
 <div class="panel" id="tbar" hidden role="toolbar" aria-label="Affected-area display">
   <div class="seg" id="fMode" title="Display mode">
-    <button data-v="hex" aria-pressed="true">⬡ Hexagons</button><button data-v="heat" aria-pressed="false">Heat map</button><button data-v="area" aria-pressed="false">Areas</button></div>
+    <button data-v="hex" aria-pressed="false">⬡ Hexagons</button><button data-v="heat" aria-pressed="true">Heat map</button><button data-v="area" aria-pressed="false">Areas</button></div>
   <div class="seg" id="fShape" title="Area shape" hidden>
     <button data-v="hexb" aria-pressed="true">Hex edge</button><button data-v="cent" aria-pressed="false">Centers</button><button data-v="smooth" aria-pressed="false">Smooth</button><button data-v="hull" aria-pressed="false">Convex</button></div>
   <label class="gs"><span class="l">Grid</span><input type="range" id="fRes" min="2" max="5" step="1" value="5" aria-label="Hexagonal grid size"><span id="resLbl"></span></label>
@@ -60,8 +60,6 @@
     <div class="panel" id="gearPop" hidden>
       <div class="f"><span class="l">Base map</span>
         <div class="seg" id="fBase"><button data-v="stylized" aria-pressed="true">Illustrated</button><button data-v="/globe/textures/earth-bmng-8k.jpg" aria-pressed="false">Satellite</button><button data-v="earth-dark.jpg" aria-pressed="false">Dark</button><button data-v="earth-night.jpg" aria-pressed="false">Night</button></div></div>
-      <label class="chk"><input type="checkbox" id="rot" checked> Auto-rotate</label>
-      <p class="note" style="margin:0">Stops on your first interaction and while a panel is open.</p>
     </div>
   </div>
 </div>
@@ -102,17 +100,30 @@
 </section>
 
 <!-- Librerías visuales (CDN). Los datos de focos se leen solo de la carpeta local data/ -->
-<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+<script>
+window.addEventListener("error",event=>{
+  if(document.body.dataset.experience==="world")return;
+  if(!event.error&&!event.target?.matches?.("script[data-required]"))return;
+  document.getElementById("hero-status").textContent="Unable to load the experience";
+  document.getElementById("hero-detail").textContent="A required resource failed. Retry loading to restore the globe.";
+  document.getElementById("hero-retry").hidden=false;
+},true);
+document.getElementById("hero-retry").addEventListener("click",()=>location.reload());
+</script>
+<script data-required src="https://cdn.jsdelivr.net/npm/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
+<script data-required src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
 <script src="/globe/data/years.js"></script>
 <script src="/globe/data/provincias.js"></script>
-<script src="/globe/design/earth-texture.js"></script>
+<script data-required src="/globe/design/earth-texture.js"></script>
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.151.3/build/three.module.js";
 
 import { createGlobeAdapter } from "/globe/museum/globe-adapter.mjs";
 import { mountHud } from "/globe/museum/hud.mjs";
+import { createReadiness } from "/globe/museum/readiness.mjs";
+import { createEarthView } from "/globe/museum/earth-view.mjs";
 import { stepPeriod } from "/globe/calendar-nav.mjs";
+const readiness=createReadiness(["globe","earth","activity","museum","fonts"]);
 
 const MES=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DEBUG=/[?&]debug=1/.test(location.search);
@@ -125,7 +136,7 @@ function ramp(t){
   return `rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*u)).join(",")})`;
 }
 // 5 capas discretas de intensidad (0 = baja … 4 = máxima); la 4 se dibuja arriba
-const LAYER_COL=["#1bc588","#d3cf27","#e3881e","#f25050","#c2222f"];
+const LAYER_COL=["#f9dd38","#f5b32e","#ed8325","#ef4b35","#c2222f"];
 const LAYER_LINE=["#158c62","#a1a023","#b36b19","#c43c3c","#ffffff"];
 const AREA_FILL=LAYER_COL.map(h=>{const [r,g,b]=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return `rgba(${r},${g},${b},.55)`});
 const fmt=n=>Math.round(n).toLocaleString("en-US");
@@ -133,7 +144,7 @@ const $=id=>document.getElementById(id);
 
 // end = día ancla del período; scale define el período (semana/mes/año); day = un día puntual elegido
 const st={year:YEARS[YEARS.length-1],conf:0,dn:"all",prov:-1,end:0,scale:"week",day:null,
-          res:5,layers:[true,true,true,true,true],mode:"hex",shape:"hexb"};
+          res:5,layers:[true,true,true,true,true],mode:"heat",shape:"hexb"};
 let C,N,ND,start,Y;
 
 const dateOf=d=>new Date(Date.UTC(st.year,0,1+d));
@@ -148,7 +159,7 @@ const ALT=.001;
 function hexGeo(r,id){
   const D=HX[r];let g=D.geo[id];if(g)return g;
   const s=D.str[id],b=h3.cellToBoundary(s),[clat,clng]=h3.cellToLatLng(s);
-  const c=globe.getCoords(clat,clng,ALT),pts=b.map(([la,ln])=>globe.getCoords(la,ln,ALT));
+  const c=globe.getCoords(clat,clng,ALT),pts=b.map(([la,ln])=>globe.getCoords(clat+(la-clat)*1.08,clng+(ln-clng)*1.08,ALT));
   const pos=new Float32Array(pts.length*9);
   for(let k=0;k<pts.length;k++){
     const p=pts[k],q=pts[(k+1)%pts.length],o=k*9;
@@ -248,12 +259,11 @@ const TEX="https://unpkg.com/three-globe@2.27.2/example/img/";
 const provPaths=[];
 PROVINCIAS.forEach((p,i)=>p.geo.coordinates.forEach(poly=>poly.forEach(ring=>provPaths.push({kind:"p",i,pts:ring}))));
 let globeReady=false,museumUI=null;
-const globe=Globe()(el)
-  .onGlobeReady(()=>{globeReady=true;museumUI?.refresh()})
+const globe=Globe({animateIn:false})(el)
+  .onGlobeReady(()=>{globeReady=true;readiness.complete("globe");museumUI?.refresh()})
   .globeImageUrl(window.EARTH_MAP)
-  .bumpImageUrl(TEX+"earth-topology.png")
   .backgroundColor("rgba(0,0,0,0)")
-  .atmosphereColor("#c0f3ed").atmosphereAltitude(.15)
+  .atmosphereColor("#c0f3ed").atmosphereAltitude(.08)
   // líneas finas: contornos de provincias
   .pathPoints("pts").pathPointLat(p=>p[1]).pathPointLng(p=>p[0]).pathPointAlt(.0015)
   .pathColor(d=>d.i===st.prov?"rgba(240,239,236,.95)":"rgba(240,239,236,.22)")
@@ -267,9 +277,13 @@ const globe=Globe()(el)
   .polygonsTransitionDuration(0);
 globe.pointOfView({lat:-38,lng:-64,altitude:1.9},0);
 globe.renderer().setPixelRatio(Math.min(devicePixelRatio,2));
-const ctl=globe.controls();ctl.autoRotate=true;ctl.autoRotateSpeed=.35;ctl.enableDamping=true;
+const ctl=globe.controls();ctl.autoRotate=false;ctl.enableDamping=true;
 const cameraAdapter=createGlobeAdapter(globe,ctl,THREE,el);
 ctl.addEventListener("start",()=>cameraAdapter.cancelFlight());
+const activityRoot=new THREE.Group();
+activityRoot.name="FIRMS geographic layers";
+globe.customThreeObject(()=>activityRoot).customThreeObjectUpdate(()=>{}).customLayerData([{}]);
+let earthView;
 function setPaths(){globe.pathsData(provPaths)}
 setPaths();
 
@@ -283,7 +297,7 @@ const meshes=LAYER_COL.map((col,L)=>{
     polygonOffset:true,polygonOffsetFactor:-1-L,polygonOffsetUnits:-1-L});
   const mesh=new THREE.Mesh(geo,mat);
   mesh.renderOrder=10+L;mesh.frustumCulled=false;
-  globe.scene().add(mesh);
+  activityRoot.add(mesh);
   return mesh;
 });
 function fillLayer(L,list){
@@ -371,16 +385,19 @@ function drawMode(){
 }
 
 // ---- Mapa de calor (globe.gl 2.27 no trae capa de heatmap) ----
-const HB={x0:-76,x1:-52,y0:-56,y1:-21},HPX=.04;
+const HB={x0:-76,x1:-52,y0:-56,y1:-21},HPX=.02;   // grados por píxel del canvas (antes .04)
 const HW=Math.round((HB.x1-HB.x0)/HPX),HH=Math.round((HB.y1-HB.y0)/HPX);
 const hcv=document.createElement("canvas");hcv.width=HW;hcv.height=HH;
 const hctx=hcv.getContext("2d"),himg=hctx.createImageData(HW,HH),hden=new Float32Array(HW*HH);
 const LUT=new Uint8ClampedArray(256*3);
-for(let i=0;i<256;i++){const m=ramp(i/255).match(/\d+/g).map(Number);LUT.set(m,i*3)}
+for(let i=0;i<256;i++){const t=i/255,a=t<.5?[255,219,46]:[243,133,30],b=t<.5?[243,133,30]:[205,35,36],u=t<.5?t*2:(t-.5)*2;LUT.set(a.map((v,k)=>Math.round(v+(b[k]-v)*u)),i*3)}
 const heatTex=new THREE.CanvasTexture(hcv);
+// Filtrado explícito: mipmaps al alejar, bilineal al acercar, anisotropía para ver el globo en ángulo
+heatTex.generateMipmaps=true;heatTex.minFilter=THREE.LinearMipmapLinearFilter;heatTex.magFilter=THREE.LinearFilter;
+heatTex.anisotropy=globe.renderer().capabilities.getMaxAnisotropy();
 const heatMesh=(()=>{
   // parche de esfera construido con globe.getCoords → misma orientación que el globo
-  const SX=72,SY=105,pos=[],uv=[],idx=[];
+  const SX=96,SY=140,pos=[],uv=[],idx=[];
   for(let j=0;j<=SY;j++)for(let i=0;i<=SX;i++){
     const lng=HB.x0+(HB.x1-HB.x0)*i/SX,lat=HB.y0+(HB.y1-HB.y0)*j/SY,p=globe.getCoords(lat,lng,.0012);
     pos.push(p.x,p.y,p.z);uv.push(i/SX,j/SY);
@@ -392,12 +409,15 @@ const heatMesh=(()=>{
   g.setIndex(idx);
   const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:heatTex,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
   m.renderOrder=9;m.frustumCulled=false;m.visible=false;
-  globe.scene().add(m);return m;
+  activityRoot.add(m);return m;
 })();
 function drawHeat(lists){
+  const t0=performance.now();
   hden.fill(0);
-  const D=HX[st.res],edgeKm=h3.getHexagonEdgeLengthAvg(st.res,"km"),rKm=edgeKm*1.6;
-  const ry=Math.max(2,rKm/111/HPX),ref=Math.sqrt(Math.max(1,curBreaks[3]));
+  let peak=1;
+  const D=HX[st.res],edgeKm=h3.getHexagonEdgeLengthAvg(st.res,"km"),rKm=edgeKm*2.0;
+  // radio = 2 × el lado del hexágono: se lee a escala país sin fundir todo en una mancha; mínimo 4 px
+  const ry=Math.max(4,rKm/111/HPX),ref=Math.sqrt(Math.max(1,curBreaks[3]));
   for(let L=0;L<5;L++){
     if(!st.layers[L])continue;
     for(const o of lists[L]){
@@ -407,17 +427,21 @@ function drawHeat(lists){
       const x0=Math.max(0,Math.floor(cx-rx)),x1=Math.min(HW-1,Math.ceil(cx+rx)),y0=Math.max(0,Math.floor(cy-ry)),y1=Math.min(HH-1,Math.ceil(cy+ry));
       for(let y=y0;y<=y1;y++){
         const dy=(y-cy)/ry,dy2=dy*dy,row=y*HW;
-        for(let x=x0;x<=x1;x++){const dx=(x-cx)/rx,d2=dx*dx+dy2;if(d2<1)hden[row+x]+=w*(1-d2)*(1-d2)}
+        for(let x=x0;x<=x1;x++){const dx=(x-cx)/rx,d2=dx*dx+dy2;if(d2<1){const f=1-d2,v=hden[row+x]+w*f*f;hden[row+x]=v;if(v>peak)peak=v}}
       }
     }
   }
   const px=himg.data;
+  const cut=.0006*peak,inv=1/peak;   // t<.05 con t=(d/pico)^.4 ⇔ d<.0006·pico: se descarta sin calcular la potencia
   for(let i=0,n=HW*HH;i<n;i++){
-    const t=Math.min(1,Math.sqrt(hden[i]));
-    if(t<.03){px[i*4+3]=0;continue}
-    const k=(t*255|0)*3;px[i*4]=LUT[k];px[i*4+1]=LUT[k+1];px[i*4+2]=LUT[k+2];px[i*4+3]=Math.min(235,40+t*260);
+    const d=hden[i];
+    if(d<cut){px[i*4+3]=0;continue}
+    const t=Math.min(1,Math.pow(d*inv,.4));   // exponente .4 (antes raíz cuadrada): sube lo bajo sin velar el mapa
+    // alfa con piso: lo bajo se ve sin velar el país; lo alto llega casi opaco
+    const k=(t*255|0)*3;px[i*4]=LUT[k];px[i*4+1]=LUT[k+1];px[i*4+2]=LUT[k+2];px[i*4+3]=Math.round(130+125*t);
   }
   hctx.putImageData(himg,0,0);heatTex.needsUpdate=true;
+  if(DEBUG)console.log("drawHeat ms",(performance.now()-t0).toFixed(1));
 }
 
 // ---- Áreas: un polígono por grupo conectado de la misma capa ----
@@ -658,7 +682,7 @@ document.addEventListener("click",e=>{
 });
 $("fBase").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  pressed($("fBase"),b);globe.globeImageUrl(b.dataset.v==="stylized"?window.EARTH_MAP:b.dataset.v.startsWith("/")?b.dataset.v:TEX+b.dataset.v);
+  pressed($("fBase"),b);earthView?.select(b.dataset.v,TEX);
 });
 
 // Año: 2000–2026; los años sin archivo en data/ quedan deshabilitados
@@ -736,7 +760,6 @@ function updTip(){
   tip.innerHTML=h;tip.hidden=false;
   const w=tip.offsetWidth,hh=tip.offsetHeight;
   tip.style.left=Math.min(innerWidth-w-8,mx+14)+"px";tip.style.top=Math.max(8,my-hh-10)+"px";
-  interacted();   // mirar un tooltip cuenta como ver información
   museumUI?.refresh();
 }
 el.addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;if(!tipPending&&!dragging){tipPending=true;requestAnimationFrame(updTip)}});
@@ -746,7 +769,6 @@ el.addEventListener("pointerdown",e=>{
   if(cameraAdapter.leased)return;
   downXY=[e.clientX,e.clientY];
   downWithPanel=document.body.dataset.hud!=="explore";   // este clic solo cierra el panel
-  if(!downWithPanel)interacted();
 });
 el.addEventListener("pointerup",e=>{
   if(cameraAdapter.leased||!downXY)return;const moved=Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1]);downXY=null;
@@ -758,27 +780,10 @@ el.addEventListener("pointerup",e=>{
   else if(st.prov>=0)setProv(-1);
 });
 
-// ---- Rotación: solo hasta la primera interacción en la vista del mundo ----
-// Después nunca se reanuda sola: solo vuelve a girar si se tilda "Auto-rotate".
-// Tampoco gira con un panel (Summary / Calendar / Filters) abierto.
-const rotChk=$("rot");
+// ---- Rotación: el globo no gira solo (autoRotate=false); solo se rastrea el arrastre para el tooltip ----
 let dragging=false;
-const canRotate=()=>!cameraAdapter.leased&&document.body.dataset.experience==="world"&&document.body.dataset.hud==="explore"&&rotChk.checked;
-function syncRot(){ctl.autoRotate=canRotate()}
-function interacted(){
-  if(cameraAdapter.leased||document.body.dataset.experience!=="world")return;
-  rotChk.checked=false;ctl.autoRotate=false;
-}
-ctl.addEventListener("start",()=>{dragging=true;tip.hidden=true;interacted()});
+ctl.addEventListener("start",()=>{dragging=true;tip.hidden=true});
 ctl.addEventListener("end",()=>{dragging=false});
-el.addEventListener("wheel",interacted,{passive:true});
-document.addEventListener("keydown",e=>{if(e.target===el&&["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))interacted()});
-// Cualquier control de los paneles (filtros, leyenda, calendario) o del globo cuenta como interacción
-for(const type of ["click","change","input"])document.addEventListener(type,e=>{
-  const t=e.target;
-  if(t instanceof Element&&t.closest(".panel,.globe-tools")&&!t.closest(".chk,.drawer-close"))interacted();
-});
-rotChk.addEventListener("change",syncRot);
 
 // ---- Descarga CSV de lo que muestra el globo ----
 const csvBtn=$("dlCsv");
@@ -806,8 +811,6 @@ csvBtn.addEventListener("click",()=>{
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 
-
-// ---- Depuración (?debug=1): FPS, resolución, hexágonos, triángulos ----
 if(DEBUG){
   const dbg=$("dbg");dbg.hidden=false;let fr=0,t0=performance.now();
   (function loop(t){fr++;if(t-t0>=500){
@@ -832,8 +835,6 @@ function museumLegacy(){
       panels.forEach(panel=>panel.inert=true);
       document.body.classList.add("museum-active");
       tip.hidden=true;downXY=null;dragging=false;
-      // entrar a un tablero cuenta como interacción: la rotación no vuelve al salir
-      rotChk.checked=false;ctl.autoRotate=false;
       return snapshot;
     },
     unlock(snapshot){
@@ -851,13 +852,21 @@ function museumLegacy(){
       $("gearBtn").setAttribute("aria-expanded",snapshot.gearOpen);
       for(const [node,x,y] of snapshot.scroll)node.scrollTo(x,y);
       ySel.value=st.year;tSel.value=st.prov;
-      syncRot();   // chk destildado por lock(): no reinicia la rotación
     },
   };
 }
 
 // ---- Inicio: último año, día pico ----
-loadYear(st.year).then(D=>{
+const hud=mountHud({globe,adapter:cameraAdapter,controls:ctl,readiness,onChange:()=>museumUI?.refresh()});
+Promise.resolve(document.fonts.ready).then(()=>readiness.complete("fonts")).catch(error=>readiness.fail(error));
+createEarthView(globe,THREE,window.EARTH_MAP,activityRoot).then(async view=>{
+  earthView=view;
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  globe.renderer().compile(globe.scene(),globe.camera());
+  globe.renderer().render(globe.scene(),globe.camera());
+  readiness.complete("earth");
+}).catch(error=>readiness.fail(error));
+loadYear(st.year).then(async D=>{
   useYear(st.year,D);calcDaily();st.end=peakDay();
   // vista inicial por URL (?mode=hex|heat|area&shape=hexb|cent|smooth|hull&res=2..5)
   const P=new URLSearchParams(location.search);
@@ -867,15 +876,17 @@ loadYear(st.year).then(D=>{
   $("fRes").value=st.res;
   if(["week","month","year"].includes(P.get("scale")))st.scale=P.get("scale");
   updResLbl();render();fit();
-  mountHud({globe,adapter:cameraAdapter,controls:ctl,onChange:()=>{syncRot();museumUI?.refresh();if(document.body.dataset.hud==="calendar"&&C)drawHistory()},onInteract:interacted});
-  // Los eventos curados vienen de /artifacts; si no cargan, el museo cae al catálogo ficticio.
-  Promise.all([import("/globe/museum/index.mjs"),import("/globe/museum/curated.mjs")]).then(async([{mountMuseum},{loadCuratedExhibits}])=>{
-    const exhibits=await loadCuratedExhibits();
-    museumUI=mountMuseum({exhibits,adapter:cameraAdapter,globe,controls:ctl,legacy:museumLegacy()});
-    fit();
-  }).catch(err=>console.error("Museum of Fire could not initialize",err));
-  const L=$("load");L.style.opacity=0;setTimeout(()=>L.remove(),500);
-}).catch(e=>{$("load").textContent=e.message;console.error(e)});
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  globe.renderer().compile(globe.scene(),globe.camera());
+  globe.renderer().render(globe.scene(),globe.camera());
+  readiness.complete("activity");
+}).catch(error=>readiness.fail(error));
+Promise.all([import("/globe/museum/index.mjs"),import("/globe/museum/curated.mjs")]).then(async([{mountMuseum},{loadCuratedExhibits}])=>{
+  const exhibits=await loadCuratedExhibits();
+  if(exhibits.every(exhibit=>exhibit.isMock))throw new Error("Documentary events could not be loaded. Please retry.");
+  museumUI=mountMuseum({exhibits,adapter:cameraAdapter,globe,controls:ctl,legacy:museumLegacy()});
+  readiness.complete("museum");
+}).catch(error=>readiness.fail(error));
 </script>
 </body>
 </html>

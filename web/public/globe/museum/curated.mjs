@@ -94,7 +94,7 @@ function sourceCard(event, source, index, place, version) {
     source: {
       id: source.id, name: source.publisher, date: `Published: ${date}`, url: source.url, verification: CURATED,
     },
-    link: true, placement: place,
+    link: true, placement: place, sourceRefs: /** @type {string[]} */ ([]),
     blocks: [...quote, { t: "p", text: `Original language: ${source.language}` }],
     help: {
       status: `Real source · ${source.publisher} · ${date}`,
@@ -121,7 +121,7 @@ function buildItems(event, params, version, generatedAt) {
   const bottom = placements(BOTTOM_ROW, BOTTOM_Y, 1);
   const makeId = (name) => `${event.id}--${name}`;
   const base = (name, kind, title, typeLabel, place, blocks, help) => ({
-    id: makeId(name), kind, title, isMock: NOT_MOCK, typeLabel, source: artifact, placement: place, blocks,
+    id: makeId(name), kind, title, isMock: NOT_MOCK, typeLabel, source: artifact, placement: place, blocks, sourceRefs: /** @type {string[]} */ ([]),
     help, sourceHelp: {
       status: `Computed · artifact ${version}`, role: `${artifact.name}. ${artifact.date}.`,
       retrieval: `Read from ${artifact.url}.`, relation: help.relation, limits: help.limits,
@@ -197,6 +197,8 @@ function buildItems(event, params, version, generatedAt) {
     { t: "p", text: NOT_ATTRIBUTION },
   ], computedHelp(version, "States the area, window, location basis and thresholds used for the overlap.",
     "Overlap is a spatiotemporal match only.")));
+  items[0].sourceRefs = [event.area_burned_ha?.source_id, event.cause?.source_id]
+    .filter((id) => id && event.sources.some((source) => source.id === id));
   return items;
 }
 
