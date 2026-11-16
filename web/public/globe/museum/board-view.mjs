@@ -19,7 +19,7 @@ function pinPosition({ placement: { x, y, height, rotation } }) {
   return [x + Math.sin(radians) * offset, y - Math.cos(radians) * offset];
 }
 
-function renderEvidence(item, select) {
+function renderEvidence(item, select, decodes) {
   const { x, y, width, height, rotation } = item.placement;
   const paper = element("article", `museum-paper museum-paper--${item.kind}${item.isMock ? "" : " museum-paper--curated"}`);
   paper.dataset.item = item.id;
@@ -38,6 +38,10 @@ function renderEvidence(item, select) {
     image.src = new URL(`./assets/${item.image}`, import.meta.url).href;
     image.alt = item.alt;
     image.draggable = false;
+    // Decode off the main thread before the board is shown, so the first
+    // painted frame of the opening animation does not pay for it.
+    image.decoding = "async";
+    decodes.push(image.decode().catch(() => {}));
     const fallback = element("span", "museum-image-fallback", item.alt);
     fallback.hidden = true;
     image.addEventListener("error", () => {
@@ -57,7 +61,7 @@ function renderEvidence(item, select) {
   if (item.blocks) renderBlocks(body, item.blocks);
   const source = element("footer", "museum-paper-source");
   source.append(element("b", "", item.source.name), element("span", "", item.source.date));
-  // Enlace a la fuente original: solo https, y sus eventos no deben seleccionar ni deslizar la tarjeta.
+  // Link to the original source: https only, and its events must not select or swipe the card.
   let link = null;
   if (item.link && isHttpsUrl(item.source.url)) {
     link = element("a", "museum-source-link", "Open original source");
@@ -84,7 +88,7 @@ export function createBoard(exhibit, actions) {
   root.dataset.boardView = "whiteboard";
   const header = element("header", "museum-board-header");
   header.append(element("p", "museum-kicker", exhibit.isMock
-    ? "Museum of Fires / Fictional exhibit" : "Museum of Fires / Curated event · satellite overlap, not attribution"));
+    ? "Museum of Fire / Fictional exhibit" : "Museum of Fire / Real sources · satellite overlap, not attribution"));
   const title = element("h2", "", exhibit.title);
   title.tabIndex = -1;
   header.append(title, element("p", "museum-board-location", `${exhibit.region} · ${exhibit.period}`));
@@ -95,8 +99,9 @@ export function createBoard(exhibit, actions) {
   const strings = svg("svg", { class: "museum-strings", viewBox: `0 0 ${BOARD.width} ${BOARD.height}`, "aria-hidden": "true" });
   world.append(strings);
   const papers = new Map();
+  const decodes = [];
   for (const item of exhibit.items) {
-    const record = renderEvidence(item, actions.select);
+    const record = renderEvidence(item, actions.select, decodes);
     papers.set(item.id, record);
     world.append(record.paper);
   }
@@ -205,45 +210,77 @@ export function createBoard(exhibit, actions) {
   }
 
   mark(null);
+
+  // Layout is read once and cached: pose()/setCamera() run on every animation
+  // frame and must not force a synchronous layout or rewrite the layout styles.
+  const compactQuery = matchMedia("(max-width: 699px)");
+  let size = null;
+  let layout = null;
+  let appliedCompact = null;
+  let lastMatrix = "";
+  let lastCanvasHeight = "";
+  const measure = () => size ??= [viewport.clientWidth, viewport.clientHeight];
+
+  function applyLayout(compact) {
+    layout = layoutEvidence(exhibit.items, compact);
+    appliedCompact = compact;
+    world.style.width = `${layout.width}px`;
+    world.style.height = `${layout.height}px`;
+    for (const item of layout.items) {
+      const { x, y, width: w, height: h, rotation } = item.placement;
+      Object.assign(papers.get(item.id).paper.style, {
+        left: `${x - w / 2}px`, top: `${y - h / 2}px`, width: `${w}px`, height: `${h}px`, transform: `rotate(${rotation}deg)`,
+      });
+    }
+    strings.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+    const labels = world.querySelectorAll(".museum-edge");
+    exhibit.edges.forEach((edge, index) => {
+      const a = pinPosition(layout.items.find((item) => item.id === edge.from));
+      const b = pinPosition(layout.items.find((item) => item.id === edge.to));
+      const [x, y] = compact ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] : edge.via;
+      const guides = !compact && edge.guides ? edge.guides : [[a[0], y], [b[0], y]];
+      strings.children[index].setAttribute("d", `M ${a.join(" ")} Q ${guides[0].join(" ")} ${x} ${y} Q ${guides[1].join(" ")} ${b.join(" ")}`);
+      Object.assign(labels[index].style, { left: `${x}px`, top: `${y}px` });
+    });
+  }
+
   return {
     root, title, index, viewport,
     focusEvidence(id) { papers.get(id)?.body.focus({ preventScroll: true }); },
     mark,
+    /** Resolves when the images of the board are decoded (never rejects). */
+    ready: Promise.all(decodes).then(() => {}),
+    /** Forget the cached viewport size; call after a resize. */
+    invalidate() { size = null; },
     pose(id = null) {
-      const width = viewport.clientWidth;
-      const height = viewport.clientHeight;
-      const compact = matchMedia("(max-width: 699px)").matches;
+      const [width, height] = measure();
+      const compact = compactQuery.matches;
       if (!compact && root.dataset.boardView === "evidence") showView("whiteboard");
-      const layout = layoutEvidence(exhibit.items, compact);
-      world.style.width = `${layout.width}px`;
-      world.style.height = `${layout.height}px`;
-      for (const item of layout.items) {
-        const { x, y, width: w, height: h, rotation } = item.placement;
-        Object.assign(papers.get(item.id).paper.style, {
-          left: `${x - w / 2}px`, top: `${y - h / 2}px`, width: `${w}px`, height: `${h}px`, transform: `rotate(${rotation}deg)`,
-        });
-      }
-      strings.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
-      const labels = world.querySelectorAll(".museum-edge");
-      exhibit.edges.forEach((edge, index) => {
-        const a = pinPosition(layout.items.find((item) => item.id === edge.from));
-        const b = pinPosition(layout.items.find((item) => item.id === edge.to));
-        const [x, y] = compact ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] : edge.via;
-        const guides = !compact && edge.guides ? edge.guides : [[a[0], y], [b[0], y]];
-        strings.children[index].setAttribute("d", `M ${a.join(" ")} Q ${guides[0].join(" ")} ${x} ${y} Q ${guides[1].join(" ")} ${b.join(" ")}`);
-        Object.assign(labels[index].style, { left: `${x}px`, top: `${y}px` });
-      });
+      if (appliedCompact !== compact) applyLayout(compact);
       const item = layout.items.find((item) => item.id === id);
       if (item) return focusPose(item.placement, width, height);
       if (!compact) return overviewPose(width, height);
       const scale = Math.max(.01, (width - 16) / layout.width);
       return { x: layout.width / 2, y: height / (2 * scale) - 16, scale, roll: 0 };
     },
-    setCamera(pose) {
-      world.style.setProperty("--museum-scale", String(pose.scale));
-      world.style.transform = `matrix(${cameraMatrix(pose, viewport.clientWidth, viewport.clientHeight).join(",")})`;
-      canvas.style.height = !index.value && matchMedia("(max-width: 699px)").matches
-        ? `${parseFloat(world.style.height) * pose.scale + 24}px` : "100%";
+    /**
+     * Per-frame camera write: only the world transform. `--museum-scale`
+     * (which restyles every descendant) is written when the camera settles.
+     */
+    setCamera(pose, settled = false) {
+      const [width, height] = measure();
+      const matrix = `matrix(${cameraMatrix(pose, width, height).join(",")})`;
+      if (matrix !== lastMatrix) {
+        world.style.transform = matrix;
+        lastMatrix = matrix;
+      }
+      if (settled) world.style.setProperty("--museum-scale", String(pose.scale));
+      const canvasHeight = !index.value && compactQuery.matches
+        ? `${(layout?.height ?? 0) * pose.scale + 24}px` : "100%";
+      if (canvasHeight !== lastCanvasHeight) {
+        canvas.style.height = canvasHeight;
+        lastCanvasHeight = canvasHeight;
+      }
     },
   };
 }

@@ -1,7 +1,7 @@
 import { button, element } from "./dom.mjs";
 import { reducedMotion, tween } from "./motion.mjs";
 
-export function mountHud({ globe, adapter, controls, onChange }) {
+export function mountHud({ globe, adapter, controls, onChange, onInteract = () => {} }) {
   const find = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
   const hero = find("hero");
   const nav = find("world-nav");
@@ -18,9 +18,10 @@ export function mountHud({ globe, adapter, controls, onChange }) {
   const world = adapter.capture();
 
   const filters = panels.calendar.querySelector(".ctrls");
-  if (filters) panels.filters.append(filters);
   const advanced = element("details", "display-settings");
-  advanced.append(element("summary", "", "Display settings"), find("tbar"));
+  const toolbar = find("tbar");
+  advanced.append(element("summary", "", "Display settings"), toolbar);
+  toolbar.hidden = false; // llega oculto en el HTML para que no parpadee antes de montar el HUD
   panels.filters.append(advanced);
   for (const [name, panel] of Object.entries(panels)) {
     const heading = element("header", "drawer-head");
@@ -32,6 +33,8 @@ export function mountHud({ globe, adapter, controls, onChange }) {
     heading.append(title, close);
     panel.prepend(heading);
   }
+  // Year / Country / Province van primero, justo debajo del encabezado del cajón
+  if (filters) panels.filters.querySelector(".drawer-head")?.after(filters);
 
   function setHud(name, restoreFocus = false) {
     active = name;
@@ -45,6 +48,8 @@ export function mountHud({ globe, adapter, controls, onChange }) {
         else trigger.removeAttribute("aria-current");
       }
     }
+    // abrir cualquier panel cuenta como ver información: detiene la rotación automática
+    if (name !== "explore") onInteract();
     if (document.body.dataset.experience === "world") {
       window.dispatchEvent(new Event("resize"));
       if (restoreFocus) nav.querySelector("button")?.focus();

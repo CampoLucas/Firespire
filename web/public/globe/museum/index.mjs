@@ -21,24 +21,27 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   const markers = element("div", "museum-markers");
   const dock = element("nav", "museum-dock");
   dock.setAttribute("aria-label", exhibits.every(({ isMock }) => isMock)
-    ? "Museum of Fires fictional waypoints" : "Museum of Fires curated events");
-  dock.append(element("span", "museum-dock-label", "Museum of Fires"));
+    ? "Museum of Fire fictional waypoints" : "Museum of Fire events");
+  dock.append(element("span", "museum-dock-label", "Museum of Fire"));
   const markerRecords = exhibits.map((exhibit) => {
     const marker = button(`museum-marker museum-marker--${exhibit.marker}${exhibit.approximate ? " museum-marker--approx" : ""}`, "", (event) => {
       select(exhibit, event.currentTarget);
     });
     const shape = element("i");
-    marker.setAttribute("aria-label", `${exhibit.title}. ${exhibit.isMock ? "Fictional exhibit" : "Curated event"}${exhibit.approximate ? ", approximate location" : ""}`);
+    marker.setAttribute("aria-label", `${exhibit.title}. ${exhibit.isMock ? "Fictional exhibit" : "Event"}${exhibit.approximate ? ", approximate location" : ""}`);
     shape.setAttribute("aria-hidden", "true");
-    marker.append(shape, element("span", "", exhibit.isMock ? `${exhibit.short} · Fictional`
-      : `${exhibit.short} · Curated${exhibit.approximate ? " · approximate location" : ""}`));
+    // Etiqueta: nombre en una línea y, si la posición es aproximada, una segunda línea más chica.
+    const label = element("span", "museum-marker-label");
+    label.append(element("span", "museum-marker-name", exhibit.isMock ? `${exhibit.short} · Fictional` : exhibit.short));
+    if (exhibit.approximate) label.append(element("small", "museum-marker-note", "approximate location"));
+    marker.append(shape, label);
     const link = button(`museum-dock-link museum-marker--${exhibit.marker}`, "", (event) => {
       select(exhibit, event.currentTarget);
     });
     const icon = element("i");
     icon.setAttribute("aria-hidden", "true");
     link.append(icon, document.createTextNode(exhibit.short));
-    link.setAttribute("aria-label", `${exhibit.isMock ? "Open fictional exhibit" : "Open curated event"}: ${exhibit.title}`);
+    link.setAttribute("aria-label", `${exhibit.isMock ? "Open fictional exhibit" : "Open event"}: ${exhibit.title}`);
     markers.append(marker);
     dock.append(link);
     return { exhibit, marker, link };
@@ -64,14 +67,25 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     scheduled = 0;
     const available = !session && legacy.available();
     dock.hidden = Boolean(session) || !available;
-    for (const { exhibit, marker, link } of markerRecords) {
+    for (const record of markerRecords) {
+      const { exhibit, marker, link } = record;
       link.disabled = !available;
       const show = available || (session?.exhibit === exhibit && session.introOpacity > .25);
       const coordinates = show ? adapter.project(exhibit.lat, exhibit.lng) : null;
       marker.hidden = !coordinates;
       if (!coordinates) continue;
-      marker.style.left = `${coordinates.x}px`;
-      marker.style.top = `${coordinates.y}px`;
+      // `translate` (with left/top fixed at 0 in CSS) moves the marker without triggering layout.
+      marker.style.translate = `${coordinates.x}px ${coordinates.y}px`;
+      // Mantiene la etiqueta dentro de la pantalla: el ancho se mide una vez (y de nuevo tras un resize).
+      const label = marker.lastElementChild;
+      const width = record.labelWidth ||= label.offsetWidth;
+      const left = coordinates.x - width / 2;
+      const right = coordinates.x + width / 2;
+      const shift = left < 8 ? 8 - left : right > innerWidth - 8 ? innerWidth - 8 - right : 0;
+      if (shift !== record.labelShift) {
+        label.style.setProperty("--label-shift", `${Math.round(shift)}px`);
+        record.labelShift = shift;
+      }
       marker.classList.toggle("is-selected", Boolean(session));
       marker.disabled = Boolean(session);
     }
@@ -88,8 +102,11 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     intro.style.transform = `translateY(${blend * -14}px) scale(${1 - blend * .025})`;
     const board = session.board?.root;
     if (board) {
-      board.style.opacity = String(blend);
-      board.style.visibility = blend > 0 ? "visible" : "hidden";
+      // "Warm" = painted at near-zero opacity while the intro is open, so the
+      // board is already rasterised and decoded when the opening starts.
+      const warm = blend === 0 && session.warm;
+      board.style.opacity = warm ? ".001" : String(blend);
+      board.style.visibility = blend > 0 || warm ? "visible" : "hidden";
     }
     refreshSoon();
   }
@@ -112,7 +129,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     timer.append(countdown, progress);
     actions.append(start, timer);
     intro.replaceChildren(
-      element("p", "museum-kicker", `Museum of Fires / ${exhibit.origin}`),
+      element("p", "museum-kicker", `Museum of Fire / ${exhibit.origin}`),
       heading,
       element("p", "museum-intro-location", `${exhibit.region} · ${exhibit.period}`),
       element("p", "museum-intro-summary", exhibit.summary),
@@ -128,7 +145,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
 
   function frameAnchor() {
     const rect = intro.getBoundingClientRect();
-    const portrait = matchMedia("(max-width: 720px) and (orientation: portrait)").matches;
+    const portrait = matchMedia("(max-width: 699px) and (orientation: portrait)").matches;
     if (portrait) return [0, .5 - (Math.max(60, rect.top) + 62) / (2 * innerHeight)];
     return [.5 - Math.max(40, rect.left) / (2 * innerWidth), 0];
   }
@@ -156,6 +173,52 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
     cancelAnimationFrame(s.counterFrame);
   }
 
+  function cancelBoardBuild(s) {
+    if (s.buildHandle == null) return;
+    if (s.buildIdle) cancelIdleCallback(s.buildHandle);
+    else clearTimeout(s.buildHandle);
+    s.buildHandle = null;
+  }
+
+  function scheduleBoard(s) {
+    if (s.board || s.buildHandle != null) return;
+    const build = () => {
+      s.buildHandle = null;
+      if (session === s && state.stage === Stage.intro) ensureBoard(s);
+    };
+    s.buildIdle = typeof requestIdleCallback === "function";
+    s.buildHandle = s.buildIdle ? requestIdleCallback(build, { timeout: 600 }) : setTimeout(build, 60);
+  }
+
+  /** Builds and mounts the board once per session; returns it, or null if it failed. */
+  function ensureBoard(s) {
+    if (s.board) return s.board;
+    if (session !== s || s.boardFailed) return null;
+    cancelBoardBuild(s);
+    try {
+      s.board = createBoard(s.exhibit, {
+        select: (id) => dispatch({ type: "focus", id }),
+        overview: () => dispatch({ type: "focus", id: null }),
+        step,
+      });
+      s.board.root.inert = true;
+      root.insertBefore(s.board.root, exit);
+      s.pose = s.board.pose();
+      s.board.setCamera(s.pose, true);
+      // Painted invisibly (see presentation) so the opening does not pay for first raster.
+      s.warm = true;
+      presentation(s.blend, s.introOpacity);
+    } catch (error) {
+      console.error("Museum exhibit preparation failed", error);
+      s.boardFailed = true;
+      s.board?.root.remove();
+      s.board = null;
+      dispatch({ type: "exit" });
+      return null;
+    }
+    return s.board;
+  }
+
   function select(exhibit, trigger) {
     if (state.stage !== Stage.globe || !legacy.available()) return;
     const snapshot = adapter.capture();
@@ -181,7 +244,9 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         const { progress, bar, countdown } = fillIntro(s.exhibit);
         presentation(0, 1);
         live.textContent = `Approaching ${s.exhibit.title}`;
-        const approach = adapter.sampleTo(adapter.altitudePose(s.exhibit), frameAnchor);
+        // The intro does not move during the approach: measure its frame once, not per frame.
+        const anchor = frameAnchor();
+        const approach = adapter.sampleTo(adapter.altitudePose(s.exhibit), () => anchor);
         motion(780, (t) => { approach(t); refreshSoon(); },
           (token) => dispatch({ type: "arrived", ...token }));
 
@@ -189,11 +254,17 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
           const token = { session: state.session };
           const deadline = start + INTRO_MS;
           const expire = () => dispatch({ type: "start", ...token });
+          let shown = -1;
           function tick(now) {
             const elapsed = clamp(now - start, 0, INTRO_MS);
             bar.style.transform = `scaleX(${elapsed / INTRO_MS})`;
-            progress.setAttribute("aria-valuenow", String(Math.floor(elapsed / 1000)));
-            countdown.textContent = `Auto-start in ${Math.ceil((INTRO_MS - elapsed) / 1000)} s`;
+            // Text and ARIA only change once per second; rewriting them every frame dirties layout.
+            const second = Math.floor(elapsed / 1000);
+            if (second !== shown) {
+              shown = second;
+              progress.setAttribute("aria-valuenow", String(second));
+              countdown.textContent = `Auto-start in ${Math.ceil((INTRO_MS - elapsed) / 1000)} s`;
+            }
             if (elapsed === INTRO_MS) expire();
             else s.counterFrame = requestAnimationFrame(tick);
           }
@@ -201,30 +272,26 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
           tick(start);
         });
 
-        try {
-          s.board = createBoard(s.exhibit, {
-            select: (id) => dispatch({ type: "focus", id }),
-            overview: () => dispatch({ type: "focus", id: null }),
-            step,
-          });
-          s.board.root.inert = true;
-          root.insertBefore(s.board.root, exit);
-          s.pose = s.board.pose();
-          s.board.setCamera(s.pose);
-        } catch (error) {
-          console.error("Museum exhibit preparation failed", error);
-          dispatch({ type: "exit" });
-        }
         break;
       }
+      case "arrived":
+        // The camera is idle and the intro stays up for a while: build the board now.
+        scheduleBoard(s);
+        break;
       case "start": {
         clearCountdown(s);
         intro.inert = true;
-        const dive = adapter.sampleTo(adapter.altitudePose({ ...s.exhibit, altitude: s.exhibit.altitude * .75 }), frameAnchor);
+        // Normally built during the intro; if the user was faster, build it now.
+        if (!ensureBoard(s)) break;
+        // Layout, viewport size and the anchor are measured once. Reading them per
+        // frame forced a synchronous layout on every tick of the opening.
+        const overview = s.board.pose();
+        const anchor = frameAnchor();
+        const dive = adapter.sampleTo(adapter.altitudePose({ ...s.exhibit, altitude: s.exhibit.altitude * .75 }), () => anchor);
+        s.overview = overview;
         motion(730, (t) => {
           dive(t);
-          const overview = s.board.pose();
-          s.pose = { ...overview, scale: overview.scale * mix(.81, 1, t) };
+          s.pose = { ...s.overview, scale: s.overview.scale * mix(.81, 1, t) };
           s.board.setCamera(s.pose);
           presentation(t, 1 - t);
         }, (token) => dispatch({ type: "board", ...token }));
@@ -232,6 +299,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
       }
       case "board":
         intro.hidden = true;
+        s.board.setCamera(s.pose, true);
         s.board.root.inert = false;
         globe.pauseAnimation();
         s.paused = true;
@@ -244,16 +312,17 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
       case "focus": {
         const from = s.pose;
         const target = state.target;
-        const { duration, retreat } = travelSpec(from, s.board.pose(target), s.board.pose().scale);
+        s.dest = s.board.pose(target);
+        const { duration, retreat } = travelSpec(from, s.dest, s.board.pose().scale);
         s.board.mark(target);
         motion(duration, (t) => {
-          s.pose = interpolatePose(from, s.board.pose(target), t, retreat);
+          s.pose = interpolatePose(from, s.dest, t, retreat);
           s.board.setCamera(s.pose);
-          refreshSoon();
         }, (token) => dispatch({ type: "settle", ...token }));
         break;
       }
       case "settle":
+        s.board.setCamera(s.pose, true);
         s.board.mark(state.target, true);
         if (state.target && document.activeElement === document.body) s.board.focusEvidence(state.target);
         if (!state.target && document.activeElement === document.body) s.board.title.focus({ preventScroll: true });
@@ -263,12 +332,15 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
         break;
       case "exit": {
         clearCountdown(s);
+        cancelBoardBuild(s);
+        s.warm = false;
         intro.inert = true;
         if (s.board) s.board.root.inert = true;
         exit.textContent = "Returning to globe…";
         exit.disabled = true;
         live.textContent = exit.textContent;
         if (s.paused) globe.resumeAnimation();
+        s.paused = false;
         const blend = s.blend;
         const introOpacity = s.introOpacity;
         const from = s.pose;
@@ -303,10 +375,15 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
   }
 
   const onResize = () => {
+    for (const record of markerRecords) record.labelWidth = 0;
+    session?.board?.invalidate();
     if (session?.board && [Stage.board, Stage.evidence].some((stage) => stage === state.stage)) {
       session.pose = session.board.pose(state.target);
-      session.board.setCamera(session.pose);
+      session.board.setCamera(session.pose, true);
     }
+    // A resize mid-animation retargets the motion that is running.
+    if (session?.board && state.stage === Stage.entering) session.overview = session.board.pose();
+    if (session?.board && state.stage === Stage.travel) session.dest = session.board.pose(state.target);
     if (state.stage === Stage.intro) {
       adapter.sampleTo(adapter.altitudePose(session.exhibit), frameAnchor)(1);
     }
@@ -371,6 +448,7 @@ export function mountMuseum({ exhibits, adapter, globe, controls, legacy }) {
       cancelAnimationFrame(scheduled);
       if (session) {
         clearCountdown(session);
+        cancelBoardBuild(session);
         session.cancelMotion?.();
         if (session.paused) globe.resumeAnimation();
         adapter.release(session.snapshot);

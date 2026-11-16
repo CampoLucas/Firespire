@@ -3,7 +3,7 @@ import { validateCuratedExhibits } from "./curated-validate.mjs";
 
 export const NOT_ATTRIBUTION =
   "Overlap is not attribution: detections inside this area and period are not proven to belong to this fire.";
-export const CURATED_TAGLINE = "Curated event · real sources · satellite overlap, not attribution";
+export const CURATED_TAGLINE = "Real sources · satellite overlap, not attribution";
 
 const VERDICT = { overlap: "Overlap", weak: "Weak overlap", none: "No qualifying overlap" };
 const CAUSE = { official: "Official", reported: "Reported", unknown: "Unknown" };
@@ -47,7 +47,7 @@ function monthName(month) {
 
 function locationSentence(event) {
   if (event.location_basis === "satellite_centroid") return "Location: satellite centroid; the sources name only the region";
-  if (event.location_basis === "named_place") return "Location: named place, placed by the curator";
+  if (event.location_basis === "named_place") return "Location: placed from the named place in the sources";
   return "Location: coordinates stated in the sources";
 }
 
@@ -67,7 +67,7 @@ function causeText(event) {
 
 function artifactSource(event, version, generatedAt) {
   return {
-    id: `${event.id}--artifact`, name: `Firespire artifact ${version}`,
+    id: `${event.id}--artifact`, name: `Museum of Fire artifact ${version}`,
     date: `Generated ${String(generatedAt ?? "").slice(0, 10) || "date not stated"}`,
     url: `/artifacts/${version}/museum.json`, verification: CURATED,
   };
@@ -79,7 +79,7 @@ function computedHelp(version, role, relation) {
   return {
     status: `Computed · artifact ${version}`,
     role,
-    retrieval: `Computed by the Firespire pipeline and read from /artifacts/${version}/museum.json.`,
+    retrieval: `Computed by the Museum of Fire pipeline and read from /artifacts/${version}/museum.json.`,
     relation,
     limits: COMPUTED_LIMITS,
   };
@@ -99,16 +99,16 @@ function sourceCard(event, source, index, place, version) {
     help: {
       status: `Real source · ${source.publisher} · ${date}`,
       role: `${source.title}. The quote is copied from the original; open the original source to read it in context.`,
-      retrieval: `Curated into the event record by ${event.curated.by} (${event.curated.tool}) on ${event.curated.at.slice(0, 10)}; stored in artifact ${version}.`,
-      relation: "The source is linked to the event by the curator, not by a satellite match. FIRMS appears only on the satellite, curve and context cards.",
-      limits: "The quote shows what this source states; Firespire has not verified it independently.",
+      retrieval: `Added to the event record by ${event.curated.by} (${event.curated.tool}) on ${event.curated.at.slice(0, 10)}; stored in artifact ${version}.`,
+      relation: "The source is linked to the event through the event record, not by a satellite match. FIRMS appears only on the satellite, curve and context cards.",
+      limits: "The quote shows what this source states; Museum of Fire has not verified it independently.",
     },
     sourceHelp: {
       status: `Real source · ${source.publisher}`,
       role: `Publisher: ${source.publisher}. Publication date: ${date}. Link: ${source.url}`,
       retrieval: "Open the original source in a new tab; the link is stored in museum.json.",
       relation: "Compare the source with the satellite overlap only through the shared place and period.",
-      limits: "Publication date and URL are as recorded by the curator.",
+      limits: "Publication date and URL are as recorded in the event record.",
     },
   };
 }
@@ -137,9 +137,9 @@ function buildItems(event, params, version, generatedAt) {
   if (area) overviewRows.push(["Area burned", `${formatNumber(area.value)} ha, ${areaSource ? `according to ${areaSource.title}` : "source not identified"}`]);
   overviewRows.push(["Cause", causeText(event)]);
   const items = [
-    base("overview", "event", event.title, "Event record / curated", top[0], [
+    base("overview", "event", event.title, "Event record", top[0], [
       { t: "fields", rows: overviewRows }, { t: "p", text: event.summary },
-    ], computedHelp(version, "Event summary written by the curator from the cited sources.",
+    ], computedHelp(version, "Event summary written from the cited sources.",
       "The cause is shown only with its category and the source that states it.")),
   ];
   sources.forEach((source, i) => items.push(sourceCard(event, source, i, top[i + 1], version)));
@@ -186,12 +186,12 @@ function buildItems(event, params, version, generatedAt) {
   ], computedHelp(version, "Compares the event month with the same calendar month in other years.",
     "A high ratio says the month was busy in the area; it does not say why.")));
 
-  items.push(base("method", "method", "Method and limits", "Method / curated", bottom[3], [
+  items.push(base("method", "method", "Method and limits", "Method", bottom[3], [
     { t: "fields", rows: [
       ["Area", `${event.radius_km} km around the marker`],
       ["Window", `${match.window.start} to ${match.window.end} (event dates padded by ${params.window_pad_days} days)`],
       ["Verdict", `overlap: at least ${params.min_celldays} harmonized cell-days; weak: 1 to ${params.min_celldays - 1}; none: 0`],
-      ["Curated", `${event.curated.by} with ${event.curated.tool}, ${event.curated.at.slice(0, 10)}`],
+      ["Recorded by", `${event.curated.by} with ${event.curated.tool}, ${event.curated.at.slice(0, 10)}`],
     ] },
     { t: "p", text: locationSentence(event) },
     { t: "p", text: NOT_ATTRIBUTION },
@@ -211,7 +211,7 @@ export function mapEvent(event, params, version, generatedAt) {
   const items = buildItems(event, params, version, generatedAt);
   const location = locationSentence(event);
   return {
-    id: event.id, isMock: NOT_MOCK, marker: "square", approximate, origin: "Curated event",
+    id: event.id, isMock: NOT_MOCK, marker: "square", approximate, origin: "Real sources",
     short: `${event.province} ${year}`, title: event.title,
     region: event.place.includes(event.province) ? event.place : `${event.place}, ${event.province}`,
     lat: event.lat, lng: event.lon, altitude: approximate ? .62 : .5,
@@ -223,23 +223,23 @@ export function mapEvent(event, params, version, generatedAt) {
     items, edges: [],
     help: {
       waypoint: {
-        status: `Curated · artifact ${version}`,
+        status: `Event record · artifact ${version}`,
         role: `Marker at ${event.lat.toFixed(3)}, ${event.lon.toFixed(3)}. ${location}.${approximate ? " Drawn approximate (dashed halo)." : ""}`,
         retrieval: `Event record from /artifacts/${version}/museum.json${generatedAt ? `, generated ${generatedAt}` : ""}; ${event.sources.length} source(s) by ${[...new Set(event.sources.map(({ publisher }) => publisher))].join("; ")}.`,
         relation: `Satellite verdict: ${match.verdict}. Regime: ${regimeLabel(match)}. FIRMS is matched by distance (${event.radius_km} km) and padded dates only.`,
         limits: NOT_ATTRIBUTION,
       },
       intro: {
-        status: `Curated · artifact ${version}`,
-        role: "This panel reads the title, place, period and summary from the curated event record. Its five-second bar is a UI timer.",
-        retrieval: `Event ${event.id}, curated by ${event.curated.by} on ${event.curated.at.slice(0, 10)}.`,
+        status: `Event record · artifact ${version}`,
+        role: "This panel reads the title, place, period and summary from the event record. Its five-second bar is a UI timer.",
+        retrieval: `Event ${event.id}, recorded by ${event.curated.by} on ${event.curated.at.slice(0, 10)}.`,
         relation: `Satellite verdict: ${match.verdict}; regime: ${regimeLabel(match)}.`,
         limits: NOT_ATTRIBUTION,
       },
       board: {
-        status: `Curated · artifact ${version}`,
+        status: `Event record · artifact ${version}`,
         role: "The board lays out the event record, its cited sources and the computed satellite overlap, without linking them to each other.",
-        retrieval: "Source cards come from the curator; satellite, curve, context and method cards are computed by the pipeline.",
+        retrieval: "Source cards come from the event record; satellite, curve, context and method cards are computed by the pipeline.",
         relation: `Verdict ${match.verdict}, ${regimeLabel(match)}. Only the satellite, curve and context cards use FIRMS.`,
         limits: NOT_ATTRIBUTION,
       },

@@ -10,6 +10,16 @@ export function createGlobeAdapter(globe, ctl, THREE, canvasHost) {
   const surfaceRadius = globe.getGlobeRadius();
   let releaseFlight = () => {};
   let leased = false;
+  // getBoundingClientRect() forces a layout when styles are dirty; one read per
+  // animation frame is enough for every marker projected in that frame.
+  let hostBox = null;
+  function hostRect() {
+    if (!hostBox) {
+      hostBox = canvasHost.getBoundingClientRect();
+      requestAnimationFrame(() => { hostBox = null; });
+    }
+    return hostBox;
+  }
 
   function capture() {
     return Object.freeze({
@@ -149,7 +159,7 @@ export function createGlobeAdapter(globe, ctl, THREE, canvasHost) {
     camera.updateMatrixWorld();
     const ndc = anchor.project(camera);
     if (Math.abs(ndc.x) > 1 || Math.abs(ndc.y) > 1 || Math.abs(ndc.z) > 1) return null;
-    const rect = canvasHost.getBoundingClientRect();
+    const rect = hostRect();
     return {
       x: rect.left + (ndc.x + 1) * rect.width / 2,
       y: rect.top + (1 - ndc.y) * rect.height / 2,

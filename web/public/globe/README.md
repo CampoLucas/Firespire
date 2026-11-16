@@ -1,6 +1,6 @@
-# Globe and Museum of Fires
+# Globe and Museum of Fire
 
-Open `/globe/index.html` through the existing web application. This static frontend remains separate from the React history dashboard.
+Open `/` (a rewrite of `/globe/index.html`, which still works). This static frontend remains separate from the React history dashboard at `/history`, which the Summary panel links to. All assets are referenced with root-absolute `/globe/...` paths so both URLs load them. Layout is mobile-first: base CSS targets phones and `min-width: 700px` adds the desktop layout (the same breakpoint as `matchMedia` in `hud.mjs` and `board-view.mjs`).
 
 ## Presentation
 
@@ -9,7 +9,10 @@ Open `/globe/index.html` through the existing web application. This static front
 - Display settings include illustrated, NASA Blue Marble, dark and night basemaps. The illustrated map is decorative geography; all activity overlays still come from the existing FIRMS data.
 - Museum previews retain the five-second/manual entry sequence. Boards render the selected event's actual evidence, charts, citations and source links. Mobile provides a scrollable compact board and a complete Evidence list using the same selection actions.
 - Returning restores the original camera and analysis state. Reduced-motion preferences bypass camera travel and shorten CSS transitions.
-- Planning mode and Developer View were intentionally removed. The observed-activity alert summary and optional `?debug=1` renderer diagnostics remain.
+- Planning mode and Developer View were intentionally removed. The activity alerts (banner, pulsing rings and Alerts tab) were removed; the Summary panel shows only the KPIs and a **Download CSV** button that exports the hexagons currently shown (one row per hexagon, honouring year, province, confidence, day/night, period or selected day, visible layers and grid resolution). Optional `?debug=1` renderer diagnostics remain.
+- The default grid is H3 resolution 5 (the finest the data supports); `?res=2..5` still overrides it.
+- Auto-rotation runs only until the first interaction in the world view (drag, wheel, click, opening a panel, changing a filter or hovering a tooltip). It never resumes by itself afterwards, nor while a panel is open; re-checking **Auto-rotate** (Filters > Display settings) turns it on again.
+- Clicking a province filters by it; clicking it again, or clicking outside any province, clears the filter.
 
 ## Assets and data integrity
 

@@ -52,11 +52,11 @@ export default function HistoryView() {
         <div className={styles.brand}>
           <Logo />
           <div>
-            <h1>Firespire</h1>
+            <h1>Museum of Fire</h1>
             <p>Satellite fire hotspots in Argentina, on one consistent scale.</p>
           </div>
         </div>
-        <a className={styles.globeLink} href="/globe/index.html">
+        <a className={styles.globeLink} href="/">
           Open the fire globe
         </a>
       </header>
